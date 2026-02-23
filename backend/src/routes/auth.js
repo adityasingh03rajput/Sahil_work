@@ -135,6 +135,15 @@ authRouter.post('/verify-session', requireAuth, requireValidDeviceSession, async
   res.json({ valid: true, userId: req.userId });
 });
 
+authRouter.post('/signout', requireAuth, async (req, res, next) => {
+  try {
+    await Session.deleteOne({ userId: req.userId });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 authRouter.post('/forgot-password', async (req, res, next) => {
   try {
     const { email } = req.body || {};

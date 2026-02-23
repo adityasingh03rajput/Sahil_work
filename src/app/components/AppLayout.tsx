@@ -379,7 +379,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" data-tour-id="mobile-menu-trigger">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>

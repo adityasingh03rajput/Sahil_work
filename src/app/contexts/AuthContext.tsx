@@ -120,6 +120,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = () => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      fetch(`${apiUrl}/auth/signout`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'X-Device-ID': deviceId,
+        },
+      }).catch(() => {
+        // ignore
+      });
+    }
     setUser(null);
     setAccessToken(null);
     localStorage.removeItem('accessToken');

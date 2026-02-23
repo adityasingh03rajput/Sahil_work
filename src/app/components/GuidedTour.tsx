@@ -27,8 +27,16 @@ export function GuidedTour({
   const navigate = useNavigate();
   const location = useLocation();
 
+  const isMobile = typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false;
+
   const steps = useMemo<TourStep[]>(
     () => [
+      {
+        route: '/dashboard',
+        selector: '[data-tour-id="mobile-menu-trigger"]',
+        title: 'Menu',
+        description: 'Tap here to open the menu on mobile.',
+      },
       {
         route: '/dashboard',
         selector: '[data-tour-id="nav-dashboard"]',
@@ -269,23 +277,39 @@ export function GuidedTour({
       )}
 
       <div
-        className="absolute w-[min(360px,calc(100vw-24px))] rounded-xl border bg-white p-4 shadow-xl"
-        style={{ left: tooltipLeft, top: tooltipTop, maxWidth: tooltipMaxWidth }}
+        className={
+          isMobile
+            ? 'fixed left-3 right-3 bottom-3 w-auto rounded-2xl border bg-white p-4 shadow-2xl pb-[calc(1rem+env(safe-area-inset-bottom))]'
+            : 'absolute w-[min(360px,calc(100vw-24px))] rounded-xl border bg-white p-4 shadow-xl'
+        }
+        style={isMobile ? undefined : { left: tooltipLeft, top: tooltipTop, maxWidth: tooltipMaxWidth }}
       >
-        <div className="text-xs text-slate-500">Step {stepIndex + 1} / {total}</div>
-        <div className="mt-1 text-base font-semibold text-slate-900">{step.title}</div>
-        <div className="mt-1 text-sm text-slate-600">{step.description}</div>
+        <div className={isMobile ? 'text-[11px] text-slate-500' : 'text-xs text-slate-500'}>
+          Step {stepIndex + 1} / {total}
+        </div>
+        <div className={isMobile ? 'mt-1 text-[15px] font-semibold text-slate-900' : 'mt-1 text-base font-semibold text-slate-900'}>
+          {step.title}
+        </div>
+        <div className={isMobile ? 'mt-1 text-[13px] leading-5 text-slate-600' : 'mt-1 text-sm text-slate-600'}>
+          {step.description}
+        </div>
 
         {!targetExists && (
           <div className="mt-2 text-xs text-amber-700">Target not visible on this screen. Use Next.</div>
         )}
 
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <Button type="button" variant="outline" onClick={() => setStepIndex((i) => Math.max(0, i - 1))} disabled={isFirst}>
+        <div className={isMobile ? 'mt-4 flex flex-col gap-2' : 'mt-4 flex items-center justify-between gap-2'}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
+            disabled={isFirst}
+            className={isMobile ? 'h-10 w-full' : undefined}
+          >
             Back
           </Button>
 
-          <div className="flex gap-2">
+          <div className={isMobile ? 'flex w-full flex-col gap-2' : 'flex gap-2'}>
             {step.ctaPath && (
               <Button
                 type="button"
@@ -294,6 +318,7 @@ export function GuidedTour({
                   close();
                   navigate(step.ctaPath!);
                 }}
+                className={isMobile ? 'h-10 w-full' : undefined}
               >
                 {step.ctaLabel || 'Open'}
               </Button>
@@ -304,6 +329,7 @@ export function GuidedTour({
                 if (isLast) close();
                 else setStepIndex((i) => Math.min(total - 1, i + 1));
               }}
+              className={isMobile ? 'h-10 w-full' : undefined}
             >
               {isLast ? 'Finish' : 'Next'}
             </Button>
