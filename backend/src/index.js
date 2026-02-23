@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import { authRouter } from './routes/auth.js';
 import { profilesRouter } from './routes/profiles.js';
@@ -50,6 +52,18 @@ app.use('/subscription', subscriptionRouter);
 app.use('/analytics', analyticsRouter);
 app.use('/payments', paymentsRouter);
 app.use('/reports', reportsRouter);
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.resolve(__dirname, '../../dist');
+
+app.use(express.static(distPath));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/auth') || req.path.startsWith('/profiles') || req.path.startsWith('/documents') || req.path.startsWith('/customers') || req.path.startsWith('/suppliers') || req.path.startsWith('/items') || req.path.startsWith('/subscription') || req.path.startsWith('/analytics') || req.path.startsWith('/payments') || req.path.startsWith('/reports') || req.path.startsWith('/health')) {
+    return next();
+  }
+  return res.sendFile(path.join(distPath, 'index.html'));
+});
 
 app.use((err, _req, res, _next) => {
   // eslint-disable-next-line no-console
