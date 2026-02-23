@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -55,12 +56,21 @@ app.use('/reports', reportsRouter);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const distPath = path.resolve(__dirname, '../../dist');
+const distPathCandidates = [
+  path.resolve(__dirname, '../../dist'),
+  path.resolve(__dirname, '../../src/dist'),
+];
+const distPath = distPathCandidates.find(p => fs.existsSync(path.join(p, 'index.html')));
 
-app.use(express.static(distPath));
+if (distPath) {
+  app.use(express.static(distPath));
+}
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/auth') || req.path.startsWith('/profiles') || req.path.startsWith('/documents') || req.path.startsWith('/customers') || req.path.startsWith('/suppliers') || req.path.startsWith('/items') || req.path.startsWith('/subscription') || req.path.startsWith('/analytics') || req.path.startsWith('/payments') || req.path.startsWith('/reports') || req.path.startsWith('/health')) {
     return next();
+  }
+  if (!distPath) {
+    return res.status(500).send('Frontend build not found');
   }
   return res.sendFile(path.join(distPath, 'index.html'));
 });
