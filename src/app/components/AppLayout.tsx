@@ -21,6 +21,7 @@ import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { useState, useEffect } from 'react';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
+import { WalkthroughDialog } from './WalkthroughDialog';
 import {
   cacheSubscriptionToken,
   validateSubscriptionOffline,
@@ -36,6 +37,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const { signOut, accessToken, deviceId } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false);
   const [subscriptionWarning, setSubscriptionWarning] = useState<string | null>(null);
   const [subscriptionExpired, setSubscriptionExpired] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
@@ -189,6 +191,18 @@ export function AppLayout({ children }: AppLayoutProps) {
     run();
   }, [accessToken, deviceId, location.pathname, navigate]);
 
+  useEffect(() => {
+    if (!profileGateChecked) return;
+    if (!accessToken) return;
+
+    const profileId = readCurrentProfile()?.id;
+    if (!profileId) return;
+
+    const key = `walkthroughSeen:${profileId}`;
+    if (localStorage.getItem(key) === '1') return;
+    setWalkthroughOpen(true);
+  }, [accessToken, profileGateChecked, location.pathname]);
+
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: FileText, label: 'Documents', path: '/documents' },
@@ -242,6 +256,16 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      <WalkthroughDialog
+        open={walkthroughOpen}
+        onOpenChange={(open) => {
+          setWalkthroughOpen(open);
+          if (!open) {
+            const profileId = readCurrentProfile()?.id;
+            if (profileId) localStorage.setItem(`walkthroughSeen:${profileId}`, '1');
+          }
+        }}
+      />
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:flex-col w-64 bg-white border-r border-gray-200">
         <div className="p-6 border-b border-gray-200">
@@ -265,6 +289,15 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
 
         <div className="p-4 border-t border-gray-200 space-y-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => setWalkthroughOpen(true)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Tour
+          </Button>
           <button
             type="button"
             onClick={() => {
@@ -310,6 +343,16 @@ export function AppLayout({ children }: AppLayoutProps) {
             <FileText className="h-6 w-6 text-blue-600" />
             <h1 className="text-xl font-bold">Hukum</h1>
           </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setWalkthroughOpen(true)}
+            className="mr-2"
+          >
+            Tour
+          </Button>
           
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
@@ -339,6 +382,18 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
 
               <div className="p-4 border-t border-gray-200 space-y-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setWalkthroughOpen(true);
+                  }}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Tour
+                </Button>
                 <button
                   type="button"
                   onClick={() => {
