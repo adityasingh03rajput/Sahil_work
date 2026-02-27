@@ -530,22 +530,22 @@ export function AppLayout({ children }: AppLayoutProps) {
               )}
               {subscriptionExpired && location.pathname !== '/subscription' && location.pathname !== '/dashboard' && location.pathname !== '/welcome' && (
                 <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 p-6">
+                  <div className="w-full max-w-md bg-card text-card-foreground rounded-xl shadow-xl border border-border p-6">
                     <div className="flex items-start gap-3">
                       <AlertCircle className="h-6 w-6 text-red-600 mt-0.5" />
                       <div className="flex-1">
-                        <p className="text-lg font-semibold text-gray-900">Subscription Expired</p>
-                        <p className="text-sm text-gray-600 mt-1">
+                        <p className="text-lg font-semibold text-foreground">Subscription Expired</p>
+                        <p className="text-sm text-muted-foreground mt-1">
                           Your subscription has expired. Renew to continue using the service.
                         </p>
                         {typeof daysRemaining === 'number' && (
-                          <p className="text-xs text-gray-500 mt-2">
+                          <p className="text-xs text-muted-foreground mt-2">
                             Days remaining: {daysRemaining}
                           </p>
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-3 mt-6">
+                    <div className="flex flex-col sm:flex-row gap-3 mt-6">
                       <Button className="flex-1" onClick={() => navigate('/subscription')}>
                         Renew Now
                       </Button>
