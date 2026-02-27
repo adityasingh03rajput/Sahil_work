@@ -37,6 +37,7 @@ export function docTitleFromType(type: string) {
   if (t === 'proforma') return 'PROFORMA INVOICE';
   if (t === 'order') return 'SALES ORDER';
   if (t === 'challan') return 'DELIVERY CHALLAN';
+  if (t === 'invoice_cancellation') return 'INVOICE CANCELLATION';
   return type ? String(type).toUpperCase() : 'DOCUMENT';
 }
 

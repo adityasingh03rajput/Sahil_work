@@ -35,6 +35,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
+import { TraceLoader } from '../components/TraceLoader';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { fetchDocumentById, PDF_TEMPLATES, PdfRenderer, exportElementToPdf, type PdfTemplateId, type DocumentDto } from '../pdf';
@@ -300,14 +301,28 @@ export function DocumentsPage() {
 
   const getTypeColor = (type: string) => {
     const colors: Record<string, string> = {
-      quotation: 'bg-purple-100 text-purple-700',
+      quotation: 'bg-green-100 text-green-700',
       invoice: 'bg-blue-100 text-blue-700',
       purchase: 'bg-amber-100 text-amber-800',
       order: 'bg-green-100 text-green-700',
-      proforma: 'bg-orange-100 text-orange-700',
-      challan: 'bg-gray-100 text-gray-700',
+      proforma: 'bg-orange-100 text-orange-800',
+      challan: 'bg-muted text-muted-foreground',
+      invoice_cancellation: 'bg-red-100 text-red-700',
     };
-    return colors[type] || 'bg-gray-100 text-gray-700';
+    return colors[type] || 'bg-muted text-muted-foreground';
+  };
+
+  const getTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      quotation: 'Quotation',
+      order: 'Order',
+      proforma: 'Proforma Invoice',
+      invoice: 'Invoice',
+      challan: 'Delivery Challan',
+      purchase: 'Purchase Invoice',
+      invoice_cancellation: 'Invoice Cancellation',
+    };
+    return labels[type] || type;
   };
 
   const openPaymentDialog = (doc: any) => {
@@ -387,10 +402,7 @@ export function DocumentsPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading documents...</p>
-          </div>
+          <TraceLoader label="Loading documents..." />
         </div>
       </AppLayout>
     );
@@ -407,11 +419,11 @@ export function DocumentsPage() {
 
             <div className="space-y-4">
               <div className="rounded-md border p-3">
-                <div className="text-sm font-semibold text-gray-900">{paymentDoc?.documentNumber || '—'}</div>
-                <div className="text-xs text-gray-600 mt-1">
+                <div className="text-sm font-semibold text-foreground">{paymentDoc?.documentNumber || '—'}</div>
+                <div className="text-xs text-muted-foreground mt-1">
                   {paymentDoc?.type === 'purchase' ? 'Supplier' : 'Customer'}: {paymentDoc?.customerName || 'N/A'}
                 </div>
-                <div className="text-xs text-gray-600">Total: {formatCurrency(paymentDoc?.grandTotal || 0)}</div>
+                <div className="text-xs text-muted-foreground">Total: {formatCurrency(paymentDoc?.grandTotal || 0)}</div>
               </div>
 
               <div>
@@ -450,14 +462,14 @@ export function DocumentsPage() {
 
             <div className="space-y-4">
               <div>
-                <div className="text-sm font-medium text-gray-900 mb-2">Choose Template</div>
+                <div className="text-sm font-medium text-foreground mb-2">Choose Template</div>
                 <RadioGroup value={pdfTemplateId} onValueChange={(v) => setPdfTemplateId(v as PdfTemplateId)}>
                   {PDF_TEMPLATES.map((t) => (
-                    <label key={t.id} className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-gray-50">
+                    <label key={t.id} className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted">
                       <RadioGroupItem value={t.id} />
                       <div>
-                        <div className="text-sm font-semibold text-gray-900">{t.label}</div>
-                        <div className="text-xs text-gray-600">{t.id}</div>
+                        <div className="text-sm font-semibold text-foreground">{t.label}</div>
+                        <div className="text-xs text-muted-foreground">{t.id}</div>
                       </div>
                     </label>
                   ))}
@@ -517,8 +529,8 @@ export function DocumentsPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
-            <p className="text-gray-600 mt-1">Manage all your business documents</p>
+            <h1 className="text-3xl font-bold text-foreground">Documents</h1>
+            <p className="text-muted-foreground mt-1">Manage all your business documents</p>
           </div>
           <Button onClick={() => navigate('/documents/create')} className="mt-4 md:mt-0" data-tour-id="cta-documents-create">
             <Plus className="h-4 w-4 mr-2" />
@@ -531,7 +543,7 @@ export function DocumentsPage() {
           <CardContent className="pt-6">
             <div className="grid md:grid-cols-3 gap-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search documents..."
                   value={searchTerm}
@@ -547,11 +559,12 @@ export function DocumentsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="quotation">Quotation</SelectItem>
-                  <SelectItem value="invoice">Invoice</SelectItem>
-                  <SelectItem value="purchase">Purchase Invoice</SelectItem>
                   <SelectItem value="order">Order</SelectItem>
                   <SelectItem value="proforma">Proforma Invoice</SelectItem>
+                  <SelectItem value="invoice">Invoice</SelectItem>
                   <SelectItem value="challan">Delivery Challan</SelectItem>
+                  <SelectItem value="purchase">Purchase Invoice</SelectItem>
+                  <SelectItem value="invoice_cancellation">Invoice Cancellation</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -574,11 +587,11 @@ export function DocumentsPage() {
         {filteredDocs.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <FileX className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <FileX className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">
                 {documents.length === 0 ? 'No documents yet' : 'No matching documents'}
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 {documents.length === 0 
                   ? 'Create your first document to get started'
                   : 'Try adjusting your filters'}
@@ -599,11 +612,11 @@ export function DocumentsPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">
+                        <h3 className="text-lg font-semibold text-foreground">
                           {doc.documentNumber}
                         </h3>
                         <Badge className={getTypeColor(doc.type)}>
-                          {doc.type}
+                          {getTypeLabel(doc.type)}
                         </Badge>
                         {doc.status === 'draft' && (
                           <Badge variant="outline">Draft</Badge>
@@ -627,7 +640,7 @@ export function DocumentsPage() {
                           </div>
                         )}
                       </div>
-                      <div className="grid md:grid-cols-3 gap-2 text-sm text-gray-600">
+                      <div className="grid md:grid-cols-3 gap-2 text-sm text-muted-foreground">
                         <div>
                           <span className="font-medium">{doc.type === 'purchase' ? 'Supplier' : 'Customer'}:</span> {doc.customerName || 'N/A'}
                         </div>
@@ -696,10 +709,10 @@ export function DocumentsPage() {
           <Card className="mt-6">
             <CardContent className="py-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">
+                <span className="text-muted-foreground">
                   Showing {filteredDocs.length} of {documents.length} documents
                 </span>
-                <span className="font-semibold text-gray-900">
+                <span className="font-semibold text-foreground">
                   Total: {formatCurrency(filteredDocs.reduce((sum, doc) => sum + (doc.grandTotal || 0), 0))}
                 </span>
               </div>

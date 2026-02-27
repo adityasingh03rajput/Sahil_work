@@ -7,10 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { toast } from 'sonner';
 import { Plus, Building2, LogOut, Edit } from 'lucide-react';
 import { API_URL } from '../config/api';
+import { INDIAN_STATES } from '../utils/indianStates';
 import QRCode from 'qrcode';
+import { TraceLoader } from '../components/TraceLoader';
 
 interface BusinessProfile {
   id: string;
@@ -22,6 +25,9 @@ interface BusinessProfile {
   phone: string;
   billingAddress?: string;
   shippingAddress?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
   bankName?: string;
   bankBranch?: string;
   accountNumber?: string;
@@ -39,6 +45,7 @@ export function ProfilesPage() {
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<BusinessProfile>>({});
   const [upiQrDataUrl, setUpiQrDataUrl] = useState<string>('');
+  const [profileUpiQrMap, setProfileUpiQrMap] = useState<Record<string, string>>({});
   const { user, accessToken, deviceId, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -77,7 +84,19 @@ export function ProfilesPage() {
     params.set('pa', pa);
     if (pn) params.set('pn', pn);
     params.set('cu', 'INR');
-    params.set('tn', 'Payment via Hukum');
+    params.set('tn', 'Payment via BillVyapar');
+    return `upi://pay?${params.toString()}`;
+  };
+
+  const buildUpiUriForProfile = (profile: BusinessProfile) => {
+    const pa = String(profile.upiId || '').trim();
+    if (!pa) return '';
+    const pn = String(profile.businessName || '').trim();
+    const params = new URLSearchParams();
+    params.set('pa', pa);
+    if (pn) params.set('pn', pn);
+    params.set('cu', 'INR');
+    params.set('tn', 'Payment via BillVyapar');
     return `upi://pay?${params.toString()}`;
   };
 
@@ -99,10 +118,40 @@ export function ProfilesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editFormData.upiId, editFormData.businessName]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      const next: Record<string, string> = {};
+      await Promise.all(
+        profiles.map(async (p) => {
+          const uri = buildUpiUriForProfile(p);
+          if (!uri) return;
+          try {
+            const url = await QRCode.toDataURL(uri, { margin: 1, width: 300 });
+            next[p.id] = url;
+          } catch {
+            // ignore
+          }
+        })
+      );
+
+      if (cancelled) return;
+      setProfileUpiQrMap(next);
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [profiles]);
+
   const handleCreateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
+      const addressValue = String(formData.billingAddress || '').trim();
+      const payload = { ...formData, billingAddress: addressValue || null, shippingAddress: addressValue || null };
       const response = await fetch(`${apiUrl}/profiles`, {
         method: 'POST',
         headers: {
@@ -110,7 +159,7 @@ export function ProfilesPage() {
           'Authorization': `Bearer ${accessToken}`,
           'X-Device-ID': deviceId,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -167,6 +216,8 @@ export function ProfilesPage() {
     if (!editingProfileId) return;
 
     try {
+      const addressValue = String(editFormData.billingAddress || '').trim();
+      const payload = { ...editFormData, billingAddress: addressValue || null, shippingAddress: addressValue || null };
       const response = await fetch(`${apiUrl}/profiles/${editingProfileId}`, {
         method: 'PUT',
         headers: {
@@ -174,10 +225,11 @@ export function ProfilesPage() {
           'Authorization': `Bearer ${accessToken}`,
           'X-Device-ID': deviceId,
         },
-        body: JSON.stringify(editFormData),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
+      
       if (data.error) {
         toast.error(data.error);
         return;
@@ -209,22 +261,19 @@ export function ProfilesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading profiles...</p>
-        </div>
+        <TraceLoader label="Loading profiles..." />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-12">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Select Business Profile</h1>
-            <p className="text-gray-600 mt-1">Welcome back, {user?.name || user?.email}</p>
+            <h1 className="text-3xl font-bold text-foreground">Select Business Profile</h1>
+            <p className="text-muted-foreground mt-1">Welcome back, {user?.name || user?.email}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={signOut}>
@@ -237,37 +286,94 @@ export function ProfilesPage() {
         {/* Profiles Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           {profiles.map((profile) => (
-            <Card 
+            <div
               key={profile.id}
-              className="cursor-pointer hover:shadow-lg transition-shadow"
+              className="bv-flip-card cursor-pointer"
               onClick={() => handleSelectProfile(profile)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleSelectProfile(profile);
+                }
+              }}
             >
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <Building2 className="h-10 w-10 text-blue-600" />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => handleEditClick(profile, e)}
-                    className="text-gray-500 hover:text-gray-900"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </div>
-                <CardTitle className="mt-4">{profile.businessName}</CardTitle>
-                <CardDescription>{profile.ownerName}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-1 text-sm text-gray-600">
-                  <p>{profile.email}</p>
-                  <p>{profile.phone}</p>
-                  {profile.gstin && <p className="font-mono text-xs">GSTIN: {profile.gstin}</p>}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+              <div className="bv-flip-inner">
+                <div className="bv-flip-face bv-flip-front">
+                  <div className="bv-flip-actions">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => handleEditClick(profile, e)}
+                      className="text-white/70 hover:text-white hover:bg-white/10"
+                      aria-label="Edit profile"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </div>
 
+                  <div className="bv-flip-header">
+                    <div className="bv-flip-icon">
+                      <Building2 className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="bv-flip-brand">BILLVYAPAR</div>
+                  </div>
+
+                  <div className="bv-flip-meta">
+                    <div className="bv-flip-title">{profile.businessName}</div>
+                    <div className="bv-flip-subtitle">{profile.ownerName}</div>
+                  </div>
+
+                  <div className="bv-flip-details">
+                    <div>{profile.email}</div>
+                    <div>{profile.phone}</div>
+                    {profile.gstin ? (
+                      <div className="font-mono text-[11px] opacity-90">GSTIN: {profile.gstin}</div>
+                    ) : (
+                      <div className="font-mono text-[11px] opacity-60">GSTIN: —</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bv-flip-face bv-flip-back">
+                  <div className="bv-flip-actions">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => handleEditClick(profile, e)}
+                      className="text-white/70 hover:text-white hover:bg-white/10"
+                      aria-label="Edit profile"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="bv-flip-strip" />
+                  {!profileUpiQrMap[profile.id] ? (
+                    <div className="bv-flip-strip-row">
+                      <div className="bv-flip-strip-mid" />
+                      <div className="bv-flip-strip-small">***</div>
+                    </div>
+                  ) : null}
+
+                  <div className="bv-flip-qr-area">
+                    {profileUpiQrMap[profile.id] ? (
+                      <img src={profileUpiQrMap[profile.id]} alt="UPI QR" className="bv-flip-qr-large" />
+                    ) : (
+                      <div className="bv-flip-qr-fallback">***</div>
+                    )}
+                  </div>
+
+                  <div className="bv-flip-details">
+                    <div className="text-white/85">Click to select this profile</div>
+                    <div className="text-white/70 text-[11px]">(Hover to flip)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
           <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
@@ -337,23 +443,52 @@ export function ProfilesPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="editBillingAddress">Billing Address</Label>
+                  <Label htmlFor="editAddress">Address</Label>
                   <Textarea
-                    id="editBillingAddress"
+                    id="editAddress"
                     value={editFormData.billingAddress || ''}
                     onChange={(e) => setEditFormData({ ...editFormData, billingAddress: e.target.value })}
                     rows={2}
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="editShippingAddress">Shipping Address</Label>
-                  <Textarea
-                    id="editShippingAddress"
-                    value={editFormData.shippingAddress || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, shippingAddress: e.target.value })}
-                    rows={2}
-                  />
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="editCity">City</Label>
+                    <Input
+                      id="editCity"
+                      value={editFormData.city || ''}
+                      onChange={(e) => setEditFormData({ ...editFormData, city: e.target.value })}
+                      placeholder="Bangalore"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="editState">State</Label>
+                    <Select
+                      value={editFormData.state || ''}
+                      onValueChange={(value) => setEditFormData({ ...editFormData, state: value })}
+                    >
+                      <SelectTrigger id="editState">
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INDIAN_STATES.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="editPostalCode">Postal Code</Label>
+                    <Input
+                      id="editPostalCode"
+                      value={editFormData.postalCode || ''}
+                      onChange={(e) => setEditFormData({ ...editFormData, postalCode: e.target.value })}
+                      placeholder="560001"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
@@ -432,8 +567,8 @@ export function ProfilesPage() {
             <DialogTrigger asChild>
               <Card className="cursor-pointer hover:shadow-lg transition-shadow border-dashed border-2 flex items-center justify-center min-h-[250px]">
                 <CardContent className="text-center py-12">
-                  <Plus className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <CardTitle className="text-gray-600">Create New Profile</CardTitle>
+                  <Plus className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <CardTitle className="text-muted-foreground">Create New Profile</CardTitle>
                 </CardContent>
               </Card>
             </DialogTrigger>
@@ -507,23 +642,52 @@ export function ProfilesPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="billingAddress">Billing Address</Label>
+                  <Label htmlFor="address">Address</Label>
                   <Textarea
-                    id="billingAddress"
+                    id="address"
                     value={formData.billingAddress || ''}
                     onChange={(e) => setFormData({...formData, billingAddress: e.target.value})}
                     rows={2}
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="shippingAddress">Shipping Address</Label>
-                  <Textarea
-                    id="shippingAddress"
-                    value={formData.shippingAddress || ''}
-                    onChange={(e) => setFormData({...formData, shippingAddress: e.target.value})}
-                    rows={2}
-                  />
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      value={formData.city || ''}
+                      onChange={(e) => setFormData({...formData, city: e.target.value})}
+                      placeholder="Bangalore"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State</Label>
+                    <Select
+                      value={formData.state || ''}
+                      onValueChange={(value) => setFormData({...formData, state: value})}
+                    >
+                      <SelectTrigger id="state">
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INDIAN_STATES.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="postalCode">Postal Code</Label>
+                    <Input
+                      id="postalCode"
+                      value={formData.postalCode || ''}
+                      onChange={(e) => setFormData({...formData, postalCode: e.target.value})}
+                      placeholder="560001"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid md:grid-cols-3 gap-4">
@@ -585,9 +749,9 @@ export function ProfilesPage() {
 
         {profiles.length === 0 && (
           <div className="text-center py-12">
-            <Building2 className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Business Profiles Yet</h3>
-            <p className="text-gray-600 mb-4">Create your first business profile to get started</p>
+            <Building2 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No Business Profiles Yet</h3>
+            <p className="text-muted-foreground mb-4">Create your first business profile to get started</p>
             <Button onClick={() => setShowCreateDialog(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Create Profile

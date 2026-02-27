@@ -36,6 +36,7 @@ authRouter.post('/signup', async (req, res, next) => {
     const user = await User.create({
       email: String(email).toLowerCase(),
       passwordHash,
+      passwordHistory: [],
       name: name ? String(name) : null,
       phone: normalizedPhone,
     });
@@ -219,7 +220,24 @@ authRouter.post('/reset-password', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid or expired OTP' });
     }
 
-    user.passwordHash = await bcrypt.hash(String(newPassword), 10);
+    const nextPassword = String(newPassword);
+    const history = Array.isArray(user.passwordHistory) ? user.passwordHistory : [];
+    const candidates = [user.passwordHash, ...history].filter(Boolean);
+    for (const h of candidates) {
+      // eslint-disable-next-line no-await-in-loop
+      const same = await bcrypt.compare(nextPassword, String(h));
+      if (same) {
+        return res.status(400).json({ error: 'You cannot reuse a previous password. Choose a new password.' });
+      }
+    }
+
+    const prevHash = user.passwordHash;
+    const nextHash = await bcrypt.hash(nextPassword, 10);
+
+    const nextHistory = [prevHash, ...history].filter(Boolean);
+    const max = Number(process.env.PASSWORD_HISTORY_LIMIT || 5);
+    user.passwordHistory = nextHistory.slice(0, Math.max(1, max));
+    user.passwordHash = nextHash;
     await user.save();
 
     record.usedAt = new Date();

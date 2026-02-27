@@ -10,6 +10,7 @@ import { Plus, Search, Package, Tag } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
+import { TraceLoader } from '../components/TraceLoader';
 
 interface Item {
   id: string;
@@ -123,10 +124,7 @@ export function ItemsPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading items...</p>
-          </div>
+          <TraceLoader label="Loading items..." />
         </div>
       </AppLayout>
     );
@@ -298,8 +296,8 @@ export function ItemsPage() {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Package className="h-6 w-6 text-purple-600" />
+                      <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Package className="h-6 w-6 text-green-600" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <CardTitle className="text-lg truncate">{item.name}</CardTitle>

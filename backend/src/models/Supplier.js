@@ -8,7 +8,11 @@ const supplierSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, default: null },
     phone: { type: String, default: null },
-    address: { type: String, default: null },
+    billingAddress: { type: String, default: null },
+    shippingAddress: { type: String, default: null },
+    city: { type: String, default: null },
+    state: { type: String, default: null },
+    postalCode: { type: String, default: null },
     gstin: { type: String, default: null },
     pan: { type: String, default: null },
 

@@ -17,6 +17,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
+import { TraceLoader } from '../components/TraceLoader';
 
 export function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<any>(null);
@@ -67,10 +68,7 @@ export function AnalyticsPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading analytics...</p>
-          </div>
+          <TraceLoader label="Loading analytics..." />
         </div>
       </AppLayout>
     );
@@ -95,8 +93,8 @@ export function AnalyticsPage() {
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Analytics</h1>
-          <p className="text-gray-600 mt-1">Business insights and performance metrics</p>
+          <h1 className="text-3xl font-bold text-foreground">Analytics</h1>
+          <p className="text-muted-foreground mt-1">Business insights and performance metrics</p>
         </div>
 
         {/* Key Metrics */}
@@ -109,7 +107,7 @@ export function AnalyticsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-2xl font-bold text-foreground">
                 {formatCurrency(analytics?.totalSales || 0)}
               </div>
               <div className="flex items-center gap-1 mt-2 text-sm text-green-600">
@@ -127,7 +125,7 @@ export function AnalyticsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-2xl font-bold text-foreground">
                 {formatCurrency(analytics?.outstanding || 0)}
               </div>
               <div className="flex items-center gap-1 mt-2 text-sm text-orange-600">
@@ -144,7 +142,7 @@ export function AnalyticsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-2xl font-bold text-foreground">
                 {analytics?.totalInvoices || 0}
               </div>
               <div className="flex items-center gap-1 mt-2 text-sm text-blue-600">
@@ -157,14 +155,14 @@ export function AnalyticsPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardDescription>Conversion Rate</CardDescription>
-                <TrendingUp className="h-5 w-5 text-purple-600" />
+                <TrendingUp className="h-5 w-5 text-green-600" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-2xl font-bold text-foreground">
                 {analytics?.conversionRate || 0}%
               </div>
-              <div className="flex items-center gap-1 mt-2 text-sm text-purple-600">
+              <div className="flex items-center gap-1 mt-2 text-sm text-green-600">
                 <span>Quote to Invoice</span>
               </div>
             </CardContent>
@@ -199,9 +197,9 @@ export function AnalyticsPage() {
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[300px] flex items-center justify-center text-gray-500">
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                   <div className="text-center">
-                    <Calendar className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                    <Calendar className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
                     <p>No revenue data yet</p>
                   </div>
                 </div>
@@ -237,9 +235,9 @@ export function AnalyticsPage() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[300px] flex items-center justify-center text-gray-500">
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                   <div className="text-center">
-                    <FileText className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                    <FileText className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
                     <p>No sales data yet</p>
                   </div>
                 </div>
@@ -260,7 +258,7 @@ export function AnalyticsPage() {
                 {analytics.topItems.map((item: any, index: number) => (
                   <div 
                     key={index}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-4 bg-muted rounded-lg"
                   >
                     <div className="flex items-center gap-4 flex-1">
                       <div 
@@ -270,15 +268,15 @@ export function AnalyticsPage() {
                         {index + 1}
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900">{item.name}</h4>
-                        <p className="text-sm text-gray-600">Quantity sold: {item.quantity}</p>
+                        <h4 className="font-semibold text-foreground">{item.name}</h4>
+                        <p className="text-sm text-muted-foreground">Quantity sold: {item.quantity}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-blue-600">
                         {formatCurrency(item.revenue)}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-muted-foreground">
                         ₹{(item.revenue / item.quantity).toFixed(2)}/unit
                       </p>
                     </div>
@@ -286,8 +284,8 @@ export function AnalyticsPage() {
                 ))}
               </div>
             ) : (
-              <div className="py-12 text-center text-gray-500">
-                <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+              <div className="py-12 text-center text-muted-foreground">
+                <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                 <p>No sales data available</p>
                 <p className="text-sm mt-1">Create and mark invoices as paid to see analytics</p>
               </div>
@@ -303,9 +301,9 @@ export function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-3 gap-6">
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <p className="text-sm text-purple-700 mb-1">Total Quotations</p>
-                <p className="text-3xl font-bold text-purple-900">{analytics?.totalQuotations || 0}</p>
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <p className="text-sm text-green-700 mb-1">Total Quotations</p>
+                <p className="text-3xl font-bold text-green-900">{analytics?.totalQuotations || 0}</p>
               </div>
               <div className="text-center p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-700 mb-1">Total Invoices</p>

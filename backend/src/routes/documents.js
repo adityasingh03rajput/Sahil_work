@@ -7,6 +7,65 @@ import { Document } from '../models/Document.js';
 
 export const documentsRouter = Router();
 
+async function validateInvoiceCancellation({ userId, profileId, docData }) {
+  const t = String(docData?.type || '').toLowerCase();
+  if (t !== 'invoice_cancellation') return;
+
+  const refId = docData?.referenceDocumentId;
+  if (!refId) {
+    const err = new Error('Reference invoice is required for Invoice Cancellation');
+    // @ts-ignore
+    err.status = 400;
+    throw err;
+  }
+
+  const refDoc = await Document.findOne({ _id: refId, userId, profileId });
+  if (!refDoc) {
+    const err = new Error('Reference invoice not found');
+    // @ts-ignore
+    err.status = 400;
+    throw err;
+  }
+
+  if (String(refDoc.type || '').toLowerCase() !== 'invoice') {
+    const err = new Error('Reference document must be an Invoice');
+    // @ts-ignore
+    err.status = 400;
+    throw err;
+  }
+
+  if (!docData.referenceDocumentNumber) {
+    docData.referenceDocumentNumber = refDoc.documentNumber;
+  }
+}
+
+async function validateOrderReferenceQuotation({ userId, profileId, docData }) {
+  const t = String(docData?.type || '').toLowerCase();
+  if (t !== 'order') return;
+
+  const refId = docData?.referenceDocumentId;
+  if (!refId) return;
+
+  const refDoc = await Document.findOne({ _id: refId, userId, profileId });
+  if (!refDoc) {
+    const err = new Error('Reference quotation not found');
+    // @ts-ignore
+    err.status = 400;
+    throw err;
+  }
+
+  if (String(refDoc.type || '').toLowerCase() !== 'quotation') {
+    const err = new Error('Reference document must be a Quotation');
+    // @ts-ignore
+    err.status = 400;
+    throw err;
+  }
+
+  if (!docData.referenceDocumentNumber) {
+    docData.referenceDocumentNumber = refDoc.documentNumber;
+  }
+}
+
 documentsRouter.use(
   requireAuth,
   requireValidDeviceSession,
@@ -28,6 +87,9 @@ async function nextDocumentNumber(userId, profileId, type) {
 documentsRouter.post('/', async (req, res, next) => {
   try {
     const docData = req.body || {};
+
+    await validateInvoiceCancellation({ userId: req.userId, profileId: req.profileId, docData });
+    await validateOrderReferenceQuotation({ userId: req.userId, profileId: req.profileId, docData });
     const documentNumber = await nextDocumentNumber(req.userId, req.profileId, docData.type);
 
     const doc = await Document.create({
@@ -96,7 +158,11 @@ documentsRouter.put('/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    Object.assign(doc, req.body || {});
+    const nextData = req.body || {};
+    await validateInvoiceCancellation({ userId: req.userId, profileId: req.profileId, docData: nextData });
+    await validateOrderReferenceQuotation({ userId: req.userId, profileId: req.profileId, docData: nextData });
+
+    Object.assign(doc, nextData);
     doc.version = (doc.version || 1) + 1;
 
     await doc.save();

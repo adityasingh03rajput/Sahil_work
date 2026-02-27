@@ -103,8 +103,8 @@ export function GstReportsPage() {
       <div className="p-6 max-w-7xl mx-auto">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">GST Reports</h1>
-            <p className="text-gray-600 mt-1">Basic GST and HSN summary from invoices</p>
+            <h1 className="text-3xl font-bold text-foreground">GST Reports</h1>
+            <p className="text-muted-foreground mt-1">Basic GST and HSN summary from invoices</p>
           </div>
         </div>
 
@@ -167,10 +167,10 @@ export function GstReportsPage() {
             </CardHeader>
             <CardContent>
               {!report || report.hsnSummary.length === 0 ? (
-                <div className="text-sm text-gray-600">No data</div>
+                <div className="text-sm text-muted-foreground">No data</div>
               ) : (
                 <div className="rounded-md border overflow-hidden">
-                  <div className="grid grid-cols-5 bg-gray-50 text-xs font-semibold text-gray-700 px-4 py-2">
+                  <div className="grid grid-cols-5 bg-muted text-xs font-semibold text-muted-foreground px-4 py-2">
                     <div>HSN</div>
                     <div className="text-right">Taxable</div>
                     <div className="text-right">CGST</div>
@@ -179,7 +179,7 @@ export function GstReportsPage() {
                   </div>
                   {report.hsnSummary.map((r) => (
                     <div key={r.hsnSac} className="grid grid-cols-5 px-4 py-3 border-t text-sm">
-                      <div className="font-medium text-gray-900 truncate">{r.hsnSac}</div>
+                      <div className="font-medium text-foreground truncate">{r.hsnSac}</div>
                       <div className="text-right">{fmt.format(r.taxableValue)}</div>
                       <div className="text-right">{fmt.format(r.cgst)}</div>
                       <div className="text-right">{fmt.format(r.sgst)}</div>
@@ -198,25 +198,25 @@ export function GstReportsPage() {
             </CardHeader>
             <CardContent>
               {!report || report.outward.length === 0 ? (
-                <div className="text-sm text-gray-600">No invoices in range</div>
+                <div className="text-sm text-muted-foreground">No invoices in range</div>
               ) : (
                 <div className="space-y-3">
                   {report.outward.slice(0, 20).map((inv) => (
                     <div key={inv.id} className="rounded-md border p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-sm font-semibold text-gray-900">{inv.documentNumber}</div>
-                          <div className="text-xs text-gray-600 mt-1">{inv.customerName} • {inv.date}</div>
+                          <div className="text-sm font-semibold text-foreground">{inv.documentNumber}</div>
+                          <div className="text-xs text-muted-foreground mt-1">{inv.customerName} • {inv.date}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-semibold">{fmt.format(inv.grandTotal)}</div>
-                          <div className="text-xs text-gray-600">Tax: {fmt.format(inv.totalCgst + inv.totalSgst + inv.totalIgst)}</div>
+                          <div className="text-xs text-muted-foreground">Tax: {fmt.format(inv.totalCgst + inv.totalSgst + inv.totalIgst)}</div>
                         </div>
                       </div>
                     </div>
                   ))}
                   {report.outward.length > 20 && (
-                    <div className="text-xs text-gray-500">Showing first 20 invoices</div>
+                    <div className="text-xs text-muted-foreground">Showing first 20 invoices</div>
                   )}
                 </div>
               )}

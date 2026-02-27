@@ -8,6 +8,7 @@ import { Check, Crown, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
+import { TraceLoader } from '../components/TraceLoader';
 import { cacheSubscriptionToken, validateSubscriptionTokenOnline } from '../utils/subscriptionValidation';
 
 export function WelcomePage() {
@@ -142,10 +143,7 @@ export function WelcomePage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading...</p>
-          </div>
+          <TraceLoader label="Loading..." />
         </div>
       </AppLayout>
     );
@@ -155,7 +153,7 @@ export function WelcomePage() {
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to Hukum</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to BillVyapar</h1>
           <p className="text-gray-600">
             {isActive
               ? 'Subscription active. Continue to create/select your business profile.'
@@ -181,7 +179,7 @@ export function WelcomePage() {
                   <span className="text-4xl font-bold text-gray-900">₹499</span>
                   <span className="text-gray-600">/month</span>
                 </div>
-                <CardDescription className="mt-2">Perfect for trying out Hukum</CardDescription>
+                <CardDescription className="mt-2">Perfect for trying out BillVyapar</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button
@@ -204,9 +202,9 @@ export function WelcomePage() {
               </CardContent>
             </Card>
 
-            <Card className="relative border-2 border-purple-200 hover:shadow-xl transition-shadow bg-gradient-to-br from-purple-50 to-white">
+            <Card className="relative border-2 border-green-200 hover:shadow-xl transition-shadow bg-gradient-to-br from-green-50 to-white">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge className="bg-purple-600 text-white px-4 py-1">
+                <Badge className="bg-green-600 text-white px-4 py-1">
                   <Crown className="h-3 w-3 mr-1 inline" />
                   Best Value - Save 17%
                 </Badge>
@@ -214,7 +212,7 @@ export function WelcomePage() {
               <CardHeader>
                 <div className="flex items-center justify-between mb-2">
                   <CardTitle className="text-2xl">Yearly Plan</CardTitle>
-                  <Crown className="h-6 w-6 text-purple-600" />
+                  <Crown className="h-6 w-6 text-green-600" />
                 </div>
                 <div className="mt-4">
                   <span className="text-4xl font-bold text-gray-900">₹4,999</span>
@@ -224,7 +222,7 @@ export function WelcomePage() {
               </CardHeader>
               <CardContent>
                 <Button
-                  className="w-full mb-6 bg-purple-600 hover:bg-purple-700"
+                  className="w-full mb-6 bg-green-600 hover:bg-green-700"
                   onClick={() => handlePurchase('yearly')}
                   disabled={purchasing}
                 >
@@ -234,7 +232,7 @@ export function WelcomePage() {
                   <p className="text-sm font-semibold text-gray-700 mb-3">All features included:</p>
                   {features.map((feature, index) => (
                     <div key={index} className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                      <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
                       <span className="text-sm text-gray-700">{feature}</span>
                     </div>
                   ))}

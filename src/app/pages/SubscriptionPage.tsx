@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
+import { TraceLoader } from '../components/TraceLoader';
 import { cacheSubscriptionToken, validateSubscriptionTokenOnline } from '../utils/subscriptionValidation';
 
 export function SubscriptionPage() {
@@ -126,10 +127,7 @@ export function SubscriptionPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading subscription...</p>
-          </div>
+          <TraceLoader label="Loading subscription..." />
         </div>
       </AppLayout>
     );
@@ -140,8 +138,8 @@ export function SubscriptionPage() {
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Subscription Plans</h1>
-          <p className="text-gray-600">Choose the plan that works best for you</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Subscription Plans</h1>
+          <p className="text-muted-foreground">Choose the plan that works best for you</p>
         </div>
 
         {/* Current Subscription Status */}
@@ -192,11 +190,11 @@ export function SubscriptionPage() {
                 <Zap className="h-6 w-6 text-blue-600" />
               </div>
               <div className="mt-4">
-                <span className="text-4xl font-bold text-gray-900">₹499</span>
-                <span className="text-gray-600">/month</span>
+                <span className="text-4xl font-bold text-foreground">₹499</span>
+                <span className="text-muted-foreground">/month</span>
               </div>
               <CardDescription className="mt-2">
-                Perfect for trying out Hukum
+                Perfect for trying out BillVyapar
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -209,22 +207,22 @@ export function SubscriptionPage() {
                   subscription?.plan === 'monthly' && isActive ? 'Current Plan' : 'Get Monthly Plan'}
               </Button>
               <div className="space-y-3">
-                <p className="text-sm font-semibold text-gray-700 mb-3">Everything included:</p>
+                <p className="text-sm font-semibold text-foreground/80 mb-3">Everything included:</p>
                 {features.slice(0, 6).map((feature, index) => (
                   <div key={index} className="flex items-start gap-2">
                     <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm text-gray-700">{feature}</span>
+                    <span className="text-sm text-foreground/80">{feature}</span>
                   </div>
                 ))}
-                <p className="text-xs text-gray-500 pt-2">+ 6 more features...</p>
+                <p className="text-xs text-muted-foreground pt-2">+ 6 more features...</p>
               </div>
             </CardContent>
           </Card>
 
           {/* Yearly Plan */}
-          <Card className="relative border-2 border-purple-200 hover:shadow-xl transition-shadow bg-gradient-to-br from-purple-50 to-white">
+          <Card className="relative border-2 border-green-200 hover:shadow-xl transition-shadow bg-gradient-to-br from-green-50 to-white">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-              <Badge className="bg-purple-600 text-white px-4 py-1">
+              <Badge className="bg-green-600 text-white px-4 py-1">
                 <Crown className="h-3 w-3 mr-1 inline" />
                 Best Value - Save 17%
               </Badge>
@@ -232,11 +230,11 @@ export function SubscriptionPage() {
             <CardHeader>
               <div className="flex items-center justify-between mb-2">
                 <CardTitle className="text-2xl">Yearly Plan</CardTitle>
-                <Crown className="h-6 w-6 text-purple-600" />
+                <Crown className="h-6 w-6 text-green-600" />
               </div>
               <div className="mt-4">
-                <span className="text-4xl font-bold text-gray-900">₹4,999</span>
-                <span className="text-gray-600">/year</span>
+                <span className="text-4xl font-bold text-foreground">₹4,999</span>
+                <span className="text-muted-foreground">/year</span>
               </div>
               <CardDescription className="mt-2">
                 Save ₹999 compared to monthly billing
@@ -244,7 +242,7 @@ export function SubscriptionPage() {
             </CardHeader>
             <CardContent>
               <Button 
-                className="w-full mb-6 bg-purple-600 hover:bg-purple-700"
+                className="w-full mb-6 bg-green-600 hover:bg-green-700"
                 onClick={() => handlePurchase('yearly')}
                 disabled={purchasing || (subscription?.plan === 'yearly' && isActive)}
               >
@@ -252,11 +250,11 @@ export function SubscriptionPage() {
                   subscription?.plan === 'yearly' && isActive ? 'Current Plan' : 'Get Yearly Plan'}
               </Button>
               <div className="space-y-3">
-                <p className="text-sm font-semibold text-gray-700 mb-3">All features included:</p>
+                <p className="text-sm font-semibold text-foreground/80 mb-3">All features included:</p>
                 {features.map((feature, index) => (
                   <div key={index} className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm text-gray-700">{feature}</span>
+                    <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-foreground/80">{feature}</span>
                   </div>
                 ))}
               </div>
@@ -271,32 +269,32 @@ export function SubscriptionPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h4 className="font-semibold text-gray-900 mb-1">How does subscription work?</h4>
-              <p className="text-sm text-gray-600">
+              <h4 className="font-semibold text-foreground mb-1">How does subscription work?</h4>
+              <p className="text-sm text-muted-foreground">
                 Your subscription starts from the exact date of purchase and remains active for the selected duration (30 days for monthly, 365 days for yearly).
               </p>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-1">What happens when my subscription expires?</h4>
-              <p className="text-sm text-gray-600">
+              <h4 className="font-semibold text-foreground mb-1">What happens when my subscription expires?</h4>
+              <p className="text-sm text-muted-foreground">
                 All your data remains fully accessible and secure. However, you won't be able to create new documents, edit existing ones, or export PDFs until you renew your subscription.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-1">Can I switch between plans?</h4>
-              <p className="text-sm text-gray-600">
+              <h4 className="font-semibold text-foreground mb-1">Can I switch between plans?</h4>
+              <p className="text-sm text-muted-foreground">
                 Yes! You can upgrade or downgrade at any time. When you switch plans, the new subscription period starts from the date of change.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-1">Is my data safe?</h4>
-              <p className="text-sm text-gray-600">
+              <h4 className="font-semibold text-foreground mb-1">Is my data safe?</h4>
+              <p className="text-sm text-muted-foreground">
                 Absolutely. We use enterprise-grade encryption and security measures. Your data is automatically backed up and synced to the cloud. Single-device login ensures only you can access your account.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-1">Demo Mode</h4>
-              <p className="text-sm text-gray-600">
+              <h4 className="font-semibold text-foreground mb-1">Demo Mode</h4>
+              <p className="text-sm text-muted-foreground">
                 This is a demonstration version. In production, subscription payments would be processed through a secure payment gateway.
               </p>
             </div>

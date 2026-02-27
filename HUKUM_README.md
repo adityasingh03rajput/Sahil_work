@@ -1,8 +1,8 @@
-# Hukum - Complete Business Documentation & Billing Ecosystem
+# BillVyapar - Complete Business Documentation & Billing Ecosystem
 
 ## 🎉 Overview
 
-**Hukum** is a comprehensive web-based business documentation and billing system designed for small to medium businesses. It provides a complete ecosystem for managing invoices, quotations, orders, customers, items, and analytics with GST compliance.
+**BillVyapar** is a comprehensive web-based business documentation and billing system designed for small to medium businesses. It provides a complete ecosystem for managing invoices, quotations, orders, customers, items, and analytics with GST compliance.
 
 ## ✨ Key Features
 
@@ -105,7 +105,7 @@ Each document supports fully editable items with:
 Use these credentials to explore the application:
 
 ```
-Email: demo@hukum.app
+Email: demo@billvyapar.app
 Password: demo123
 ```
 
@@ -351,7 +351,7 @@ This is a demonstration project built with Figma Make.
 ## 🤝 Support
 
 For demo and testing purposes:
-- Email: demo@hukum.app
+- Email: demo@billvyapar.app
 - Password: demo123
 
 ---

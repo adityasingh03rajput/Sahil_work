@@ -16,6 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 import { cacheSubscriptionToken, validateSubscriptionTokenOnline } from '../utils/subscriptionValidation';
+import { TraceLoader } from '../components/TraceLoader';
 
 export function DashboardPage() {
 
@@ -117,10 +118,7 @@ export function DashboardPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading dashboard...</p>
-          </div>
+          <TraceLoader label="Loading dashboard..." />
         </div>
       </AppLayout>
     );
@@ -132,8 +130,8 @@ export function DashboardPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600 mt-1">Overview of your business metrics</p>
+            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground mt-1">Overview of your business metrics</p>
           </div>
           <Button
             disabled={!isSubscriptionActive}
@@ -173,13 +171,13 @@ export function DashboardPage() {
 
         {/* Welcome Message for New Users */}
         {recentDocs.length === 0 && (
-          <Card className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+          <Card className="mb-6 bg-gradient-to-r from-blue-50 to-green-50 border-blue-200 dark:from-green-950 dark:to-black dark:border-green-900">
             <CardContent className="py-6">
               <div className="text-center max-w-2xl mx-auto">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Welcome to Hukum! 🎉
+                <h2 className="text-2xl font-bold text-foreground mb-2">
+                  Welcome to BillVyapar! 🎉
                 </h2>
-                <p className="text-gray-700 mb-4">
+                <p className="text-foreground/80 mb-4">
                   Your complete business documentation and billing ecosystem is ready. 
                   Start by creating your first invoice, adding customers, or exploring the analytics dashboard.
                 </p>
@@ -251,7 +249,7 @@ export function DashboardPage() {
               <CardTitle className="text-2xl">{analytics?.conversionRate || 0}%</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-2 text-sm text-purple-600">
+              <div className="flex items-center gap-2 text-sm text-green-600">
                 <TrendingUp className="h-4 w-4" />
                 <span>Quote to Invoice</span>
               </div>
@@ -269,8 +267,8 @@ export function DashboardPage() {
             <CardContent>
               {recentDocs.length === 0 ? (
                 <div className="text-center py-8">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600">No documents yet</p>
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">No documents yet</p>
                   <Button 
                     variant="link" 
                     onClick={() => navigate('/documents/create')}
@@ -285,7 +283,7 @@ export function DashboardPage() {
                   {recentDocs.map((doc) => (
                     <div 
                       key={doc.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                      className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted/80 cursor-pointer transition-colors"
                       onClick={() => {
                         if (!isSubscriptionActive) return;
                         navigate(`/documents/edit/${doc.id}`);
@@ -293,14 +291,14 @@ export function DashboardPage() {
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-gray-900">
+                          <span className="text-sm font-semibold text-foreground">
                             {doc.documentNumber}
                           </span>
-                          <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                          <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
                             {doc.type}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-600 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {doc.customerName} • {formatDate(doc.date)}
                         </p>
                       </div>
@@ -335,16 +333,16 @@ export function DashboardPage() {
             <CardContent>
               {!analytics || analytics.topItems.length === 0 ? (
                 <div className="text-center py-8">
-                  <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600">No sales data yet</p>
+                  <DollarSign className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">No sales data yet</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {analytics.topItems.map((item: any, index: number) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-gray-900">{item.name}</p>
-                        <p className="text-xs text-gray-600">Quantity: {item.quantity}</p>
+                        <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">Quantity: {item.quantity}</p>
                       </div>
                       <p className="text-sm font-semibold text-blue-600">
                         {formatCurrency(item.revenue)}

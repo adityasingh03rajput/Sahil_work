@@ -3,6 +3,9 @@ export type PdfTemplateId = 'classic' | 'modern' | 'minimal';
 export type DocumentItem = {
   name: string;
   hsnSac?: string | null;
+  description?: string | null;
+  sku?: string | null;
+  servicePeriod?: string | null;
   quantity: number;
   unit?: string | null;
   rate: number;
@@ -19,11 +22,20 @@ export type DocumentDto = {
   documentNumber: string;
   type: string;
 
+  referenceDocumentId?: string | null;
+  referenceDocumentNumber?: string | null;
+
   customerName?: string | null;
   customerAddress?: string | null;
   customerGstin?: string | null;
   date?: string | null;
   dueDate?: string | null;
+
+  orderNumber?: string | null;
+  revisionNumber?: string | null;
+  referenceNo?: string | null;
+  purchaseOrderNo?: string | null;
+  poDate?: string | null;
 
   invoiceNo?: string | null;
   challanNo?: string | null;
@@ -31,6 +43,25 @@ export type DocumentDto = {
   transport?: string | null;
   transportId?: string | null;
   placeOfSupply?: string | null;
+
+  customerContactPerson?: string | null;
+  customerMobile?: string | null;
+  customerEmail?: string | null;
+  customerStateCode?: string | null;
+
+  deliveryAddress?: string | null;
+  deliveryMethod?: string | null;
+  expectedDeliveryDate?: string | null;
+
+  departureFromAddress?: string | null;
+  departureFromCity?: string | null;
+  departureFromState?: string | null;
+  departureFromPostalCode?: string | null;
+
+  departureToAddress?: string | null;
+  departureToCity?: string | null;
+  departureToState?: string | null;
+  departureToPostalCode?: string | null;
 
   bankName?: string | null;
   bankBranch?: string | null;
@@ -43,10 +74,18 @@ export type DocumentDto = {
 
   transportCharges?: number;
   additionalCharges?: number;
+  packingHandlingCharges?: number;
+  tcs?: number;
   roundOff?: number;
 
   notes?: string | null;
+  internalNotes?: string | null;
   termsConditions?: string | null;
+
+  paymentTerms?: string | null;
+  creditPeriod?: string | null;
+  lateFeeTerms?: string | null;
+  warrantyReturnCancellationPolicies?: string | null;
 
   paymentStatus?: string;
   paymentMode?: string | null;

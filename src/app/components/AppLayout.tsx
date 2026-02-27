@@ -16,6 +16,9 @@ import {
   Settings,
   Crown,
   Truck,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
@@ -23,6 +26,17 @@ import { useState, useEffect } from 'react';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 import { GuidedTour } from './GuidedTour';
+import { useTheme, type ThemeMode } from '../contexts/ThemeContext';
+import { TraceLoader } from './TraceLoader';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import {
   cacheSubscriptionToken,
   validateSubscriptionOffline,
@@ -37,6 +51,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut, accessToken, deviceId } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [walkthroughOpen, setWalkthroughOpen] = useState(false);
   const [subscriptionWarning, setSubscriptionWarning] = useState<string | null>(null);
@@ -64,6 +79,50 @@ export function AppLayout({ children }: AppLayoutProps) {
   };
 
   const currentProfile = readCurrentProfile();
+
+  const ThemeSwitcher = ({ compact }: { compact?: boolean }) => {
+    const icon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
+    const Icon = icon;
+
+    const set = (v: string) => {
+      if (v === 'light' || v === 'dark' || v === 'system') setTheme(v as ThemeMode);
+    };
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Theme"
+            title="Theme"
+            className={compact ? '' : 'h-9 w-9'}
+          >
+            <Icon className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Theme</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuRadioGroup value={theme} onValueChange={set}>
+            <DropdownMenuRadioItem value="light">
+              <Sun className="h-4 w-4" />
+              Light
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="dark">
+              <Moon className="h-4 w-4" />
+              Dark
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="system">
+              <Monitor className="h-4 w-4" />
+              System
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
 
   const applySubscriptionResult = (
     result: { status: 'ok' | 'expired' | 'offline_too_long' | 'time_tamper' | 'token_invalid' | 'no_cache_allow' | 'profile_mismatch'; daysRemaining: number | null; message?: string },
@@ -243,8 +302,8 @@ export function AppLayout({ children }: AppLayoutProps) {
             }}
             className={`group travel-glow border-glow border-glow-hover w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
               isActive
-                ? `bg-blue-50 text-blue-600 shadow-sm travel-glow-active border-glow-active`
-                : `text-gray-700 hover:bg-blue-50 hover:text-blue-600`
+                ? `bg-muted text-primary shadow-sm travel-glow-active border-glow-active`
+                : `text-muted-foreground hover:bg-muted hover:text-primary`
             }`}
           >
             <span
@@ -268,7 +327,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-background">
       <GuidedTour
         open={walkthroughOpen}
         onOpenChange={(open) => {
@@ -280,33 +339,36 @@ export function AppLayout({ children }: AppLayoutProps) {
         }}
       />
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-white border-r border-gray-200">
-        <div className="p-6 border-b border-gray-200">
+      <aside className="hidden lg:flex lg:flex-col w-64 bg-sidebar border-r border-sidebar-border">
+        <div className="p-6 border-b border-sidebar-border">
           <div className="flex items-center gap-2 mb-4">
             <FileText className="h-8 w-8 text-blue-600" />
-            <h1 className="text-2xl font-bold text-gray-900">Hukum</h1>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => setWalkthroughOpen(true)}
-              aria-label="Open tour"
-              title="Tour"
-              data-tour-id="tour-trigger"
-              className="group h-9 w-9 travel-glow border-glow border-glow-hover border-blue-500/60 text-blue-600 hover:border-blue-500"
-            >
-              <span className="icon-aura icon-aura-hover">
-                <Truck className="h-4 w-4 neon-target neon-hover" />
-              </span>
-            </Button>
+            <h1 className="text-2xl font-bold text-foreground">BillVyapar</h1>
+            <div className="ml-auto flex items-center gap-2">
+              <ThemeSwitcher />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setWalkthroughOpen(true)}
+                aria-label="Open tour"
+                title="Tour"
+                data-tour-id="tour-trigger"
+                className="group h-9 w-9 travel-glow border-glow border-glow-hover border-blue-500/60 text-blue-600 hover:border-blue-500"
+              >
+                <span className="icon-aura icon-aura-hover">
+                  <Truck className="h-4 w-4 neon-target neon-hover" />
+                </span>
+              </Button>
+            </div>
           </div>
           {currentProfile.businessName && (
-            <div className="bg-blue-50 p-3 rounded-lg">
+            <div className="bg-muted p-3 rounded-lg">
               <div className="flex items-center gap-2 mb-1">
                 <Building2 className="h-4 w-4 text-blue-600" />
-                <p className="text-sm font-semibold text-gray-900">{currentProfile.businessName}</p>
+                <p className="text-sm font-semibold text-foreground">{currentProfile.businessName}</p>
               </div>
-              <p className="text-xs text-gray-600">{currentProfile.ownerName}</p>
+              <p className="text-xs text-muted-foreground">{currentProfile.ownerName}</p>
             </div>
           )}
         </div>
@@ -315,7 +377,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <NavigationMenu />
         </div>
 
-        <div className="p-4 border-t border-gray-200 space-y-3">
+        <div className="p-4 border-t border-sidebar-border space-y-3">
           <button
             type="button"
             data-tour-id="nav-profiles"
@@ -324,7 +386,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               navigate('/profiles');
             }}
             className={`w-full flex items-center gap-3 rounded-lg p-2 transition-colors ${
-              subscriptionExpired ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-50'
+              subscriptionExpired ? 'cursor-not-allowed opacity-60' : 'hover:bg-muted'
             }`}
           >
             <div className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
@@ -337,10 +399,10 @@ export function AppLayout({ children }: AppLayoutProps) {
                 .toUpperCase()}
             </div>
             <div className="flex-1 text-left">
-              <p className="text-sm font-semibold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-foreground truncate">
                 {currentProfile?.businessName || 'Profile'}
               </p>
-              <p className="text-xs text-gray-600 truncate">Manage profiles</p>
+              <p className="text-xs text-muted-foreground truncate">Manage profiles</p>
             </div>
           </button>
           <Button 
@@ -357,10 +419,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header */}
-        <header className="lg:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+        <header className="lg:hidden bg-background border-b border-border p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="h-6 w-6 text-blue-600" />
-            <h1 className="text-xl font-bold">Hukum</h1>
+            <h1 className="text-xl font-bold">BillVyapar</h1>
+            <ThemeSwitcher compact />
             <Button
               type="button"
               variant="outline"
@@ -384,18 +447,18 @@ export function AppLayout({ children }: AppLayoutProps) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
-              <div className="p-6 border-b border-gray-200">
+              <div className="p-6 border-b border-border">
                 <div className="flex items-center gap-2 mb-4">
                   <FileText className="h-8 w-8 text-blue-600" />
-                  <h1 className="text-2xl font-bold text-gray-900">Hukum</h1>
+                  <h1 className="text-2xl font-bold text-foreground">BillVyapar</h1>
                 </div>
                 {currentProfile.businessName && (
-                  <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="bg-muted p-3 rounded-lg">
                     <div className="flex items-center gap-2 mb-1">
                       <Building2 className="h-4 w-4 text-blue-600" />
-                      <p className="text-sm font-semibold text-gray-900">{currentProfile.businessName}</p>
+                      <p className="text-sm font-semibold text-foreground">{currentProfile.businessName}</p>
                     </div>
-                    <p className="text-xs text-gray-600">{currentProfile.ownerName}</p>
+                    <p className="text-xs text-muted-foreground">{currentProfile.ownerName}</p>
                   </div>
                 )}
               </div>
@@ -404,7 +467,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <NavigationMenu />
               </div>
 
-              <div className="p-4 border-t border-gray-200 space-y-3">
+              <div className="p-4 border-t border-border space-y-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -413,7 +476,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                     setMobileMenuOpen(false);
                   }}
                   className={`w-full flex items-center gap-3 rounded-lg p-2 transition-colors ${
-                    subscriptionExpired ? 'cursor-not-allowed opacity-60' : 'hover:bg-gray-50'
+                    subscriptionExpired ? 'cursor-not-allowed opacity-60' : 'hover:bg-muted'
                   }`}
                 >
                   <div className="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
@@ -426,10 +489,10 @@ export function AppLayout({ children }: AppLayoutProps) {
                       .toUpperCase()}
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
+                    <p className="text-sm font-semibold text-foreground truncate">
                       {currentProfile?.businessName || 'Profile'}
                     </p>
-                    <p className="text-xs text-gray-600 truncate">Manage profiles</p>
+                    <p className="text-xs text-muted-foreground truncate">Manage profiles</p>
                   </div>
                 </button>
                 <Button 
@@ -449,10 +512,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <main className="flex-1 overflow-y-auto">
           {!profileGateChecked ? (
             <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Loading...</p>
-              </div>
+              <TraceLoader label="Loading..." />
             </div>
           ) : (
             <>

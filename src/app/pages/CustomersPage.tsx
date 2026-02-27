@@ -6,18 +6,28 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Plus, Search, User, Mail, Phone, MapPin, Edit, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
+import { INDIAN_STATES } from '../utils/indianStates';
 import { toast } from 'sonner';
+import { TraceLoader } from '../components/TraceLoader';
 
 interface Customer {
   id: string;
   name: string;
   email?: string;
   phone?: string;
-  address?: string;
+  billingAddress?: string;
+  shippingAddress?: string;
+  billingCity?: string;
+  billingState?: string;
+  billingPostalCode?: string;
+  shippingCity?: string;
+  shippingState?: string;
+  shippingPostalCode?: string;
   gstin?: string;
   pan?: string;
 }
@@ -84,6 +94,166 @@ export function CustomersPage() {
       maximumFractionDigits: 2,
     }).format(amount);
   };
+
+  const formatLocation = (city?: string, state?: string, postal?: string) => {
+    const parts = [city, state, postal].map((p) => String(p || '').trim()).filter(Boolean);
+    return parts.join(', ');
+  };
+
+  const extractIndianPincode = (value: string) => {
+    const m = String(value || '').match(/\b(\d{6})\b/);
+    return m ? m[1] : null;
+  };
+
+  const lookupPincode = async (pincode: string) => {
+    const pin = String(pincode || '').trim();
+    if (!/^\d{6}$/.test(pin)) return null;
+    const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+    const data = await res.json().catch(() => null);
+    const first = Array.isArray(data) ? data[0] : null;
+    const po = first?.PostOffice?.[0];
+    if (!po) return null;
+    return {
+      city: String(po?.District || po?.Block || '').trim() || null,
+      state: String(po?.State || '').trim() || null,
+    };
+  };
+
+  const shouldAutofill = (current: Partial<Customer>, next: { city: string | null; state: string | null }) => {
+    const currentCity = String(current?.billingCity || '').trim();
+    const currentState = String(current?.billingState || '').trim();
+    const nextCity = String(next?.city || '').trim();
+    const nextState = String(next?.state || '').trim();
+    if (!nextCity && !nextState) return false;
+    return (!currentCity && !!nextCity) || (!currentState && !!nextState);
+  };
+
+  const shouldAutofillShipping = (current: Partial<Customer>, next: { city: string | null; state: string | null }) => {
+    const currentCity = String(current?.shippingCity || '').trim();
+    const currentState = String(current?.shippingState || '').trim();
+    const nextCity = String(next?.city || '').trim();
+    const nextState = String(next?.state || '').trim();
+    if (!nextCity && !nextState) return false;
+    return (!currentCity && !!nextCity) || (!currentState && !!nextState);
+  };
+
+  useEffect(() => {
+    const pin =
+      extractIndianPincode(String(formData.billingPostalCode || '')) ||
+      extractIndianPincode(String(formData.billingAddress || ''));
+    if (!pin) return;
+
+    const t = setTimeout(() => {
+      lookupPincode(pin)
+        .then((next) => {
+          if (!next) return;
+          if (!shouldAutofill(formData, next)) return;
+          setFormData((prev) => ({
+            ...prev,
+            billingCity: prev.billingCity || next.city || undefined,
+            billingState: prev.billingState || next.state || undefined,
+            billingPostalCode: prev.billingPostalCode || pin,
+          }));
+        })
+        .catch(() => {
+          // ignore
+        });
+    }, 400);
+
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.billingPostalCode, formData.billingAddress]);
+
+  useEffect(() => {
+    const pin =
+      extractIndianPincode(String(formData.shippingPostalCode || '')) ||
+      extractIndianPincode(String(formData.shippingAddress || ''));
+    if (!pin) return;
+
+    const t = setTimeout(() => {
+      lookupPincode(pin)
+        .then((next) => {
+          if (!next) return;
+          if (!shouldAutofillShipping(formData, next)) return;
+          setFormData((prev) => ({
+            ...prev,
+            shippingCity: prev.shippingCity || next.city || undefined,
+            shippingState: prev.shippingState || next.state || undefined,
+            shippingPostalCode: prev.shippingPostalCode || pin,
+          }));
+        })
+        .catch(() => {
+          // ignore
+        });
+    }, 400);
+
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.shippingPostalCode, formData.shippingAddress]);
+
+  useEffect(() => {
+    const pin =
+      extractIndianPincode(String(editFormData.billingPostalCode || '')) ||
+      extractIndianPincode(String(editFormData.billingAddress || ''));
+    if (!pin) return;
+
+    const t = setTimeout(() => {
+      lookupPincode(pin)
+        .then((next) => {
+          if (!next) return;
+          const currentCity = String(editFormData?.billingCity || '').trim();
+          const currentState = String(editFormData?.billingState || '').trim();
+          const nextCity = String(next?.city || '').trim();
+          const nextState = String(next?.state || '').trim();
+          if ((!currentCity && nextCity) || (!currentState && nextState)) {
+            setEditFormData((prev) => ({
+              ...prev,
+              billingCity: prev.billingCity || next.city || undefined,
+              billingState: prev.billingState || next.state || undefined,
+              billingPostalCode: prev.billingPostalCode || pin,
+            }));
+          }
+        })
+        .catch(() => {
+          // ignore
+        });
+    }, 400);
+
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editFormData.billingPostalCode, editFormData.billingAddress]);
+
+  useEffect(() => {
+    const pin =
+      extractIndianPincode(String(editFormData.shippingPostalCode || '')) ||
+      extractIndianPincode(String(editFormData.shippingAddress || ''));
+    if (!pin) return;
+
+    const t = setTimeout(() => {
+      lookupPincode(pin)
+        .then((next) => {
+          if (!next) return;
+          const currentCity = String(editFormData?.shippingCity || '').trim();
+          const currentState = String(editFormData?.shippingState || '').trim();
+          const nextCity = String(next?.city || '').trim();
+          const nextState = String(next?.state || '').trim();
+          if ((!currentCity && nextCity) || (!currentState && nextState)) {
+            setEditFormData((prev) => ({
+              ...prev,
+              shippingCity: prev.shippingCity || next.city || undefined,
+              shippingState: prev.shippingState || next.state || undefined,
+              shippingPostalCode: prev.shippingPostalCode || pin,
+            }));
+          }
+        })
+        .catch(() => {
+          // ignore
+        });
+    }, 400);
+
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editFormData.shippingPostalCode, editFormData.shippingAddress]);
 
   const loadOutstanding = async () => {
     if (!accessToken) {
@@ -220,10 +390,7 @@ export function CustomersPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading customers...</p>
-          </div>
+          <TraceLoader label="Loading customers..." />
         </div>
       </AppLayout>
     );
@@ -244,7 +411,7 @@ export function CustomersPage() {
               >
                 <ChevronLeft className="h-5 w-5" />
               </Button>
-              <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
+              <h1 className="text-3xl font-bold text-foreground">Customers</h1>
               <Button
                 variant="ghost"
                 size="icon"
@@ -254,7 +421,7 @@ export function CustomersPage() {
                 <ChevronRight className="h-5 w-5" />
               </Button>
             </div>
-            <p className="text-gray-600 mt-1">Parties</p>
+            <p className="text-muted-foreground mt-1">Parties</p>
           </div>
           <div className="flex items-center gap-2 mt-4 md:mt-0">
             <Button variant="outline" onClick={() => setOutstandingOpen(true)}>
@@ -272,26 +439,26 @@ export function CustomersPage() {
                   <DialogTitle>Add New Customer</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleCreate} className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Customer Name *</Label>
-                    <Input
-                      required
-                      value={formData.name || ''}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      placeholder="Enter name"
-                    />
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Customer Name *</Label>
+                      <Input
+                        required
+                        value={formData.name || ''}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Enter name"
+                      />
+                    </div>
+                    <div>
+                      <Label>Email</Label>
+                      <Input
+                        type="email"
+                        value={formData.email || ''}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="customer@email.com"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label>Email</Label>
-                    <Input
-                      type="email"
-                      value={formData.email || ''}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      placeholder="customer@email.com"
-                    />
-                  </div>
-                </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <Label>Phone</Label>
@@ -319,13 +486,96 @@ export function CustomersPage() {
                   />
                 </div>
                 <div>
-                  <Label>Address</Label>
+                  <Label>Billing Address</Label>
                   <Textarea
-                    value={formData.address || ''}
-                    onChange={(e) => setFormData({...formData, address: e.target.value})}
-                    placeholder="Enter customer address"
-                    rows={3}
+                    value={formData.billingAddress || ''}
+                    onChange={(e) => setFormData({...formData, billingAddress: e.target.value})}
+                    placeholder="Enter billing address"
+                    rows={2}
                   />
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Billing City</Label>
+                    <Input
+                      value={formData.billingCity || ''}
+                      onChange={(e) => setFormData({ ...formData, billingCity: e.target.value })}
+                      placeholder="Bangalore"
+                    />
+                  </div>
+                  <div>
+                    <Label>Billing State</Label>
+                    <Select
+                      value={formData.billingState || ''}
+                      onValueChange={(value) => setFormData({ ...formData, billingState: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INDIAN_STATES.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Billing Postal Code</Label>
+                    <Input
+                      value={formData.billingPostalCode || ''}
+                      onChange={(e) => setFormData({ ...formData, billingPostalCode: e.target.value })}
+                      placeholder="560001"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Shipping Address</Label>
+                  <Textarea
+                    value={formData.shippingAddress || ''}
+                    onChange={(e) => setFormData({...formData, shippingAddress: e.target.value})}
+                    placeholder="Enter shipping address"
+                    rows={2}
+                  />
+                </div>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Shipping City</Label>
+                    <Input
+                      value={formData.shippingCity || ''}
+                      onChange={(e) => setFormData({ ...formData, shippingCity: e.target.value })}
+                      placeholder="Bangalore"
+                    />
+                  </div>
+                  <div>
+                    <Label>Shipping State</Label>
+                    <Select
+                      value={formData.shippingState || ''}
+                      onValueChange={(value) => setFormData({ ...formData, shippingState: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INDIAN_STATES.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Shipping Postal Code</Label>
+                    <Input
+                      value={formData.shippingPostalCode || ''}
+                      onChange={(e) => setFormData({ ...formData, shippingPostalCode: e.target.value })}
+                      placeholder="560001"
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
@@ -347,23 +597,23 @@ export function CustomersPage() {
 
             <div className="space-y-4">
               <div className="rounded-md border p-4">
-                <div className="text-sm text-gray-600">Total Outstanding</div>
-                <div className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(outstandingTotal)}</div>
+                <div className="text-sm text-muted-foreground">Total Outstanding</div>
+                <div className="text-2xl font-bold text-foreground mt-1">{formatCurrency(outstandingTotal)}</div>
               </div>
 
               {outstandingLoading ? (
-                <div className="text-sm text-gray-600">Loading…</div>
+                <div className="text-sm text-muted-foreground">Loading…</div>
               ) : outstandingByCustomer.length === 0 ? (
-                <div className="text-sm text-gray-600">No outstanding invoices.</div>
+                <div className="text-sm text-muted-foreground">No outstanding invoices.</div>
               ) : (
                 <div className="rounded-md border overflow-hidden">
-                  <div className="grid grid-cols-2 bg-gray-50 text-xs font-semibold text-gray-700 px-4 py-2">
+                  <div className="grid grid-cols-2 bg-muted text-xs font-semibold text-muted-foreground px-4 py-2">
                     <div>Customer</div>
                     <div className="text-right">Outstanding</div>
                   </div>
                   {outstandingByCustomer.map((r) => (
                     <div key={r.customerName} className="grid grid-cols-2 px-4 py-3 border-t text-sm">
-                      <div className="font-medium text-gray-900 truncate">{r.customerName}</div>
+                      <div className="font-medium text-foreground truncate">{r.customerName}</div>
                       <div className="text-right font-semibold">{formatCurrency(r.amount)}</div>
                     </div>
                   ))}
@@ -383,7 +633,7 @@ export function CustomersPage() {
         <Card className="mb-6">
           <CardContent className="pt-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search customers by name, email, or phone..."
                 value={searchTerm}
@@ -398,11 +648,11 @@ export function CustomersPage() {
         {filteredCustomers.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <User className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              <User className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">
                 {customers.length === 0 ? 'No customers yet' : 'No matching customers'}
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-muted-foreground mb-4">
                 {customers.length === 0 
                   ? 'Add your first customer to get started'
                   : 'Try a different search term'}
@@ -428,7 +678,7 @@ export function CustomersPage() {
                     <div>
                       <CardTitle className="text-lg">{customer.name}</CardTitle>
                       {customer.gstin && (
-                        <p className="text-xs text-gray-600 font-mono">{customer.gstin}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{customer.gstin}</p>
                       )}
                     </div>
                     </div>
@@ -438,7 +688,7 @@ export function CustomersPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleEditClick(customer)}
-                      className="text-gray-500 hover:text-gray-900"
+                      className="text-muted-foreground hover:text-foreground"
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -446,21 +696,45 @@ export function CustomersPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {customer.email && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Mail className="h-4 w-4" />
                       <span className="truncate">{customer.email}</span>
                     </div>
                   )}
                   {customer.phone && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Phone className="h-4 w-4" />
                       <span>{customer.phone}</span>
                     </div>
                   )}
-                  {customer.address && (
-                    <div className="flex items-start gap-2 text-sm text-gray-600">
+
+                  {(customer.billingAddress || customer.billingCity || customer.billingState || customer.billingPostalCode) && (
+                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4 mt-0.5" />
-                      <span className="line-clamp-2">{customer.address}</span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-foreground/80">Billing</div>
+                        {customer.billingAddress && <div className="line-clamp-2">{customer.billingAddress}</div>}
+                        {formatLocation(customer.billingCity, customer.billingState, customer.billingPostalCode) && (
+                          <div className="text-xs text-muted-foreground/80 line-clamp-1">
+                            {formatLocation(customer.billingCity, customer.billingState, customer.billingPostalCode)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {(customer.shippingAddress || customer.shippingCity || customer.shippingState || customer.shippingPostalCode) && (
+                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4 mt-0.5 opacity-70" />
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-foreground/80">Shipping</div>
+                        {customer.shippingAddress && <div className="line-clamp-2">{customer.shippingAddress}</div>}
+                        {formatLocation(customer.shippingCity, customer.shippingState, customer.shippingPostalCode) && (
+                          <div className="text-xs text-muted-foreground/80 line-clamp-1">
+                            {formatLocation(customer.shippingCity, customer.shippingState, customer.shippingPostalCode)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -522,13 +796,96 @@ export function CustomersPage() {
                 />
               </div>
               <div>
-                <Label>Address</Label>
+                <Label>Billing Address</Label>
                 <Textarea
-                  value={editFormData.address || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                  placeholder="Enter customer address"
-                  rows={3}
+                  value={editFormData.billingAddress || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, billingAddress: e.target.value })}
+                  placeholder="Enter billing address"
+                  rows={2}
                 />
+              </div>
+
+              <div className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <Label>Billing City</Label>
+                  <Input
+                    value={editFormData.billingCity || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, billingCity: e.target.value })}
+                    placeholder="Bangalore"
+                  />
+                </div>
+                <div>
+                  <Label>Billing State</Label>
+                  <Select
+                    value={editFormData.billingState || ''}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, billingState: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((state) => (
+                        <SelectItem key={state} value={state}>
+                          {state}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Billing Postal Code</Label>
+                  <Input
+                    value={editFormData.billingPostalCode || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, billingPostalCode: e.target.value })}
+                    placeholder="560001"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Shipping Address</Label>
+                <Textarea
+                  value={editFormData.shippingAddress || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, shippingAddress: e.target.value })}
+                  placeholder="Enter shipping address"
+                  rows={2}
+                />
+              </div>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <Label>Shipping City</Label>
+                  <Input
+                    value={editFormData.shippingCity || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, shippingCity: e.target.value })}
+                    placeholder="Bangalore"
+                  />
+                </div>
+                <div>
+                  <Label>Shipping State</Label>
+                  <Select
+                    value={editFormData.shippingState || ''}
+                    onValueChange={(value) => setEditFormData({ ...editFormData, shippingState: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INDIAN_STATES.map((state) => (
+                        <SelectItem key={state} value={state}>
+                          {state}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Shipping Postal Code</Label>
+                  <Input
+                    value={editFormData.shippingPostalCode || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, shippingPostalCode: e.target.value })}
+                    placeholder="560001"
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
@@ -544,7 +901,7 @@ export function CustomersPage() {
         {filteredCustomers.length > 0 && (
           <Card className="mt-6">
             <CardContent className="py-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Showing {filteredCustomers.length} of {customers.length} customers
               </p>
             </CardContent>

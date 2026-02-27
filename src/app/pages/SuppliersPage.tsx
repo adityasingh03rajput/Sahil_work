@@ -11,6 +11,7 @@ import { Plus, Search, Building2, Mail, Phone, MapPin, Edit, ChevronLeft, Chevro
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
+import { TraceLoader } from '../components/TraceLoader';
 
 interface Supplier {
   id: string;
@@ -161,10 +162,7 @@ export function SuppliersPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading suppliers...</p>
-          </div>
+          <TraceLoader label="Loading suppliers..." />
         </div>
       </AppLayout>
     );

@@ -4,6 +4,9 @@ const documentItemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     hsnSac: { type: String, default: null },
+    description: { type: String, default: null },
+    sku: { type: String, default: null },
+    servicePeriod: { type: String, default: null },
     quantity: { type: Number, default: 0 },
     unit: { type: String, default: null },
     rate: { type: Number, default: 0 },
@@ -25,11 +28,23 @@ const documentSchema = new mongoose.Schema(
     documentNumber: { type: String, required: true, index: true },
     type: { type: String, required: true },
 
+    referenceDocumentId: { type: String, default: null },
+    referenceDocumentNumber: { type: String, default: null },
+
     customerName: { type: String, default: null },
     customerAddress: { type: String, default: null },
     customerGstin: { type: String, default: null },
+    validFrom: { type: String, default: null },
+    validTo: { type: String, default: null },
+    // Legacy fields for backward compatibility
     date: { type: String, default: null },
     dueDate: { type: String, default: null },
+
+    orderNumber: { type: String, default: null },
+    revisionNumber: { type: String, default: null },
+    referenceNo: { type: String, default: null },
+    purchaseOrderNo: { type: String, default: null },
+    poDate: { type: String, default: null },
 
     invoiceNo: { type: String, default: null },
     challanNo: { type: String, default: null },
@@ -37,6 +52,25 @@ const documentSchema = new mongoose.Schema(
     transport: { type: String, default: null },
     transportId: { type: String, default: null },
     placeOfSupply: { type: String, default: null },
+
+    customerContactPerson: { type: String, default: null },
+    customerMobile: { type: String, default: null },
+    customerEmail: { type: String, default: null },
+    customerStateCode: { type: String, default: null },
+
+    deliveryAddress: { type: String, default: null },
+    deliveryMethod: { type: String, default: null },
+    expectedDeliveryDate: { type: String, default: null },
+
+    departureFromAddress: { type: String, default: null },
+    departureFromCity: { type: String, default: null },
+    departureFromState: { type: String, default: null },
+    departureFromPostalCode: { type: String, default: null },
+
+    departureToAddress: { type: String, default: null },
+    departureToCity: { type: String, default: null },
+    departureToState: { type: String, default: null },
+    departureToPostalCode: { type: String, default: null },
 
     bankName: { type: String, default: null },
     bankBranch: { type: String, default: null },
@@ -49,10 +83,18 @@ const documentSchema = new mongoose.Schema(
 
     transportCharges: { type: Number, default: 0 },
     additionalCharges: { type: Number, default: 0 },
+    packingHandlingCharges: { type: Number, default: 0 },
+    tcs: { type: Number, default: 0 },
     roundOff: { type: Number, default: 0 },
 
     notes: { type: String, default: null },
+    internalNotes: { type: String, default: null },
     termsConditions: { type: String, default: null },
+
+    paymentTerms: { type: String, default: null },
+    creditPeriod: { type: String, default: null },
+    lateFeeTerms: { type: String, default: null },
+    warrantyReturnCancellationPolicies: { type: String, default: null },
 
     paymentStatus: { type: String, default: 'unpaid' },
     paymentMode: { type: String, default: null },

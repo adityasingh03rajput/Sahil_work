@@ -21,7 +21,7 @@ export function WalkthroughDialog({
   const steps = useMemo<WalkthroughStep[]>(
     () => [
       {
-        title: 'Welcome to Hukum',
+        title: 'Welcome to BillVyapar',
         description: 'Let’s set up your business and create your first document in a few quick steps.',
       },
       {

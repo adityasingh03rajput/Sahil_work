@@ -97,64 +97,106 @@ export function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="container mx-auto px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      <div className="container mx-auto px-4 py-8 sm:py-12">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center mb-4">
-            <FileText className="h-12 w-12 text-blue-600 mr-2" />
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Hukum
+        <div className="text-center mb-8 sm:mb-12">
+          <div className="flex items-center justify-center gap-2 mb-3 sm:mb-4">
+            <FileText className="h-10 w-10 sm:h-12 sm:w-12 text-blue-600" />
+            <h1 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+              BillVyapar
             </h1>
           </div>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="text-base sm:text-xl text-gray-600 max-w-2xl mx-auto">
             Complete Business Documentation & Billing Ecosystem
           </p>
         </div>
 
         {/* Features Grid */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-12">
-          <Card>
-            <CardHeader>
-              <Shield className="h-8 w-8 text-blue-600 mb-2" />
-              <CardTitle className="text-lg">Secure & Private</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600">
-                Single-device login enforcement and encrypted data storage
-              </p>
-            </CardContent>
-          </Card>
+        <div className="max-w-4xl mx-auto mb-8 sm:mb-12">
+          <div className="hidden md:grid md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader>
+                <Shield className="h-8 w-8 text-blue-600 mb-2" />
+                <CardTitle className="text-lg">Secure & Private</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600">
+                  Single-device login enforcement and encrypted data storage
+                </p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <Cloud className="h-8 w-8 text-purple-600 mb-2" />
-              <CardTitle className="text-lg">Offline First</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600">
-                Work without internet, auto-sync when online
-              </p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader>
+                <Cloud className="h-8 w-8 text-blue-600 mb-2" />
+                <CardTitle className="text-lg">Offline First</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600">
+                  Work without internet, auto-sync when online
+                </p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <Zap className="h-8 w-8 text-green-600 mb-2" />
-              <CardTitle className="text-lg">Multiple Profiles</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600">
-                Manage multiple businesses under one account
-              </p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader>
+                <Zap className="h-8 w-8 text-blue-600 mb-2" />
+                <CardTitle className="text-lg">Multiple Profiles</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600">
+                  Manage multiple businesses under one account
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="md:hidden -mx-4 px-4">
+            <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
+              <Card className="min-w-[260px] snap-start">
+                <CardHeader>
+                  <Shield className="h-7 w-7 text-blue-600 mb-2" />
+                  <CardTitle className="text-base">Secure & Private</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">
+                    Single-device login enforcement and encrypted data storage
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="min-w-[260px] snap-start">
+                <CardHeader>
+                  <Cloud className="h-7 w-7 text-green-600 mb-2" />
+                  <CardTitle className="text-base">Offline First</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">
+                    Work without internet, auto-sync when online
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="min-w-[260px] snap-start">
+                <CardHeader>
+                  <Zap className="h-7 w-7 text-green-600 mb-2" />
+                  <CardTitle className="text-base">Multiple Profiles</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600">
+                    Manage multiple businesses under one account
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
 
         {/* Auth Form */}
         <div className="max-w-md mx-auto">
           <Card>
-            <CardHeader>
+            <CardHeader className="space-y-1">
               <CardTitle>{mode === 'auth' ? (isSignUp ? 'Create Account' : 'Welcome Back') : mode === 'forgot' ? 'Forgot Password' : 'Reset Password'}</CardTitle>
               <CardDescription>
                 {mode === 'auth' ? (isSignUp 
@@ -215,6 +257,7 @@ export function AuthPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={6}
+                      autoComplete={isSignUp ? "new-password" : "current-password"}
                     />
                     {isSignUp && (
                       <p className="text-xs text-gray-500 mt-1">
@@ -247,6 +290,7 @@ export function AuthPage() {
                         onChange={(e) => setNewPassword(e.target.value)}
                         required
                         minLength={6}
+                        autoComplete="new-password"
                       />
                     </div>
                   </>

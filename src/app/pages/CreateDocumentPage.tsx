@@ -13,19 +13,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '../components/ui/command';
 import { Switch } from '../components/ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/ui/collapsible';
-import { ChevronDown, ChevronUp, Plus, Trash2, Save, ArrowLeft } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Plus, Save, Trash2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
+import { TraceLoader } from '../components/TraceLoader';
 
 type CurrencyCode = 'INR' | 'USD' | 'EUR' | 'GBP';
 
 interface DocumentItem {
   name: string;
   hsnSac: string;
+  description?: string;
+  sku?: string;
+  servicePeriod?: string;
   quantity: number;
   unit: string;
   rate: number;
@@ -41,6 +54,10 @@ interface PresetCustomer {
   id: string;
   name: string;
   address?: string;
+  billingAddress?: string;
+  shippingAddress?: string;
+  email?: string;
+  phone?: string;
   gstin?: string;
 }
 
@@ -54,6 +71,14 @@ interface PresetItem {
   cgst: number;
   sgst: number;
   igst: number;
+}
+
+interface PresetInvoice {
+  id: string;
+  documentNumber: string;
+  customerName?: string;
+  customerAddress?: string;
+  customerGstin?: string;
 }
 type PaymentMode = 'cash' | 'cheque' | 'online';
 
@@ -76,6 +101,9 @@ export function CreateDocumentPage() {
   const [items, setItems] = useState<DocumentItem[]>([{
     name: '',
     hsnSac: '',
+    description: '',
+    sku: '',
+    servicePeriod: '',
     quantity: 1,
     unit: 'pcs',
     rate: 0,
@@ -103,6 +131,39 @@ export function CreateDocumentPage() {
   const [transportId, setTransportId] = useState('');
   const [placeOfSupply, setPlaceOfSupply] = useState('');
 
+  const [orderNumber, setOrderNumber] = useState('');
+  const [revisionNumber, setRevisionNumber] = useState('');
+  const [referenceNo, setReferenceNo] = useState('');
+  const [purchaseOrderNo, setPurchaseOrderNo] = useState('');
+  const [poDate, setPoDate] = useState('');
+
+  const [customerContactPerson, setCustomerContactPerson] = useState('');
+  const [customerMobile, setCustomerMobile] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerStateCode, setCustomerStateCode] = useState('');
+
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState('');
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
+
+  const [departureFromAddress, setDepartureFromAddress] = useState('');
+  const [departureFromCity, setDepartureFromCity] = useState('');
+  const [departureFromState, setDepartureFromState] = useState('');
+  const [departureFromPostalCode, setDepartureFromPostalCode] = useState('');
+
+  const [departureToAddress, setDepartureToAddress] = useState('');
+  const [departureToCity, setDepartureToCity] = useState('');
+  const [departureToState, setDepartureToState] = useState('');
+  const [departureToPostalCode, setDepartureToPostalCode] = useState('');
+
+  const [packingHandlingCharges, setPackingHandlingCharges] = useState(0);
+  const [tcs, setTcs] = useState(0);
+  const [paymentTerms, setPaymentTerms] = useState('');
+  const [creditPeriod, setCreditPeriod] = useState('');
+  const [lateFeeTerms, setLateFeeTerms] = useState('');
+  const [internalNotes, setInternalNotes] = useState('');
+  const [warrantyReturnCancellationPolicies, setWarrantyReturnCancellationPolicies] = useState('');
+
   const [bankName, setBankName] = useState('');
   const [bankBranch, setBankBranch] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
@@ -110,10 +171,16 @@ export function CreateDocumentPage() {
   const [upiId, setUpiId] = useState('');
   const [upiQrText, setUpiQrText] = useState('');
 
+  const [referenceDocumentId, setReferenceDocumentId] = useState<string | null>(null);
+  const [referenceDocumentNumber, setReferenceDocumentNumber] = useState<string>('');
+  const [referenceDocs, setReferenceDocs] = useState<PresetInvoice[]>([]);
+  const [referenceDocOpen, setReferenceDocOpen] = useState(false);
+
   const [presetCustomers, setPresetCustomers] = useState<PresetCustomer[]>([]);
   const [presetItems, setPresetItems] = useState<PresetItem[]>([]);
 
   const [partyKind, setPartyKind] = useState<'customer' | 'supplier'>('customer');
+  const [lastCustomerDocType, setLastCustomerDocType] = useState<string>('invoice');
 
   const [expandedItemRows, setExpandedItemRows] = useState<Record<number, boolean>>({});
 
@@ -139,13 +206,121 @@ export function CreateDocumentPage() {
   useEffect(() => {
     if (type === 'purchase') {
       setPartyKind('supplier');
+      return;
     }
+
+    setPartyKind('customer');
+  }, [type]);
+
+  const handleTypeChange = (nextType: string) => {
+    const next = String(nextType || '').toLowerCase();
+
+    if (next === 'invoice_cancellation') {
+      setPartyKind('customer');
+      setType('invoice_cancellation');
+      return;
+    }
+
+    if (next === 'purchase') {
+      setPartyKind('supplier');
+      setType('purchase');
+      return;
+    }
+
+    // Any non-purchase type implies customer flow.
+    if (partyKind === 'supplier') {
+      setPartyKind('customer');
+    }
+
+    setLastCustomerDocType(next || 'invoice');
+    setType(nextType);
+  };
+
+  useEffect(() => {
+    if (type === 'invoice_cancellation') return;
+
+    if (partyKind === 'supplier') {
+      if (type !== 'purchase') {
+        setLastCustomerDocType(type || 'invoice');
+        setType('purchase');
+      }
+      return;
+    }
+
+    if (partyKind === 'customer') {
+      if (type === 'purchase') {
+        setType(lastCustomerDocType || 'invoice');
+      }
+    }
+  }, [partyKind, type, lastCustomerDocType]);
+
+  useEffect(() => {
+    if (type === 'invoice_cancellation' || type === 'order') return;
+    setReferenceDocumentId(null);
+    setReferenceDocumentNumber('');
+    setReferenceDocOpen(false);
   }, [type]);
 
   useEffect(() => {
     if (!accessToken || !deviceId || !profileId) return;
     void loadPresets();
   }, [accessToken, deviceId, profileId, type, partyKind]);
+
+  useEffect(() => {
+    if (type !== 'order') return;
+    const pin = extractIndianPincode(departureFromPostalCode) || extractIndianPincode(departureFromAddress);
+    if (!pin) return;
+
+    const t = setTimeout(() => {
+      lookupPincode(pin)
+        .then((next) => {
+          if (!next) return;
+          const nextCity = String(next?.city || '').trim();
+          const nextState = String(next?.state || '').trim();
+          if ((!departureFromCity.trim() && nextCity) || (!departureFromState.trim() && nextState)) {
+            if (!departureFromCity.trim() && nextCity) setDepartureFromCity(nextCity);
+            if (!departureFromState.trim() && nextState) setDepartureFromState(nextState);
+            if (!departureFromPostalCode.trim()) setDepartureFromPostalCode(pin);
+          }
+        })
+        .catch(() => {
+          // ignore
+        });
+    }, 500);
+
+    return () => clearTimeout(t);
+  }, [type, departureFromPostalCode, departureFromAddress, departureFromCity, departureFromState]);
+
+  useEffect(() => {
+    if (type !== 'order') return;
+    const pin = extractIndianPincode(departureToPostalCode) || extractIndianPincode(departureToAddress);
+    if (!pin) return;
+
+    const t = setTimeout(() => {
+      lookupPincode(pin)
+        .then((next) => {
+          if (!next) return;
+          const nextCity = String(next?.city || '').trim();
+          const nextState = String(next?.state || '').trim();
+          if ((!departureToCity.trim() && nextCity) || (!departureToState.trim() && nextState)) {
+            if (!departureToCity.trim() && nextCity) setDepartureToCity(nextCity);
+            if (!departureToState.trim() && nextState) setDepartureToState(nextState);
+            if (!departureToPostalCode.trim()) setDepartureToPostalCode(pin);
+          }
+        })
+        .catch(() => {
+          // ignore
+        });
+    }, 500);
+
+    return () => clearTimeout(t);
+  }, [type, departureToPostalCode, departureToAddress, departureToCity, departureToState]);
+
+  useEffect(() => {
+    if (!accessToken || !deviceId || !profileId) return;
+    if (type !== 'invoice_cancellation' && type !== 'order') return;
+    void loadReferenceDocs();
+  }, [accessToken, deviceId, profileId, type]);
 
   const loadPresets = async () => {
     try {
@@ -167,7 +342,16 @@ export function CreateDocumentPage() {
       ]);
 
       if (!customersData?.error && Array.isArray(customersData)) {
-        setPresetCustomers(customersData);
+        setPresetCustomers(
+          customersData.map((c: any) => ({
+            ...c,
+            address: c?.address || c?.billingAddress || c?.shippingAddress || '',
+            billingAddress: c?.billingAddress || c?.address || '',
+            shippingAddress: c?.shippingAddress || '',
+            email: c?.email || '',
+            phone: c?.phone || '',
+          }))
+        );
       }
       if (!itemsData?.error && Array.isArray(itemsData)) {
         setPresetItems(itemsData);
@@ -175,6 +359,142 @@ export function CreateDocumentPage() {
     } catch {
       // Non-blocking: page still works with manual input.
     }
+  };
+
+  const loadReferenceDocs = async () => {
+    try {
+      const headers = {
+        'Authorization': `Bearer ${accessToken}`,
+        'X-Device-ID': deviceId,
+        'X-Profile-ID': profileId,
+      };
+      const res = await fetch(`${apiUrl}/documents`, { headers });
+      const data = await res.json().catch(() => []);
+      if (data?.error || !Array.isArray(data)) return;
+      const wantType = type === 'order' ? 'quotation' : 'invoice';
+      const docs = data
+        .filter((d: any) => String(d?.type || '').toLowerCase() === wantType)
+        .map((d: any) => ({
+          id: String(d.id || d._id),
+          documentNumber: String(d.documentNumber || ''),
+          customerName: d.customerName || '',
+          customerAddress: d.customerAddress || '',
+          customerGstin: d.customerGstin || '',
+        }))
+        .filter((d: PresetInvoice) => !!d.id && !!d.documentNumber);
+      setReferenceDocs(docs);
+    } catch {
+      // ignore
+    }
+  };
+
+  const extractIndianPincode = (value: string) => {
+    const m = String(value || '').match(/\b(\d{6})\b/);
+    return m ? m[1] : null;
+  };
+
+  const lookupPincode = async (pincode: string) => {
+    const pin = String(pincode || '').trim();
+    if (!/^\d{6}$/.test(pin)) return null;
+    const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`);
+    const data = await res.json().catch(() => null);
+    const first = Array.isArray(data) ? data[0] : null;
+    const po = first?.PostOffice?.[0];
+    if (!po) return null;
+    return {
+      city: String(po?.District || po?.Block || '').trim() || null,
+      state: String(po?.State || '').trim() || null,
+    };
+  };
+
+  const applyOrderAutofillFromReferenceQuotation = (doc: any) => {
+    if (!doc) return;
+
+    if (!customerName.trim() && doc.customerName) setCustomerName(String(doc.customerName || '').trim());
+    if (!customerAddress.trim() && doc.customerAddress) setCustomerAddress(String(doc.customerAddress || '').trim());
+    if (!customerGstin.trim() && doc.customerGstin) setCustomerGstin(String(doc.customerGstin || '').trim());
+
+    if (!customerContactPerson.trim() && doc.customerContactPerson) {
+      setCustomerContactPerson(String(doc.customerContactPerson || '').trim());
+    }
+    if (!customerMobile.trim() && doc.customerMobile) setCustomerMobile(String(doc.customerMobile || '').trim());
+    if (!customerEmail.trim() && doc.customerEmail) setCustomerEmail(String(doc.customerEmail || '').trim());
+
+    if (!customerStateCode.trim() && doc.customerStateCode) setCustomerStateCode(String(doc.customerStateCode || '').trim());
+    if (!placeOfSupply.trim() && doc.placeOfSupply) setPlaceOfSupply(String(doc.placeOfSupply || '').trim());
+
+    if (!deliveryAddress.trim() && doc.deliveryAddress) setDeliveryAddress(String(doc.deliveryAddress || '').trim());
+    if (!deliveryMethod.trim() && doc.deliveryMethod) setDeliveryMethod(String(doc.deliveryMethod || '').trim());
+    if (!expectedDeliveryDate.trim() && doc.expectedDeliveryDate) setExpectedDeliveryDate(String(doc.expectedDeliveryDate || '').trim());
+
+    if (!departureFromAddress.trim() && doc.departureFromAddress) setDepartureFromAddress(String(doc.departureFromAddress || '').trim());
+    if (!departureFromCity.trim() && doc.departureFromCity) setDepartureFromCity(String(doc.departureFromCity || '').trim());
+    if (!departureFromState.trim() && doc.departureFromState) setDepartureFromState(String(doc.departureFromState || '').trim());
+    if (!departureFromPostalCode.trim() && doc.departureFromPostalCode) setDepartureFromPostalCode(String(doc.departureFromPostalCode || '').trim());
+
+    if (!departureToAddress.trim() && doc.departureToAddress) setDepartureToAddress(String(doc.departureToAddress || '').trim());
+    if (!departureToCity.trim() && doc.departureToCity) setDepartureToCity(String(doc.departureToCity || '').trim());
+    if (!departureToState.trim() && doc.departureToState) setDepartureToState(String(doc.departureToState || '').trim());
+    if (!departureToPostalCode.trim() && doc.departureToPostalCode) setDepartureToPostalCode(String(doc.departureToPostalCode || '').trim());
+
+    if (!paymentTerms.trim() && doc.paymentTerms) setPaymentTerms(String(doc.paymentTerms || '').trim());
+    if (!creditPeriod.trim() && doc.creditPeriod) setCreditPeriod(String(doc.creditPeriod || '').trim());
+    if (!lateFeeTerms.trim() && doc.lateFeeTerms) setLateFeeTerms(String(doc.lateFeeTerms || '').trim());
+
+    if (!termsConditions.trim() && doc.termsConditions) setTermsConditions(String(doc.termsConditions || '').trim());
+
+    const nextNotes = String((doc.internalNotes || doc.notes) || '').trim();
+    if (!notes.trim() && nextNotes) {
+      setNotes(nextNotes);
+      setInternalNotes(nextNotes);
+    }
+
+    if (!warrantyReturnCancellationPolicies.trim() && doc.warrantyReturnCancellationPolicies) {
+      setWarrantyReturnCancellationPolicies(String(doc.warrantyReturnCancellationPolicies || '').trim());
+    }
+
+    if (!packingHandlingCharges && Number(doc.packingHandlingCharges || 0) > 0) {
+      setPackingHandlingCharges(Number(doc.packingHandlingCharges || 0));
+    }
+    if (!tcs && Number(doc.tcs || 0) > 0) setTcs(Number(doc.tcs || 0));
+  };
+
+  const handleReferenceDocSelect = async (inv: PresetInvoice) => {
+    setReferenceDocumentId(inv.id);
+    setReferenceDocumentNumber(inv.documentNumber);
+
+    if (type === 'order') {
+      if (!customerName.trim() && inv.customerName) setCustomerName(inv.customerName || '');
+      if (!customerAddress.trim() && inv.customerAddress) setCustomerAddress(inv.customerAddress || '');
+      if (!customerGstin.trim() && inv.customerGstin) setCustomerGstin(inv.customerGstin || '');
+
+      const inferredState = gstStateCode(inv.customerGstin || '');
+      if (!customerStateCode.trim() && inferredState) setCustomerStateCode(inferredState);
+      if (!placeOfSupply.trim() && inferredState) setPlaceOfSupply(inferredState);
+      if (!deliveryAddress.trim() && inv.customerAddress) setDeliveryAddress(String(inv.customerAddress || '').trim());
+
+      try {
+        const headers = {
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Device-ID': deviceId,
+          'X-Profile-ID': profileId,
+        };
+        const res = await fetch(`${apiUrl}/documents`, { headers });
+        const data = await res.json().catch(() => []);
+        if (Array.isArray(data)) {
+          const fullDoc = data.find((d: any) => String(d?.id || d?._id) === String(inv.id));
+          if (fullDoc) applyOrderAutofillFromReferenceQuotation(fullDoc);
+        }
+      } catch {
+        // ignore
+      }
+    } else {
+      setCustomerName(inv.customerName || '');
+      setCustomerAddress(inv.customerAddress || '');
+      setCustomerGstin(inv.customerGstin || '');
+    }
+
+    setReferenceDocOpen(false);
   };
 
   const loadDocument = async () => {
@@ -194,10 +514,16 @@ export function CreateDocumentPage() {
         setDate(doc.date || '');
         setDueDate(doc.dueDate || '');
 
+        setReferenceDocumentId(doc.referenceDocumentId || null);
+        setReferenceDocumentNumber(doc.referenceDocumentNumber || '');
+
         const fallbackCurrency: CurrencyCode = (doc.currency as CurrencyCode) || 'INR';
         setItems(
           (doc.items || []).map((it: any) => ({
             ...it,
+            description: it.description || '',
+            sku: it.sku || '',
+            servicePeriod: it.servicePeriod || '',
             currency: (it.currency as CurrencyCode) || fallbackCurrency,
           }))
         );
@@ -209,6 +535,31 @@ export function CreateDocumentPage() {
         setTransportId(doc.transportId || '');
         setPlaceOfSupply(doc.placeOfSupply || '');
 
+        setOrderNumber(doc.orderNumber || '');
+        setRevisionNumber(doc.revisionNumber || '');
+        setReferenceNo(doc.referenceNo || '');
+        setPurchaseOrderNo(doc.purchaseOrderNo || '');
+        setPoDate(doc.poDate || '');
+
+        setCustomerContactPerson(doc.customerContactPerson || '');
+        setCustomerMobile(doc.customerMobile || '');
+        setCustomerEmail(doc.customerEmail || '');
+        setCustomerStateCode(doc.customerStateCode || '');
+
+        setDeliveryAddress(doc.deliveryAddress || '');
+        setDeliveryMethod(doc.deliveryMethod || '');
+        setExpectedDeliveryDate(doc.expectedDeliveryDate || '');
+
+        setDepartureFromAddress(doc.departureFromAddress || '');
+        setDepartureFromCity(doc.departureFromCity || '');
+        setDepartureFromState(doc.departureFromState || '');
+        setDepartureFromPostalCode(doc.departureFromPostalCode || '');
+
+        setDepartureToAddress(doc.departureToAddress || '');
+        setDepartureToCity(doc.departureToCity || '');
+        setDepartureToState(doc.departureToState || '');
+        setDepartureToPostalCode(doc.departureToPostalCode || '');
+
         setBankName(doc.bankName || '');
         setBankBranch(doc.bankBranch || '');
         setBankAccountNumber(doc.bankAccountNumber || '');
@@ -218,9 +569,17 @@ export function CreateDocumentPage() {
 
         setTransportCharges(doc.transportCharges || 0);
         setAdditionalCharges(doc.additionalCharges || 0);
+        setPackingHandlingCharges(doc.packingHandlingCharges || 0);
+        setTcs(doc.tcs || 0);
         setRoundOff(doc.roundOff || 0);
-        setNotes(doc.notes || '');
+        setNotes(doc.notes || doc.internalNotes || '');
+        setInternalNotes(doc.internalNotes || doc.notes || '');
         setTermsConditions(doc.termsConditions || '');
+
+        setPaymentTerms(doc.paymentTerms || '');
+        setCreditPeriod(doc.creditPeriod || '');
+        setLateFeeTerms(doc.lateFeeTerms || '');
+        setWarrantyReturnCancellationPolicies(doc.warrantyReturnCancellationPolicies || '');
         setPaymentStatus(doc.paymentStatus || 'unpaid');
         setPaymentMode((doc.paymentMode as PaymentMode) || 'cash');
         setStatus(doc.status || 'draft');
@@ -257,6 +616,60 @@ export function CreateDocumentPage() {
     setCustomerGstin(found.gstin || '');
   };
 
+  const gstStateCode = (gstinValue: string) => {
+    const cleaned = String(gstinValue || '').trim();
+    const m = cleaned.match(/^(\d{2})[A-Z0-9]{13}$/i);
+    if (!m) return '';
+    return m[1];
+  };
+
+  const tryApplyPresetCustomerEnhanced = (name: string) => {
+    const found = presetCustomers.find(c => (c.name || '').toLowerCase() === name.toLowerCase());
+    if (!found) return;
+
+    setCustomerName(found.name || '');
+
+    const nextAddress = String(found.address || found.billingAddress || found.shippingAddress || '').trim();
+    if (!customerAddress.trim() && nextAddress) {
+      setCustomerAddress(nextAddress);
+    }
+
+    const nextGstin = String(found.gstin || '').trim();
+    if (!customerGstin.trim() && nextGstin) {
+      setCustomerGstin(nextGstin);
+    }
+
+    if (type === 'quotation' || type === 'order') {
+      const nextEmail = String(found.email || '').trim();
+      const nextPhone = String(found.phone || '').trim();
+      const nextDelivery = String(found.shippingAddress || found.billingAddress || found.address || '').trim();
+
+      if (!customerEmail.trim() && nextEmail) setCustomerEmail(nextEmail);
+      if (!customerMobile.trim() && nextPhone) setCustomerMobile(nextPhone);
+      if (!deliveryAddress.trim() && nextDelivery) setDeliveryAddress(nextDelivery);
+
+      const billingCity = String((found as any)?.billingCity || (found as any)?.city || '').trim();
+      const billingState = String((found as any)?.billingState || (found as any)?.state || '').trim();
+      const billingPin = String((found as any)?.billingPostalCode || (found as any)?.postalCode || '').trim();
+      if (!departureFromAddress.trim() && nextAddress) setDepartureFromAddress(nextAddress);
+      if (!departureFromCity.trim() && billingCity) setDepartureFromCity(billingCity);
+      if (!departureFromState.trim() && billingState) setDepartureFromState(billingState);
+      if (!departureFromPostalCode.trim() && billingPin) setDepartureFromPostalCode(billingPin);
+
+      const shippingCity = String((found as any)?.shippingCity || '').trim();
+      const shippingState = String((found as any)?.shippingState || '').trim();
+      const shippingPin = String((found as any)?.shippingPostalCode || '').trim();
+      if (!departureToAddress.trim() && nextDelivery) setDepartureToAddress(nextDelivery);
+      if (!departureToCity.trim() && shippingCity) setDepartureToCity(shippingCity);
+      if (!departureToState.trim() && shippingState) setDepartureToState(shippingState);
+      if (!departureToPostalCode.trim() && shippingPin) setDepartureToPostalCode(shippingPin);
+
+      const inferredState = gstStateCode(nextGstin || customerGstin);
+      if (!customerStateCode.trim() && inferredState) setCustomerStateCode(inferredState);
+      if (!placeOfSupply.trim() && inferredState) setPlaceOfSupply(inferredState);
+    }
+  };
+
   const tryApplyPresetItem = (index: number, name: string) => {
     const found = presetItems.find(i => (i.name || '').toLowerCase() === name.toLowerCase());
     if (!found) return;
@@ -282,6 +695,9 @@ export function CreateDocumentPage() {
     setItems([...items, {
       name: '',
       hsnSac: '',
+      description: '',
+      sku: '',
+      servicePeriod: '',
       quantity: 1,
       unit: 'pcs',
       rate: 0,
@@ -304,6 +720,9 @@ export function CreateDocumentPage() {
       {
         name: '',
         hsnSac: '',
+        description: '',
+        sku: '',
+        servicePeriod: '',
         quantity: 1,
         unit: 'pcs',
         rate: 0,
@@ -319,7 +738,7 @@ export function CreateDocumentPage() {
 
   const calculateTotals = () => {
     const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
-    const subtotal = itemsTotal + transportCharges + additionalCharges;
+    const subtotal = itemsTotal + transportCharges + additionalCharges + packingHandlingCharges + tcs;
     const grandTotal = subtotal + roundOff;
     
     const totalCgst = items.reduce((sum, item) => {
@@ -345,26 +764,41 @@ export function CreateDocumentPage() {
     const rounded = Math.round(subtotal);
     const next = parseFloat((rounded - subtotal).toFixed(2));
     setRoundOff(next);
-  }, [autoRoundOff, items, transportCharges, additionalCharges]);
+  }, [autoRoundOff, items, transportCharges, additionalCharges, packingHandlingCharges, tcs]);
   const shouldShowPaymentMode =
     type === 'proforma' || type === 'order' || type === 'billing' || type === 'challan';
 
   const partyLabel = partyKind === 'supplier' ? 'Supplier' : 'Customer';
 
   const handleSave = async () => {
-    if (!customerName.trim()) {
-      toast.error('Customer name is required');
-      return;
-    }
-
-    if (items.some(item => !item.name.trim())) {
-      toast.error('All items must have a name');
-      return;
+    if (type === 'invoice_cancellation') {
+      if (!referenceDocumentId) {
+        toast.error('Reference invoice is required');
+        return;
+      }
+    } else {
+      if (!customerName.trim()) {
+        toast.error('Customer name is required');
+        return;
+      }
+      if (items.some(item => !item.name.trim())) {
+        toast.error('All items must have a name');
+        return;
+      }
     }
 
     setSaving(true);
     try {
-      const totals = calculateTotals();
+      const totals = type === 'invoice_cancellation'
+        ? {
+            itemsTotal: 0,
+            subtotal: 0,
+            grandTotal: 0,
+            totalCgst: 0,
+            totalSgst: 0,
+            totalIgst: 0,
+          }
+        : calculateTotals();
       const documentData = {
         type,
         customerName,
@@ -372,6 +806,34 @@ export function CreateDocumentPage() {
         customerGstin,
         date,
         dueDate,
+
+        referenceDocumentId,
+        referenceDocumentNumber,
+
+        orderNumber,
+        revisionNumber,
+        referenceNo,
+        purchaseOrderNo,
+        poDate,
+
+        customerContactPerson,
+        customerMobile,
+        customerEmail,
+        customerStateCode,
+
+        deliveryAddress,
+        deliveryMethod,
+        expectedDeliveryDate,
+
+        departureFromAddress,
+        departureFromCity,
+        departureFromState,
+        departureFromPostalCode,
+
+        departureToAddress,
+        departureToCity,
+        departureToState,
+        departureToPostalCode,
 
         invoiceNo,
         challanNo,
@@ -387,15 +849,24 @@ export function CreateDocumentPage() {
         upiId,
         upiQrText,
 
-        items,
+        items: type === 'invoice_cancellation' ? [] : items,
         transportCharges,
         additionalCharges,
+        packingHandlingCharges,
+        tcs,
         roundOff,
         notes,
+        internalNotes: internalNotes || notes,
         termsConditions,
+
+        paymentTerms,
+        creditPeriod,
+        lateFeeTerms,
+
         paymentStatus,
         paymentMode: shouldShowPaymentMode ? paymentMode : null,
         status,
+        warrantyReturnCancellationPolicies,
         ...totals
       };
 
@@ -454,10 +925,7 @@ export function CreateDocumentPage() {
     return (
       <AppLayout>
         <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading document...</p>
-          </div>
+          <TraceLoader label="Loading document..." />
         </div>
       </AppLayout>
     );
@@ -467,29 +935,29 @@ export function CreateDocumentPage() {
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="rounded-xl border bg-gradient-to-r from-blue-50 to-indigo-50 p-4 mb-6">
+        <div className="rounded-xl border bg-gradient-to-r from-blue-50 to-green-50 dark:from-card dark:to-background p-4 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Button
                 variant="outline"
                 size="icon"
-                className="neon-target neon-hover transition-all hover:border-blue-200 hover:text-blue-600"
+                className="neon-target neon-hover transition-all hover:border-primary/30 hover:text-primary"
                 onClick={() => navigate('/documents')}
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">
+                <h1 className="text-3xl font-bold text-foreground">
                   {isEdit ? 'Edit Document' : 'Create Document'}
                 </h1>
-                <p className="text-gray-600 mt-1">Fill in the details below</p>
+                <p className="text-muted-foreground mt-1">Fill in the details below</p>
               </div>
             </div>
             <Button
               onClick={handleSave}
               disabled={saving}
               data-tour-id="cta-save-document"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 shadow-sm"
             >
               <Save className="h-4 w-4 mr-2" />
               {saving ? 'Saving...' : 'Save Document'}
@@ -499,30 +967,86 @@ export function CreateDocumentPage() {
 
         {/* Document Type & Status */}
         <Card className="mb-6">
-          <CardHeader className="border-b bg-slate-50/60">
+          <CardHeader className="border-b bg-muted/40">
             <CardTitle>Document Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-4 gap-4">
               <div>
                 <Label>Document Type</Label>
-                <Select value={type} onValueChange={setType}>
+                <Select value={type} onValueChange={handleTypeChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="quotation">Quotation</SelectItem>
-                    <SelectItem value="invoice">Invoice</SelectItem>
-                    <SelectItem value="purchase">Purchase Invoice</SelectItem>
                     <SelectItem value="order">Order</SelectItem>
                     <SelectItem value="proforma">Proforma Invoice</SelectItem>
+                    <SelectItem value="invoice">Invoice</SelectItem>
                     <SelectItem value="challan">Delivery Challan</SelectItem>
+                    <SelectItem value="purchase">Purchase Invoice</SelectItem>
+                    <SelectItem value="invoice_cancellation">Invoice Cancellation</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
+              {(type === 'invoice_cancellation' || type === 'order') && (
+                <div className="md:col-span-2">
+                  <Label>
+                    {type === 'order' ? 'Reference Quotation (optional)' : 'Reference Invoice *'}
+                  </Label>
+                  <Popover open={referenceDocOpen} onOpenChange={setReferenceDocOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={referenceDocOpen}
+                        className="w-full justify-between"
+                      >
+                        <span className="truncate">
+                          {referenceDocumentNumber || (type === 'order' ? 'Select quotation...' : 'Select invoice...')}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                      <Command>
+                        <CommandInput placeholder={type === 'order' ? 'Search quotation...' : 'Search invoice...'} />
+                        <CommandList>
+                          <CommandEmpty>{type === 'order' ? 'No quotations found.' : 'No invoices found.'}</CommandEmpty>
+                          <CommandGroup>
+                            {referenceDocs.map((inv) => (
+                              <CommandItem
+                                key={inv.id}
+                                value={`${inv.documentNumber} ${inv.customerName || ''}`}
+                                onSelect={() => {
+                                  void handleReferenceDocSelect(inv);
+                                }}
+                              >
+                                <Check
+                                  className={
+                                    referenceDocumentId === inv.id
+                                      ? 'mr-2 h-4 w-4 opacity-100'
+                                      : 'mr-2 h-4 w-4 opacity-0'
+                                  }
+                                />
+                                <div className="min-w-0">
+                                  <div className="truncate font-medium">{inv.documentNumber}</div>
+                                  <div className="truncate text-xs text-muted-foreground">{inv.customerName || '—'}</div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+
               <div>
-                <Label>Date</Label>
+                <Label>Valid From</Label>
                 <Input
                   type="date"
                   value={date}
@@ -531,7 +1055,7 @@ export function CreateDocumentPage() {
               </div>
 
               <div>
-                <Label>Due Date</Label>
+                <Label>Valid To</Label>
                 <Input
                   type="date"
                   value={dueDate}
@@ -556,53 +1080,263 @@ export function CreateDocumentPage() {
         </Card>
 
         <Card className="mb-6">
-          <CardHeader className="border-b bg-slate-50/60">
+          <CardHeader className="border-b bg-muted/40">
             <CardTitle>More Details</CardTitle>
           </CardHeader>
           <CardContent>
             <Accordion type="multiple" className="w-full">
-              <AccordionItem value="document-details">
-                <AccordionTrigger
-                  onClick={(e) => {
-                    const target = e.currentTarget as unknown as HTMLElement;
-                    window.setTimeout(() => smoothPanTo(target), 50);
-                  }}
-                  className="neon-target neon-hover transition-all hover:text-blue-600"
-                >
-                  Document Details
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div>
-                      <Label>Invoice No</Label>
-                      <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} />
+              {type !== 'quotation' && type !== 'order' && (
+                <AccordionItem value="document-details">
+                  <AccordionTrigger
+                    onClick={(e) => {
+                      const target = e.currentTarget as unknown as HTMLElement;
+                      window.setTimeout(() => smoothPanTo(target), 50);
+                    }}
+                    className="neon-target neon-hover transition-all hover:text-primary"
+                  >
+                    Document Details
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div>
+                        <Label>Invoice No</Label>
+                        <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>Challan No</Label>
+                        <Input value={challanNo} onChange={(e) => setChallanNo(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>E-way Bill No</Label>
+                        <Input value={ewayBillNo} onChange={(e) => setEwayBillNo(e.target.value)} />
+                      </div>
                     </div>
-                    <div>
-                      <Label>Challan No</Label>
-                      <Input value={challanNo} onChange={(e) => setChallanNo(e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>E-way Bill No</Label>
-                      <Input value={ewayBillNo} onChange={(e) => setEwayBillNo(e.target.value)} />
-                    </div>
-                  </div>
 
-                  <div className="mt-4 grid md:grid-cols-3 gap-4">
-                    <div>
-                      <Label>Transport</Label>
-                      <Input value={transport} onChange={(e) => setTransport(e.target.value)} />
+                    <div className="mt-4 grid md:grid-cols-3 gap-4">
+                      <div>
+                        <Label>Transport</Label>
+                        <Input value={transport} onChange={(e) => setTransport(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>Transport ID</Label>
+                        <Input value={transportId} onChange={(e) => setTransportId(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>Place of Supply</Label>
+                        <Input value={placeOfSupply} onChange={(e) => setPlaceOfSupply(e.target.value)} />
+                      </div>
                     </div>
-                    <div>
-                      <Label>Transport ID</Label>
-                      <Input value={transportId} onChange={(e) => setTransportId(e.target.value)} />
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+
+              {(type === 'quotation' || type === 'order') && (
+                <AccordionItem value="quotation-fields">
+                  <AccordionTrigger
+                    onClick={(e) => {
+                      const target = e.currentTarget as unknown as HTMLElement;
+                      window.setTimeout(() => smoothPanTo(target), 50);
+                    }}
+                    className="neon-target neon-hover transition-all hover:text-primary"
+                  >
+                    {type === 'order' ? 'Order Fields' : 'Quotation Fields'}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div>
+                        <Label>Order Number</Label>
+                        <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>Revision Number / Re-Order No.</Label>
+                        <Input value={revisionNumber} onChange={(e) => setRevisionNumber(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>Reference No.</Label>
+                        <Input value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} />
+                      </div>
                     </div>
-                    <div>
-                      <Label>Place of Supply</Label>
-                      <Input value={placeOfSupply} onChange={(e) => setPlaceOfSupply(e.target.value)} />
+
+                    {type === 'quotation' && (
+                      <div className="mt-4 grid md:grid-cols-3 gap-4">
+                        <div>
+                          <Label>Place of Supply</Label>
+                          <Input value={placeOfSupply} onChange={(e) => setPlaceOfSupply(e.target.value)} />
+                        </div>
+                        <div />
+                        <div />
+                      </div>
+                    )}
+
+                    <div className="mt-4 grid md:grid-cols-3 gap-4">
+                      <div>
+                        <Label>Purchase Order No. (PO No.)</Label>
+                        <Input value={purchaseOrderNo} onChange={(e) => setPurchaseOrderNo(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>PO Date</Label>
+                        <Input type="date" value={poDate} onChange={(e) => setPoDate(e.target.value)} />
+                      </div>
+                      <div />
                     </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
+
+                    <div className="mt-6 grid md:grid-cols-3 gap-4">
+                      <div className="md:col-span-2">
+                        <Label>Delivery Address</Label>
+                        <Textarea
+                          value={deliveryAddress}
+                          onChange={(e) => setDeliveryAddress(e.target.value)}
+                          rows={2}
+                          placeholder="Enter delivery address"
+                        />
+                      </div>
+                      <div>
+                        <Label>Delivery Method</Label>
+                        <Input value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value)} />
+                      </div>
+                    </div>
+
+                    {type === 'order' && (
+                      <>
+                        <div className="mt-6">
+                          <div className="text-sm font-semibold text-foreground">Departure From</div>
+                          <div className="mt-2 grid md:grid-cols-4 gap-4">
+                            <div className="md:col-span-2">
+                              <Label>Address</Label>
+                              <Textarea
+                                value={departureFromAddress}
+                                onChange={(e) => setDepartureFromAddress(e.target.value)}
+                                rows={2}
+                                placeholder="Enter departure from address"
+                              />
+                            </div>
+                            <div>
+                              <Label>Pincode</Label>
+                              <Input value={departureFromPostalCode} onChange={(e) => setDepartureFromPostalCode(e.target.value)} />
+                            </div>
+                            <div>
+                              <Label>City</Label>
+                              <Input value={departureFromCity} onChange={(e) => setDepartureFromCity(e.target.value)} />
+                            </div>
+                          </div>
+                          <div className="mt-4 grid md:grid-cols-4 gap-4">
+                            <div>
+                              <Label>State</Label>
+                              <Input value={departureFromState} onChange={(e) => setDepartureFromState(e.target.value)} />
+                            </div>
+                            <div className="md:col-span-3" />
+                          </div>
+                        </div>
+
+                        <div className="mt-6">
+                          <div className="text-sm font-semibold text-foreground">Departure To</div>
+                          <div className="mt-2 grid md:grid-cols-4 gap-4">
+                            <div className="md:col-span-2">
+                              <Label>Address</Label>
+                              <Textarea
+                                value={departureToAddress}
+                                onChange={(e) => setDepartureToAddress(e.target.value)}
+                                rows={2}
+                                placeholder="Enter departure to address"
+                              />
+                            </div>
+                            <div>
+                              <Label>Pincode</Label>
+                              <Input value={departureToPostalCode} onChange={(e) => setDepartureToPostalCode(e.target.value)} />
+                            </div>
+                            <div>
+                              <Label>City</Label>
+                              <Input value={departureToCity} onChange={(e) => setDepartureToCity(e.target.value)} />
+                            </div>
+                          </div>
+                          <div className="mt-4 grid md:grid-cols-4 gap-4">
+                            <div>
+                              <Label>State</Label>
+                              <Input value={departureToState} onChange={(e) => setDepartureToState(e.target.value)} />
+                            </div>
+                            <div className="md:col-span-3" />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="mt-4 grid md:grid-cols-3 gap-4">
+                      <div>
+                        <Label>Expected Delivery Date</Label>
+                        <Input
+                          type="date"
+                          value={expectedDeliveryDate}
+                          onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                        />
+                      </div>
+                      <div />
+                      <div />
+                    </div>
+
+                    <div className="mt-6 grid md:grid-cols-4 gap-4">
+                      <div>
+                        <Label>Payment Terms</Label>
+                        <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>Credit Period</Label>
+                        <Input value={creditPeriod} onChange={(e) => setCreditPeriod(e.target.value)} />
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label>Late Fee Terms</Label>
+                        <Input value={lateFeeTerms} onChange={(e) => setLateFeeTerms(e.target.value)} />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid md:grid-cols-4 gap-4">
+                      <div>
+                        <Label>Packing/Handling Charges</Label>
+                        <Input
+                          type="number"
+                          value={packingHandlingCharges}
+                          onChange={(e) => setPackingHandlingCharges(parseFloat(e.target.value) || 0)}
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                      <div>
+                        <Label>TCS (optional)</Label>
+                        <Input
+                          type="number"
+                          value={tcs}
+                          onChange={(e) => setTcs(parseFloat(e.target.value) || 0)}
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                      <div className="md:col-span-2" />
+                    </div>
+
+                    <div className="mt-6 grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Internal Notes</Label>
+                        <Textarea
+                          value={notes}
+                          onChange={(e) => {
+                            setNotes(e.target.value);
+                            setInternalNotes(e.target.value);
+                          }}
+                          placeholder="Only visible internally"
+                          rows={2}
+                        />
+                      </div>
+                      <div>
+                        <Label>Warranty/Return/Cancellation Policies</Label>
+                        <Textarea
+                          value={warrantyReturnCancellationPolicies}
+                          onChange={(e) => setWarrantyReturnCancellationPolicies(e.target.value)}
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
 
               <AccordionItem value="bank-upi-details">
                 <AccordionTrigger
@@ -610,7 +1344,7 @@ export function CreateDocumentPage() {
                     const target = e.currentTarget as unknown as HTMLElement;
                     window.setTimeout(() => smoothPanTo(target), 50);
                   }}
-                  className="neon-target neon-hover transition-all hover:text-blue-600"
+                  className="neon-target neon-hover transition-all hover:text-primary"
                 >
                   Bank / UPI Details
                 </AccordionTrigger>
@@ -653,16 +1387,16 @@ export function CreateDocumentPage() {
 
         {/* Customer / Supplier Details */}
         <Card className="mb-6">
-          <CardHeader className="border-b bg-slate-50/60">
+          <CardHeader className="border-b bg-muted/40">
             <div className="flex items-center justify-between gap-3">
               <CardTitle>{partyLabel} Details</CardTitle>
               <div
-                className="relative inline-flex items-center rounded-full bg-slate-100 p-1 text-xs"
+                className="relative inline-flex items-center rounded-full bg-muted p-1 text-xs"
                 role="tablist"
                 aria-label="Party type"
               >
                 <div
-                  className={`absolute top-1 bottom-1 left-1 w-1/2 rounded-full bg-white shadow-sm ring-1 ring-slate-200 transition-transform duration-200 ease-out ${
+                  className={`absolute top-1 bottom-1 left-1 w-1/2 rounded-full bg-background shadow-sm ring-1 ring-border transition-transform duration-200 ease-out ${
                     partyKind === 'supplier' ? 'translate-x-full' : 'translate-x-0'
                   }`}
                   aria-hidden
@@ -670,7 +1404,7 @@ export function CreateDocumentPage() {
                 <button
                   type="button"
                   className={`relative z-10 w-24 select-none rounded-full px-3 py-1.5 font-medium transition-colors duration-200 ${
-                    partyKind === 'customer' ? 'text-slate-900' : 'text-slate-600'
+                    partyKind === 'customer' ? 'text-foreground' : 'text-muted-foreground'
                   }`}
                   onClick={() => setPartyKind('customer')}
                   role="tab"
@@ -681,7 +1415,7 @@ export function CreateDocumentPage() {
                 <button
                   type="button"
                   className={`relative z-10 w-24 select-none rounded-full px-3 py-1.5 font-medium transition-colors duration-200 ${
-                    partyKind === 'supplier' ? 'text-slate-900' : 'text-slate-600'
+                    partyKind === 'supplier' ? 'text-foreground' : 'text-muted-foreground'
                   }`}
                   onClick={() => setPartyKind('supplier')}
                   role="tab"
@@ -700,7 +1434,7 @@ export function CreateDocumentPage() {
                 onChange={(e) => {
                   const next = e.target.value;
                   setCustomerName(next);
-                  tryApplyPresetCustomer(next);
+                  tryApplyPresetCustomerEnhanced(next);
                 }}
                 placeholder={`Enter ${partyLabel.toLowerCase()} name`}
                 list="customer-presets"
@@ -728,6 +1462,49 @@ export function CreateDocumentPage() {
                 placeholder="22AAAAA0000A1Z5"
               />
             </div>
+
+            {(type === 'quotation' || type === 'order') && partyKind === 'customer' && (
+              <div className="grid md:grid-cols-4 gap-4">
+                <div className="md:col-span-2">
+                  <Label>Contact Person</Label>
+                  <Input
+                    value={customerContactPerson}
+                    onChange={(e) => setCustomerContactPerson(e.target.value)}
+                    placeholder="Contact person"
+                  />
+                </div>
+                <div>
+                  <Label>Mobile</Label>
+                  <Input
+                    value={customerMobile}
+                    onChange={(e) => setCustomerMobile(e.target.value)}
+                    placeholder="Mobile"
+                  />
+                </div>
+                <div>
+                  <Label>Email</Label>
+                  <Input
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="Email"
+                  />
+                </div>
+              </div>
+            )}
+
+            {(type === 'quotation' || type === 'order') && partyKind === 'customer' && (
+              <div className="grid md:grid-cols-4 gap-4">
+                <div>
+                  <Label>Customer State Code</Label>
+                  <Input
+                    value={customerStateCode}
+                    onChange={(e) => setCustomerStateCode(e.target.value)}
+                    placeholder="e.g. 27"
+                  />
+                </div>
+                <div className="md:col-span-3" />
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -755,12 +1532,12 @@ export function CreateDocumentPage() {
                         window.setTimeout(() => smoothPanTo(root), 50);
                       }
                     }}
-                    className="rounded-lg border bg-white shadow-sm transition-shadow hover:shadow-md"
+                    className="rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div id={`doc-item-${index}`} className="p-3">
                       <div className="grid grid-cols-12 gap-3 items-center">
                         <div className="col-span-5">
-                          <Label className="text-xs text-gray-600">Product/Service</Label>
+                          <Label className="text-xs text-muted-foreground">Product/Service</Label>
                           <Input
                             value={item.name}
                             onChange={(e) => {
@@ -779,7 +1556,7 @@ export function CreateDocumentPage() {
                         </div>
 
                         <div className="col-span-2">
-                          <Label className="text-xs text-gray-600">Qty</Label>
+                          <Label className="text-xs text-muted-foreground">Qty</Label>
                           <Input
                             type="number"
                             value={item.quantity}
@@ -789,7 +1566,7 @@ export function CreateDocumentPage() {
                         </div>
 
                         <div className="col-span-3">
-                          <Label className="text-xs text-gray-600">Rate</Label>
+                          <Label className="text-xs text-muted-foreground">Rate</Label>
                           <div className="flex items-center">
                             <Input
                               className="rounded-r-none"
@@ -817,15 +1594,15 @@ export function CreateDocumentPage() {
                         </div>
 
                         <div className="col-span-1 text-right">
-                          <div className="text-xs text-gray-600">Total</div>
-                          <div className="font-semibold text-blue-700">
+                          <div className="text-xs text-muted-foreground">Total</div>
+                          <div className="font-semibold text-primary">
                             {currencySymbol(item.currency)}{item.total.toFixed(2)}
                           </div>
                         </div>
 
                         <div className="col-span-1 flex justify-end gap-1">
                           <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="icon" className="neon-target neon-hover transition-all hover:text-blue-600">
+                            <Button variant="ghost" size="icon" className="neon-target neon-hover transition-all hover:text-primary">
                               {isOpen ? (
                                 <ChevronUp className={`h-4 w-4 transition-all`} />
                               ) : (
@@ -845,9 +1622,37 @@ export function CreateDocumentPage() {
                       </div>
 
                       <CollapsibleContent>
-                        <div className="mt-4 grid grid-cols-12 gap-3 rounded-md bg-slate-50/70 p-3 transition-all duration-300 ease-out">
+                        <div className="mt-4 grid grid-cols-12 gap-3 rounded-md bg-muted/40 p-3 transition-all duration-300 ease-out">
+                          <div className="col-span-12">
+                            <Label className="text-xs text-muted-foreground">Item Description</Label>
+                            <Textarea
+                              value={item.description || ''}
+                              onChange={(e) => updateItem(index, 'description', e.target.value)}
+                              placeholder="Description"
+                              rows={2}
+                            />
+                          </div>
+
+                          <div className="col-span-6">
+                            <Label className="text-xs text-muted-foreground">Item Code / SKU</Label>
+                            <Input
+                              value={item.sku || ''}
+                              onChange={(e) => updateItem(index, 'sku', e.target.value)}
+                              placeholder="SKU"
+                            />
+                          </div>
+
+                          <div className="col-span-6">
+                            <Label className="text-xs text-muted-foreground">Service Period</Label>
+                            <Input
+                              value={item.servicePeriod || ''}
+                              onChange={(e) => updateItem(index, 'servicePeriod', e.target.value)}
+                              placeholder="e.g., 01-Apr-2026 to 30-Apr-2026"
+                            />
+                          </div>
+
                           <div className="col-span-3">
-                            <Label className="text-xs text-gray-600">HSN/SAC</Label>
+                            <Label className="text-xs text-muted-foreground">HSN/SAC</Label>
                             <Input
                               value={item.hsnSac}
                               onChange={(e) => updateItem(index, 'hsnSac', e.target.value)}
@@ -856,7 +1661,7 @@ export function CreateDocumentPage() {
                           </div>
 
                           <div className="col-span-2">
-                            <Label className="text-xs text-gray-600">Unit</Label>
+                            <Label className="text-xs text-muted-foreground">Unit</Label>
                             <Select value={item.unit} onValueChange={(v) => updateItem(index, 'unit', v)}>
                               <SelectTrigger>
                                 <SelectValue />
@@ -872,7 +1677,7 @@ export function CreateDocumentPage() {
                           </div>
 
                           <div className="col-span-2">
-                            <Label className="text-xs text-gray-600">Disc%</Label>
+                            <Label className="text-xs text-muted-foreground">Disc%</Label>
                             <Input
                               type="number"
                               value={item.discount}
@@ -885,7 +1690,7 @@ export function CreateDocumentPage() {
                           <div className="col-span-5">
                             <div className="grid grid-cols-3 gap-3">
                               <div>
-                                <Label className="text-xs text-gray-600">CGST%</Label>
+                                <Label className="text-xs text-muted-foreground">CGST%</Label>
                                 <Input
                                   type="number"
                                   value={item.cgst}
@@ -894,7 +1699,7 @@ export function CreateDocumentPage() {
                                 />
                               </div>
                               <div>
-                                <Label className="text-xs text-gray-600">SGST%</Label>
+                                <Label className="text-xs text-muted-foreground">SGST%</Label>
                                 <Input
                                   type="number"
                                   value={item.sgst}
@@ -903,7 +1708,7 @@ export function CreateDocumentPage() {
                                 />
                               </div>
                               <div>
-                                <Label className="text-xs text-gray-600">IGST%</Label>
+                                <Label className="text-xs text-muted-foreground">IGST%</Label>
                                 <Input
                                   type="number"
                                   value={item.igst}
@@ -950,6 +1755,10 @@ export function CreateDocumentPage() {
                   step="0.01"
                 />
               </div>
+
+              {type === 'quotation' && (
+                <></>
+              )}
               <div>
                 <Label>Round Off</Label>
                 <div className="flex items-center gap-3">
@@ -962,7 +1771,7 @@ export function CreateDocumentPage() {
                   />
                   <div className="flex items-center gap-2 whitespace-nowrap">
                     <Switch checked={autoRoundOff} onCheckedChange={setAutoRoundOff} />
-                    <span className="text-sm text-gray-600">Auto</span>
+                    <span className="text-sm text-muted-foreground">Auto</span>
                   </div>
                 </div>
               </div>
@@ -994,15 +1803,17 @@ export function CreateDocumentPage() {
                   </Select>
                 </div>
               )}
-              <div>
-                <Label>Notes</Label>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Internal notes..."
-                  rows={2}
-                />
-              </div>
+              {type !== 'quotation' && (
+                <div>
+                  <Label>Notes</Label>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Internal notes..."
+                    rows={2}
+                  />
+                </div>
+              )}
               <div>
                 <Label>Terms & Conditions</Label>
                 <Textarea
@@ -1022,31 +1833,43 @@ export function CreateDocumentPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Items Total:</span>
+                <span className="text-muted-foreground">Items Total:</span>
                 <span className="font-semibold">{primarySymbol}{totals.itemsTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Total CGST:</span>
+                <span className="text-muted-foreground">Total CGST:</span>
                 <span className="font-semibold">{primarySymbol}{totals.totalCgst.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Total SGST:</span>
+                <span className="text-muted-foreground">Total SGST:</span>
                 <span className="font-semibold">{primarySymbol}{totals.totalSgst.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Total IGST:</span>
+                <span className="text-muted-foreground">Total IGST:</span>
                 <span className="font-semibold">{primarySymbol}{totals.totalIgst.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Transport Charges:</span>
+                <span className="text-muted-foreground">Transport Charges:</span>
                 <span className="font-semibold">{primarySymbol}{transportCharges.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Additional Charges:</span>
+                <span className="text-muted-foreground">Additional Charges:</span>
                 <span className="font-semibold">{primarySymbol}{additionalCharges.toFixed(2)}</span>
               </div>
+              {type === 'quotation' && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Packing/Handling:</span>
+                    <span className="font-semibold">{primarySymbol}{packingHandlingCharges.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">TCS:</span>
+                    <span className="font-semibold">{primarySymbol}{tcs.toFixed(2)}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Round Off:</span>
+                <span className="text-muted-foreground">Round Off:</span>
                 <span className="font-semibold">{primarySymbol}{roundOff.toFixed(2)}</span>
               </div>
               <div className="border-t pt-3 flex justify-between">
