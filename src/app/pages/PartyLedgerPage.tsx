@@ -45,6 +45,14 @@ interface LedgerStatementDto {
   rows: LedgerRowDto[];
 }
 
+interface QuickRangeDto {
+  key: string;
+  label: string;
+  from: string;
+  to: string;
+  count: number;
+}
+
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(n || 0));
 
@@ -97,6 +105,10 @@ export function PartyLedgerPage() {
   const [loadingParties, setLoadingParties] = useState(true);
   const [loadingStatement, setLoadingStatement] = useState(false);
   const [statement, setStatement] = useState<LedgerStatementDto | null>(null);
+
+  const [quickRanges, setQuickRanges] = useState<QuickRangeDto[]>([]);
+  const [loadingRanges, setLoadingRanges] = useState(false);
+  const [quickRangeKey, setQuickRangeKey] = useState<string>('');
 
   const partyLabel = partyType === 'customer' ? 'Customer' : 'Supplier';
 
@@ -159,11 +171,52 @@ export function PartyLedgerPage() {
     }
   };
 
+  const loadRanges = async () => {
+    if (!accessToken || !deviceId || !profileId) return;
+    if (!partyId) {
+      setQuickRanges([]);
+      setQuickRangeKey('');
+      return;
+    }
+
+    setLoadingRanges(true);
+    try {
+      const qs = new URLSearchParams({ partyType, partyId }).toString();
+      const res = await fetch(`${apiUrl}/ledger/ranges?${qs}`, { headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to load ranges');
+
+      const ranges: QuickRangeDto[] = Array.isArray(data?.ranges)
+        ? data.ranges
+            .map((r: any) => ({
+              key: String(r?.key || ''),
+              label: String(r?.label || ''),
+              from: String(r?.from || ''),
+              to: String(r?.to || ''),
+              count: Number(r?.count || 0),
+            }))
+            .filter((r: QuickRangeDto) => r.key && r.label && r.from && r.to)
+        : [];
+
+      setQuickRanges(ranges);
+      if (!ranges.some((r) => r.key === quickRangeKey)) {
+        setQuickRangeKey('');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to load quick ranges');
+      setQuickRanges([]);
+      setQuickRangeKey('');
+    } finally {
+      setLoadingRanges(false);
+    }
+  };
+
   useEffect(() => {
     if (!partyId) return;
     void loadStatement();
+    void loadRanges();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [partyId]);
+  }, [partyId, partyType]);
 
   const downloadCsv = () => {
     if (!statement) {
@@ -262,7 +315,42 @@ export function PartyLedgerPage() {
 
         <Card className="mb-6">
           <CardHeader className="border-b bg-muted/40">
-            <CardTitle>Filters</CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle>Filters</CardTitle>
+              <Select
+                value={quickRangeKey}
+                onValueChange={(v) => {
+                  setQuickRangeKey(v);
+                  const found = quickRanges.find((r) => r.key === v);
+                  if (!found) return;
+                  setFrom(String(found.from).slice(0, 10));
+                  setTo(String(found.to).slice(0, 10));
+                  window.setTimeout(() => {
+                    void loadStatement();
+                  }, 0);
+                }}
+                disabled={loadingRanges || !partyId || quickRanges.length === 0}
+              >
+                <SelectTrigger className="w-[280px]">
+                  <SelectValue
+                    placeholder={
+                      loadingRanges
+                        ? 'Loading ranges...'
+                        : quickRanges.length
+                          ? 'Quick date ranges'
+                          : 'No ranges'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {quickRanges.map((r) => (
+                    <SelectItem key={r.key} value={r.key}>
+                      {r.label} ({r.count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

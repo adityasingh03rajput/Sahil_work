@@ -15,6 +15,15 @@ function generateOtp4() {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
+function generateReferralCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < 8; i += 1) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
+
 authRouter.post('/signup', async (req, res, next) => {
   try {
     const { email, password, name, phone } = req.body || {};
@@ -33,12 +42,26 @@ authRouter.post('/signup', async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(String(password), 10);
+
+    // Ensure every user has a shareable referral code
+    let referralCode = null;
+    for (let i = 0; i < 5; i += 1) {
+      const candidate = generateReferralCode();
+      // eslint-disable-next-line no-await-in-loop
+      const exists = await User.findOne({ referralCode: candidate }).lean();
+      if (!exists) {
+        referralCode = candidate;
+        break;
+      }
+    }
+
     const user = await User.create({
       email: String(email).toLowerCase(),
       passwordHash,
       passwordHistory: [],
       name: name ? String(name) : null,
       phone: normalizedPhone,
+      referralCode,
     });
 
     const startDate = new Date();

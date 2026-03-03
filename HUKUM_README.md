@@ -40,6 +40,17 @@
   - Draft and Final status
   - Payment tracking (Paid/Unpaid)
   - Notes and Terms & Conditions
+  - E-Way Bill details support (vehicle/transporter/validity)
+
+### 📒 Party Ledger & Statements
+- Party-wise ledger statement with opening/running/closing balance
+- Date filters with quick month-wise ranges (auto-fill From/To)
+- Export ledger to CSV and PDF
+
+### 💰 Payments & Reminders
+- Record receipts/payments against customers/suppliers
+- Auto-ledger posting for documents and payments
+- Payment reminders via SMS (Twilio integration)
 
 ### 🧾 Item List Management
 Each document supports fully editable items with:
@@ -59,6 +70,10 @@ Each document supports fully editable items with:
 - Full customer details (name, email, phone, address)
 - GSTIN and PAN tracking
 - Search and filter capabilities
+
+### 🚀 Demo Data & Quick Setup
+- Safe demo seeding into an existing business profile (non-destructive)
+- Quick mode seeding for faster local testing and demos
 
 ### 📦 Item Catalog
 - Unlimited products/services

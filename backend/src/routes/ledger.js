@@ -13,10 +13,20 @@ export const ledgerRouter = Router();
 
 ledgerRouter.use(requireAuth, requireValidDeviceSession, requireActiveSubscription, requireProfile);
 
-function parseDateParam(value, fallback) {
+function parseDateParam(value, fallback, { endOfDay = false, startOfDay = false } = {}) {
   if (!value) return fallback;
-  const d = new Date(String(value));
-  return Number.isNaN(d.getTime()) ? fallback : d;
+  const raw = String(value);
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return fallback;
+
+  // If the client passes a pure date (YYYY-MM-DD), treat it as a whole-day boundary.
+  // This avoids excluding entries later on the same "To" date due to midnight timestamps.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    if (endOfDay) d.setHours(23, 59, 59, 999);
+    if (startOfDay) d.setHours(0, 0, 0, 0);
+  }
+
+  return d;
 }
 
 function signedFromBalance(amount, type) {
@@ -30,6 +40,105 @@ function balanceFromSigned(signed) {
   return { amount: Math.abs(s), type: 'dr' };
 }
 
+function asObjectId(value) {
+  if (!value) return null;
+  if (value instanceof mongoose.Types.ObjectId) return value;
+  const s = String(value);
+  if (!mongoose.Types.ObjectId.isValid(s)) return null;
+  return new mongoose.Types.ObjectId(s);
+}
+
+ledgerRouter.get('/ranges', async (req, res, next) => {
+  try {
+    const partyType = String(req.query.partyType || '').trim().toLowerCase();
+    const partyId = String(req.query.partyId || '').trim();
+
+    if (partyType !== 'customer' && partyType !== 'supplier') {
+      return res.status(400).json({ error: 'partyType must be customer or supplier' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(partyId)) {
+      return res.status(400).json({ error: 'Invalid partyId' });
+    }
+
+    const partyObjectId = new mongoose.Types.ObjectId(partyId);
+    const userObjectId = asObjectId(req.userId);
+    const profileObjectId = asObjectId(req.profileId);
+
+    if (!userObjectId) {
+      return res.status(401).json({ error: 'Invalid user session' });
+    }
+
+    const match = {
+      userId: userObjectId,
+      profileId: profileObjectId,
+      partyType,
+      partyId: partyObjectId,
+    };
+
+    const overallAgg = await LedgerEntry.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          minDate: { $min: '$date' },
+          maxDate: { $max: '$date' },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const overall = overallAgg?.[0] || null;
+    if (!overall || !overall.minDate || !overall.maxDate || !overall.count) {
+      return res.json({ ranges: [] });
+    }
+
+    const monthAgg = await LedgerEntry.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { y: { $year: '$date' }, m: { $month: '$date' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.y': -1, '_id.m': -1 } },
+    ]);
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthly = (monthAgg || []).map((r) => {
+      const y = Number(r?._id?.y);
+      const m = Number(r?._id?.m);
+      const label = `${monthNames[Math.max(1, Math.min(12, m)) - 1]} ${y}`;
+
+      // Full month boundaries for autofill UX
+      const from = new Date(y, Math.max(0, m - 1), 1, 0, 0, 0, 0);
+      const to = new Date(y, Math.max(0, m - 1) + 1, 0, 23, 59, 59, 999);
+
+      return {
+        key: `${y}-${String(m).padStart(2, '0')}`,
+        label,
+        from,
+        to,
+        count: Number(r.count || 0),
+      };
+    });
+
+    res.json({
+      ranges: [
+        {
+          key: 'all',
+          label: 'All time',
+          from: new Date(new Date(overall.minDate).setHours(0, 0, 0, 0)),
+          to: new Date(new Date(overall.maxDate).setHours(23, 59, 59, 999)),
+          count: Number(overall.count || 0),
+        },
+        ...monthly,
+      ],
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 ledgerRouter.get('/statement', async (req, res, next) => {
   try {
     const partyType = String(req.query.partyType || '').trim().toLowerCase();
@@ -42,8 +151,8 @@ ledgerRouter.get('/statement', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid partyId' });
     }
 
-    const to = parseDateParam(req.query.to, new Date());
-    const from = parseDateParam(req.query.from, new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000));
+    const to = parseDateParam(req.query.to, new Date(), { endOfDay: true });
+    const from = parseDateParam(req.query.from, new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000), { startOfDay: true });
 
     const PartyModel = partyType === 'customer' ? Customer : Supplier;
     const party = await PartyModel.findOne({ _id: partyId, userId: req.userId, profileId: req.profileId }).lean();
@@ -53,11 +162,14 @@ ledgerRouter.get('/statement', async (req, res, next) => {
 
     const openingSignedBase = signedFromBalance(party.openingBalance || 0, party.openingBalanceType || (partyType === 'supplier' ? 'cr' : 'dr'));
 
+    const userObjectId = asObjectId(req.userId);
+    const profileObjectId = asObjectId(req.profileId);
+
     const beforeAgg = await LedgerEntry.aggregate([
       {
         $match: {
-          userId: req.userId,
-          profileId: req.profileId,
+          userId: userObjectId,
+          profileId: profileObjectId,
           partyType,
           partyId: new mongoose.Types.ObjectId(partyId),
           date: { $lt: from },

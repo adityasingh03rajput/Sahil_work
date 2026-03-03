@@ -77,6 +77,7 @@ async function main() {
   const profileIdArg = arg('--profileId');
   const profileNameArg = arg('--profileName');
   const wipeProfileData = hasFlag('--wipe-profile-data');
+  const quick = hasFlag('--quick');
 
   const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) throw new Error('MONGODB_URI is required');
@@ -191,7 +192,8 @@ async function main() {
   ];
 
   const items = [];
-  for (let i = 0; i < 60; i += 1) {
+  const itemCount = quick ? 12 : 60;
+  for (let i = 0; i < itemCount; i += 1) {
     const baseName = pick(rng, itemNames);
     const name = `${baseName}${i % 3 === 0 ? ' - Premium' : i % 3 === 1 ? ' - Standard' : ''}`.trim();
     const purchaseCost = randomMoney(rng, 200, 5000);
@@ -219,7 +221,8 @@ async function main() {
   const lastNames = ['Industries', 'Traders', 'Enterprises', 'Solutions', 'Technologies', 'Steel', 'Hardware', 'Motors', 'Constructions', 'Agro'];
 
   const customers = [];
-  for (let i = 0; i < 45; i += 1) {
+  const customerCount = quick ? 8 : 45;
+  for (let i = 0; i < customerCount; i += 1) {
     const name = `${pick(rng, firstNames)} ${pick(rng, lastNames)}`;
     const openingBalance = randomMoney(rng, 0, 95000);
     const openingBalanceType = rng() < 0.85 ? 'dr' : 'cr';
@@ -239,7 +242,8 @@ async function main() {
   }
 
   const suppliers = [];
-  for (let i = 0; i < 18; i += 1) {
+  const supplierCount = quick ? 3 : 18;
+  for (let i = 0; i < supplierCount; i += 1) {
     const name = `${pick(rng, firstNames)} ${pick(rng, lastNames)}`;
     const openingBalance = randomMoney(rng, 0, 120000);
     const openingBalanceType = rng() < 0.75 ? 'cr' : 'dr';
@@ -262,8 +266,8 @@ async function main() {
   }
 
   // 5) DOCS + PAYMENTS (2024-03-01 to 2026-03-01)
-  const start = new Date('2024-03-01T00:00:00.000Z');
-  const end = new Date('2026-03-01T00:00:00.000Z');
+  const start = quick ? addDays(new Date(), -75) : new Date('2024-03-01T00:00:00.000Z');
+  const end = quick ? new Date() : new Date('2026-03-01T00:00:00.000Z');
 
   const docTypes = ['invoice', 'billing'];
 
@@ -368,7 +372,9 @@ async function main() {
     const year = cursor.getUTCFullYear();
 
     const seasonal = month === 2 || month === 9 ? 1.3 : month === 5 ? 0.85 : 1.0;
-    const invoicesThisMonth = clamp(Math.round(randomInt(rng, 6, 14) * seasonal), 4, 22);
+    const invoicesThisMonth = quick
+      ? clamp(Math.round(randomInt(rng, 2, 4) * seasonal), 1, 6)
+      : clamp(Math.round(randomInt(rng, 6, 14) * seasonal), 4, 22);
 
     for (let i = 0; i < invoicesThisMonth; i += 1) {
       const day = randomInt(rng, 1, 26);
@@ -488,7 +494,7 @@ async function main() {
     }
 
     // Supplier purchases (2-8 / month)
-    const purchasesThisMonth = clamp(randomInt(rng, 2, 8), 0, 12);
+    const purchasesThisMonth = quick ? clamp(randomInt(rng, 0, 2), 0, 3) : clamp(randomInt(rng, 2, 8), 0, 12);
     for (let i = 0; i < purchasesThisMonth; i += 1) {
       const day = randomInt(rng, 1, 26);
       const date = new Date(Date.UTC(year, month, day));

@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema(
     passwordHistory: { type: [String], default: [] },
     name: { type: String, default: null },
     phone: { type: String, required: true, index: true, trim: true },
+    referralCode: { type: String, unique: true, index: true, sparse: true, default: null, trim: true },
   },
   { timestamps: true }
 );

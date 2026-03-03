@@ -3,6 +3,7 @@ import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
 import { 
   Check, 
   Crown, 
@@ -20,6 +21,10 @@ export function SubscriptionPage() {
   const [subscription, setSubscription] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
+  const [myReferralCode, setMyReferralCode] = useState<string>('');
+  const [referralCode, setReferralCode] = useState<string>('');
+  const [referralValidating, setReferralValidating] = useState(false);
+  const [referralDiscountPercent, setReferralDiscountPercent] = useState<number>(0);
   const { accessToken, deviceId } = useAuth();
 
   const apiUrl = API_URL;
@@ -28,7 +33,54 @@ export function SubscriptionPage() {
 
   useEffect(() => {
     loadSubscription();
+    void loadMyReferralCode();
   }, []);
+
+  const loadMyReferralCode = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/subscription/referral-code`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Device-ID': deviceId,
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+      if (data?.referralCode) setMyReferralCode(String(data.referralCode));
+    } catch {
+      // ignore
+    }
+  };
+
+  const validateReferralCode = async () => {
+    const code = String(referralCode || '').trim();
+    if (!code) {
+      setReferralDiscountPercent(0);
+      return;
+    }
+
+    setReferralValidating(true);
+    try {
+      const response = await fetch(`${apiUrl}/subscription/referral/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Device-ID': deviceId,
+        },
+        body: JSON.stringify({ referralCode: code }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || 'Invalid referral code');
+      setReferralDiscountPercent(Number(data?.discountPercent || 10));
+      toast.success(`Referral applied: ${Number(data?.discountPercent || 10)}% off`);
+    } catch (e: any) {
+      setReferralDiscountPercent(0);
+      toast.error(e?.message || 'Invalid referral code');
+    } finally {
+      setReferralValidating(false);
+    }
+  };
 
   const loadSubscription = async () => {
     try {
@@ -76,7 +128,7 @@ export function SubscriptionPage() {
           'Authorization': `Bearer ${accessToken}`,
           'X-Device-ID': deviceId,
         },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, referralCode: String(referralCode || '').trim() || null }),
       });
 
       const data = await response.json();
@@ -122,6 +174,11 @@ export function SubscriptionPage() {
     'Payment tracking & reminders',
     'Custom fields & templates',
   ];
+
+  const baseMonthly = 499;
+  const baseYearly = 4999;
+  const discount = Math.max(0, Math.min(100, Number(referralDiscountPercent || 0)));
+  const priceAfterDiscount = (base: number) => Math.round(base * (1 - discount / 100));
 
   if (loading) {
     return (
@@ -190,8 +247,19 @@ export function SubscriptionPage() {
                 <Zap className="h-6 w-6 text-blue-600" />
               </div>
               <div className="mt-4">
-                <span className="text-4xl font-bold text-foreground">₹499</span>
-                <span className="text-muted-foreground">/month</span>
+                {discount > 0 ? (
+                  <div className="flex items-end gap-3 flex-wrap">
+                    <span className="text-4xl font-bold text-foreground">₹{priceAfterDiscount(baseMonthly)}</span>
+                    <span className="text-muted-foreground">/month</span>
+                    <span className="text-sm text-muted-foreground line-through">₹{baseMonthly}</span>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{discount}% OFF</Badge>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-4xl font-bold text-foreground">₹{baseMonthly}</span>
+                    <span className="text-muted-foreground">/month</span>
+                  </>
+                )}
               </div>
               <CardDescription className="mt-2">
                 Perfect for trying out BillVyapar
@@ -233,8 +301,19 @@ export function SubscriptionPage() {
                 <Crown className="h-6 w-6 text-green-600" />
               </div>
               <div className="mt-4">
-                <span className="text-4xl font-bold text-foreground">₹4,999</span>
-                <span className="text-muted-foreground">/year</span>
+                {discount > 0 ? (
+                  <div className="flex items-end gap-3 flex-wrap">
+                    <span className="text-4xl font-bold text-foreground">₹{priceAfterDiscount(baseYearly)}</span>
+                    <span className="text-muted-foreground">/year</span>
+                    <span className="text-sm text-muted-foreground line-through">₹{baseYearly}</span>
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{discount}% OFF</Badge>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-4xl font-bold text-foreground">₹{baseYearly}</span>
+                    <span className="text-muted-foreground">/year</span>
+                  </>
+                )}
               </div>
               <CardDescription className="mt-2">
                 Save ₹999 compared to monthly billing
@@ -263,6 +342,53 @@ export function SubscriptionPage() {
         </div>
 
         {/* FAQ / Info */}
+        <Card className="max-w-4xl mx-auto mb-8">
+          <CardHeader>
+            <CardTitle>Referral & Rewards</CardTitle>
+            <CardDescription>Invite friends and earn bonus days on their subscription purchase.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-semibold text-foreground mb-2">Your referral code</p>
+                <div className="flex items-center gap-2">
+                  <Input value={myReferralCode} readOnly placeholder="Loading..." />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(myReferralCode || '');
+                        toast.success('Referral code copied');
+                      } catch {
+                        toast.error('Failed to copy');
+                      }
+                    }}
+                    disabled={!myReferralCode}
+                  >
+                    Copy
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Share this code. Your friend gets 10% off, and you get bonus days when they purchase.</p>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground mb-2">Have a referral code?</p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={referralCode}
+                    onChange={(e) => setReferralCode(e.target.value)}
+                    placeholder="Enter referral code"
+                  />
+                  <Button type="button" onClick={validateReferralCode} disabled={referralValidating}>
+                    {referralValidating ? 'Checking...' : 'Apply'}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Applied referral gives 10% off on purchase. Bonus is credited to the referrer after you buy a plan.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="max-w-4xl mx-auto">
           <CardHeader>
             <CardTitle>Subscription Details</CardTitle>

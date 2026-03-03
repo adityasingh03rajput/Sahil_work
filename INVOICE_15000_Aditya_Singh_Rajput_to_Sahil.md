@@ -5,7 +5,9 @@ Invoice No.: INV-2026-02-26-001
 Invoice Date: 26 February 2026
 
 Description	Qty	Rate (₹)	Amount (₹)
-Full-stack web application development and deployment — features delivered till date	1	15,000.00	15,000.00
+Full-stack web application development and deployment — Core platform (Auth, Profiles, Documents)	1	
+Ledger & Reporting module — Party Ledger statement, quick month ranges (auto-fill), CSV/PDF export	1	
+Billing enhancements — E-Way Bill details, PDF template updates, payment reminders integration	1	
 
 Summary
 1	 Login & User Access	User registration, login, logout
@@ -39,6 +41,13 @@ Summary
 28	 Account Security	Device session validation to prevent multi-device login issues
 29	 Business Profiles	Profile data migration endpoint (customers/items/documents/counters) on profile select
 30	 UI/UX	Protected routes + full-screen loader during auth verification
+		
+31	 Ledger & Statements	Party ledger with opening/running/closing balance
+32	 Ledger & Statements	Quick date ranges (All time + month-wise) with auto-fill
+33	 Ledger & Statements	Ledger export (CSV and PDF)
+34	 Billing Compliance	E-Way Bill details fields (vehicle/transporter/validity)
+35	 Payments & Reminders	Payment reminder trigger with SMS integration
+
 			
 
 Terms & Conditions (Legal)
@@ -50,6 +59,6 @@ Terms & Conditions (Legal)
 6.	No refunds shall be issued for completed development work.
 7.	Buyer acknowledges acceptance of delivered modules by proceeding with or continuing to use the software.
 
-Total : ₹15,000.00
-Scan to Pay
+Total : ------
+
  

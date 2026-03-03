@@ -275,31 +275,10 @@ export function CreateDocumentPage() {
     }
 
     // Any non-purchase type implies customer flow.
-    if (partyKind === 'supplier') {
-      setPartyKind('customer');
-    }
-
+    setPartyKind('customer');
     setLastCustomerDocType(next || 'invoice');
     setType(nextType);
   };
-
-  useEffect(() => {
-    if (type === 'invoice_cancellation') return;
-
-    if (partyKind === 'supplier') {
-      if (type !== 'purchase') {
-        setLastCustomerDocType(type || 'invoice');
-        setType('purchase');
-      }
-      return;
-    }
-
-    if (partyKind === 'customer') {
-      if (type === 'purchase') {
-        setType(lastCustomerDocType || 'invoice');
-      }
-    }
-  }, [partyKind, type, lastCustomerDocType]);
 
   useEffect(() => {
     if (type === 'invoice_cancellation' || type === 'order') return;
@@ -1505,40 +1484,49 @@ export function CreateDocumentPage() {
           <CardHeader className="border-b bg-muted/40">
             <div className="flex items-center justify-between gap-3">
               <CardTitle>{partyLabel} Details</CardTitle>
-              <div
-                className="relative inline-flex items-center rounded-full bg-muted p-1 text-xs"
-                role="tablist"
-                aria-label="Party type"
-              >
+              {type !== 'purchase' && (
                 <div
-                  className={`absolute top-1 bottom-1 left-1 w-1/2 rounded-full bg-background shadow-sm ring-1 ring-border transition-transform duration-200 ease-out ${
-                    partyKind === 'supplier' ? 'translate-x-full' : 'translate-x-0'
-                  }`}
-                  aria-hidden
-                />
-                <button
-                  type="button"
-                  className={`relative z-10 w-24 select-none rounded-full px-3 py-1.5 font-medium transition-colors duration-200 ${
-                    partyKind === 'customer' ? 'text-foreground' : 'text-muted-foreground'
-                  }`}
-                  onClick={() => setPartyKind('customer')}
-                  role="tab"
-                  aria-selected={partyKind === 'customer'}
+                  className="relative inline-flex items-center rounded-full bg-muted p-1 text-xs"
+                  role="tablist"
+                  aria-label="Party type"
                 >
-                  Customer
-                </button>
-                <button
-                  type="button"
-                  className={`relative z-10 w-24 select-none rounded-full px-3 py-1.5 font-medium transition-colors duration-200 ${
-                    partyKind === 'supplier' ? 'text-foreground' : 'text-muted-foreground'
-                  }`}
-                  onClick={() => setPartyKind('supplier')}
-                  role="tab"
-                  aria-selected={partyKind === 'supplier'}
-                >
-                  Supplier
-                </button>
-              </div>
+                  <div
+                    className={`absolute top-1 bottom-1 left-1 w-1/2 rounded-full bg-background shadow-sm ring-1 ring-border transition-transform duration-200 ease-out ${
+                      partyKind === 'supplier' ? 'translate-x-full' : 'translate-x-0'
+                    }`}
+                    aria-hidden
+                  />
+                  <button
+                    type="button"
+                    className={`relative z-10 w-24 select-none rounded-full px-3 py-1.5 font-medium transition-colors duration-200 ${
+                      partyKind === 'customer' ? 'text-foreground' : 'text-muted-foreground'
+                    }`}
+                    onClick={() => {
+                      setPartyId('');
+                      handleTypeChange(lastCustomerDocType || 'invoice');
+                    }}
+                    role="tab"
+                    aria-selected={partyKind === 'customer'}
+                  >
+                    Customer
+                  </button>
+                  <button
+                    type="button"
+                    className={`relative z-10 w-24 select-none rounded-full px-3 py-1.5 font-medium transition-colors duration-200 ${
+                      partyKind === 'supplier' ? 'text-foreground' : 'text-muted-foreground'
+                    }`}
+                    onClick={() => {
+                      setPartyId('');
+                      setLastCustomerDocType(type || 'invoice');
+                      handleTypeChange('purchase');
+                    }}
+                    role="tab"
+                    aria-selected={partyKind === 'supplier'}
+                  >
+                    Supplier
+                  </button>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
