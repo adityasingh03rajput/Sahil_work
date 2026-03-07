@@ -45,7 +45,7 @@ Summary
 31	 Ledger & Statements	Party ledger with opening/running/closing balance
 32	 Ledger & Statements	Quick date ranges (All time + month-wise) with auto-fill
 33	 Ledger & Statements	Ledger export (CSV and PDF)
-34	 Billing Compliance	E-Way Bill details fields (vehicle/transporter/validity)
+34	 Billing Compliance	E-Way Bill details fields (vehicle/transporter/valid
 35	 Payments & Reminders	Payment reminder trigger with SMS integration
 
 			
@@ -59,6 +59,4 @@ Terms & Conditions (Legal)
 6.	No refunds shall be issued for completed development work.
 7.	Buyer acknowledges acceptance of delivered modules by proceeding with or continuing to use the software.
 
-Total : ------
-
- 
+Total Amount payable: ------

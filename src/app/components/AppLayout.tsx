@@ -1,9 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { Button } from './ui/button';
 import {
   LayoutDashboard,
   FileText,
+  ShoppingCart,
   Users,
   Package,
   BarChart3,
@@ -16,18 +17,20 @@ import {
   Settings,
   Crown,
   Truck,
+  Plus,
+  ChevronDown,
   Sun,
   Moon,
   Monitor,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
-import { useState, useEffect } from 'react';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 import { GuidedTour } from './GuidedTour';
 import { useTheme, type ThemeMode } from '../contexts/ThemeContext';
 import { TraceLoader } from './TraceLoader';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,7 +47,7 @@ import {
 } from '../utils/subscriptionValidation';
 
 interface AppLayoutProps {
-  children: ReactNode;
+  children: React.ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
@@ -263,6 +266,39 @@ export function AppLayout({ children }: AppLayoutProps) {
     setWalkthroughOpen(true);
   }, [accessToken, profileGateChecked, location.pathname]);
 
+  useEffect(() => {
+    const p = location.pathname;
+
+    const store = (key: string) => {
+      try {
+        sessionStorage.setItem(key, p);
+      } catch {
+        // ignore
+      }
+    };
+
+    if (p === '/dashboard') store('nav:lastDashboardRoute');
+    if (p === '/documents' || p.startsWith('/documents/')) store('nav:lastDocumentsRoute');
+    if (p === '/customers' || p.startsWith('/customers/') || p === '/suppliers' || p.startsWith('/suppliers/')) store('nav:lastPartiesRoute');
+    if (p === '/items' || p.startsWith('/items/')) store('nav:lastItemsRoute');
+    if (p === '/analytics' || p.startsWith('/analytics/')) store('nav:lastAnalyticsRoute');
+    if (p === '/reports/gst' || p.startsWith('/reports/')) store('nav:lastReportsRoute');
+    if (p === '/ledger' || p.startsWith('/ledger/')) store('nav:lastLedgerRoute');
+    if (p === '/subscription' || p.startsWith('/subscription/')) store('nav:lastSubscriptionRoute');
+  }, [location.pathname]);
+
+  const readLastRoute = (key: string, fallback: string, allowPrefixes: readonly string[]) => {
+    try {
+      const last = sessionStorage.getItem(key);
+      if (!last) return fallback;
+      if (last === fallback) return last;
+      if (allowPrefixes.some((p) => last === p || last.startsWith(p))) return last;
+      return fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: FileText, label: 'Documents', path: '/documents' },
@@ -295,34 +331,135 @@ export function AppLayout({ children }: AppLayoutProps) {
           : location.pathname === item.path;
         
         return (
-          <button
-            key={item.path}
-            data-tour-id={menuTourId(item.path)}
-            onClick={() => {
-              navigate(item.path);
-              setMobileMenuOpen(false);
-            }}
-            className={`group travel-glow border-glow border-glow-hover w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-              isActive
-                ? `bg-muted text-primary shadow-sm travel-glow-active border-glow-active`
-                : `text-muted-foreground hover:bg-muted hover:text-primary`
-            }`}
-          >
-            <span
-              className={`icon-aura icon-aura-hover ${isActive ? 'icon-aura-active' : ''}`}
-            >
-              <Icon
-                className={`h-5 w-5 neon-target neon-hover ${isActive ? 'neon-active' : ''}`}
-              />
-            </span>
-            <span
-              className={`font-medium neon-target neon-hover travel-glow-text travel-glow-text-hover ${
-                isActive ? 'neon-active travel-glow-text-active' : ''
+          <div key={item.path} className="space-y-1">
+            <button
+              data-tour-id={menuTourId(item.path)}
+              onClick={() => {
+                if (item.path === '/dashboard') {
+                  navigate(readLastRoute('nav:lastDashboardRoute', '/dashboard', ['/dashboard']));
+                } else if (item.path === '/documents') {
+                  navigate(readLastRoute('nav:lastDocumentsRoute', '/documents', ['/documents/']));
+                } else if (item.path === '/customers') {
+                  navigate(readLastRoute('nav:lastPartiesRoute', '/customers', ['/customers/', '/suppliers/']));
+                } else if (item.path === '/items') {
+                  navigate(readLastRoute('nav:lastItemsRoute', '/items', ['/items/']));
+                } else if (item.path === '/analytics') {
+                  navigate(readLastRoute('nav:lastAnalyticsRoute', '/analytics', ['/analytics/']));
+                } else if (item.path === '/reports/gst') {
+                  navigate(readLastRoute('nav:lastReportsRoute', '/reports/gst', ['/reports/']));
+                } else if (item.path === '/ledger') {
+                  navigate(readLastRoute('nav:lastLedgerRoute', '/ledger', ['/ledger/']));
+                } else if (item.path === '/subscription') {
+                  navigate(readLastRoute('nav:lastSubscriptionRoute', '/subscription', ['/subscription/']));
+                } else {
+                  navigate(item.path);
+                }
+                setMobileMenuOpen(false);
+              }}
+              className={`group travel-glow border-glow border-glow-hover w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? `bg-muted text-primary shadow-sm travel-glow-active border-glow-active`
+                  : `text-muted-foreground hover:bg-muted hover:text-primary`
               }`}
             >
-              {item.label}
-            </span>
-          </button>
+              <span className={`icon-aura icon-aura-hover ${isActive ? 'icon-aura-active' : ''}`}>
+                <Icon className={`h-5 w-5 neon-target neon-hover ${isActive ? 'neon-active' : ''}`} />
+              </span>
+              <span
+                className={`font-medium neon-target neon-hover travel-glow-text travel-glow-text-hover ${
+                  isActive ? 'neon-active travel-glow-text-active' : ''
+                }`}
+              >
+                {item.label}
+              </span>
+            </button>
+
+            {item.path === '/documents' && (
+              <div className="pl-4">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="group travel-glow border-glow border-glow-hover w-full flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all text-muted-foreground hover:bg-muted hover:text-primary"
+                    >
+                      <span className="icon-aura icon-aura-hover">
+                        <ShoppingCart className="h-5 w-5 neon-target neon-hover" />
+                      </span>
+                      <span className="flex-1 text-left font-medium neon-target neon-hover travel-glow-text travel-glow-text-hover">
+                        Sales
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-70" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent side="right" align="start" className="w-72 p-2">
+                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Sales</div>
+                    <div className="space-y-1">
+                      {[
+                        { label: 'Sale Invoices', type: 'invoice' },
+                        { label: 'Estimate / Quotation', type: 'quotation' },
+                        { label: 'Proforma Invoice', type: 'proforma' },
+                        { label: 'Sale Order', type: 'order' },
+                        { label: 'Delivery Challan', type: 'challan' },
+                        { label: 'Sale Return / Credit Note', type: 'invoice_cancellation' },
+                      ].map((row) => (
+                        <div key={row.type} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted">
+                          <button
+                            type="button"
+                            className="flex-1 text-left text-sm text-foreground/90 hover:text-primary"
+                            onClick={() => {
+                              navigate(`/documents?type=${encodeURIComponent(row.type)}`);
+                              setMobileMenuOpen(false);
+                            }}
+                          >
+                            {row.label}
+                          </button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => {
+                              navigate(`/documents/create?type=${encodeURIComponent(row.type)}`);
+                              setMobileMenuOpen(false);
+                            }}
+                            aria-label={`Create ${row.label}`}
+                            title={`Create ${row.label}`}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      <div className="h-px bg-border my-1" />
+                      <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted">
+                        <button
+                          type="button"
+                          className="flex-1 text-left text-sm text-foreground/90 hover:text-primary"
+                          onClick={() => {
+                            navigate('/payments-in');
+                            setMobileMenuOpen(false);
+                          }}
+                        >
+                          Payment-In
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted">
+                        <button
+                          type="button"
+                          className="flex-1 text-left text-sm text-foreground/90 hover:text-primary"
+                          onClick={() => {
+                            navigate('/pos');
+                            setMobileMenuOpen(false);
+                          }}
+                        >
+                          Vyapar POS
+                        </button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+          </div>
         );
       })}
     </nav>

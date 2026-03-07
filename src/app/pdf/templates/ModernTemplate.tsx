@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PdfTemplateProps } from '../types';
-import { Box, Hr, KeyValue, Label, Money, Muted, safeText, SmallText, TemplateFrame, docTitleFromType } from './TemplateFrame';
+import { Box, Hr, KeyValue, KeyValueOptional, Label, Money, Muted, safeText, SmallText, TemplateFrame, docTitleFromType } from './TemplateFrame';
 
 export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
   const taxes = Number(doc.totalCgst || 0) + Number(doc.totalSgst || 0) + Number(doc.totalIgst || 0);
@@ -8,6 +8,11 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
   const isQuotation = typeLower === 'quotation';
   const isOrder = typeLower === 'order';
   const isQuoteLike = isQuotation || isOrder;
+  const customFields = Array.isArray(doc.customFields)
+    ? doc.customFields
+        .map((x) => ({ label: String(x?.label || '').trim(), value: String(x?.value || '').trim() }))
+        .filter((x) => x.label && x.value)
+    : [];
 
   return (
     <TemplateFrame>
@@ -54,11 +59,17 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
                 <Label>Details</Label>
                 <div style={{ marginTop: 10 }}>
                   <KeyValue label="Doc No" value={doc.documentNumber} />
-                  {!!doc.dueDate && <KeyValue label="Due" value={doc.dueDate} />}
+                  <KeyValueOptional label="Due" value={doc.dueDate} />
                   {isOrder && !!doc.referenceDocumentNumber && (
                     <KeyValue label="Ref Quote" value={doc.referenceDocumentNumber} />
                   )}
-                  {isQuoteLike && !!doc.orderNumber && <KeyValue label="Order" value={doc.orderNumber} />}
+                  <KeyValueOptional label="Order" value={isQuoteLike ? doc.orderNumber : null} />
+                  <KeyValueOptional label="Invoice No" value={doc.invoiceNo} />
+                  <KeyValueOptional label="Challan No" value={doc.challanNo} />
+                  <KeyValueOptional label="E-way Bill No" value={doc.ewayBillNo} />
+                  <KeyValueOptional label="Vehicle No" value={doc.ewayBillVehicleNo} />
+                  <KeyValueOptional label="Transport" value={doc.transport} />
+                  <KeyValueOptional label="Transport ID" value={doc.transportId} />
                 </div>
               </Box>
             </div>
@@ -70,11 +81,10 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
                 <Box>
                   <Label>Contact</Label>
                   <div style={{ marginTop: 10 }}>
-                    {!!doc.customerContactPerson && <KeyValue label="Person" value={doc.customerContactPerson} />}
-                    {!!doc.customerMobile && <KeyValue label="Mobile" value={doc.customerMobile} />}
-                    {!!doc.customerEmail && <KeyValue label="Email" value={doc.customerEmail} />}
-                    {!!doc.customerStateCode && <KeyValue label="State Code" value={doc.customerStateCode} />}
-                    {!doc.customerContactPerson && !doc.customerMobile && !doc.customerEmail && !doc.customerStateCode && <Muted>—</Muted>}
+                    <KeyValueOptional label="Person" value={doc.customerContactPerson} />
+                    <KeyValueOptional label="Mobile" value={doc.customerMobile} />
+                    <KeyValueOptional label="Email" value={doc.customerEmail} />
+                    <KeyValueOptional label="State Code" value={doc.customerStateCode} />
                   </div>
                 </Box>
               </div>
@@ -82,12 +92,11 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
                 <Box>
                   <Label>Delivery</Label>
                   <div style={{ marginTop: 10 }}>
-                    {!!doc.deliveryMethod && <KeyValue label="Method" value={doc.deliveryMethod} />}
-                    {!!doc.expectedDeliveryDate && <KeyValue label="Expected" value={doc.expectedDeliveryDate} />}
+                    <KeyValueOptional label="Method" value={doc.deliveryMethod} />
+                    <KeyValueOptional label="Expected" value={doc.expectedDeliveryDate} />
                     {!!doc.deliveryAddress && (
                       <KeyValue label="Address" value={<div style={{ maxWidth: 170, whiteSpace: 'pre-line' }}>{doc.deliveryAddress}</div>} />
                     )}
-                    {!doc.deliveryMethod && !doc.expectedDeliveryDate && !doc.deliveryAddress && <Muted>—</Muted>}
                   </div>
                 </Box>
               </div>
@@ -165,6 +174,18 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
                   </Box>
                 </div>
               )}
+              {customFields.length > 0 && (
+                <div style={{ marginTop: doc.notes ? 12 : 0 }}>
+                  <Box>
+                    <Label>Custom Fields</Label>
+                    <div style={{ marginTop: 10 }}>
+                      {customFields.map((f, idx) => (
+                        <KeyValue key={idx} label={f.label} value={f.value} />
+                      ))}
+                    </div>
+                  </Box>
+                </div>
+              )}
               {!!doc.termsConditions && (
                 <div style={{ marginTop: doc.notes ? 12 : 0 }}>
                   <Box>
@@ -176,14 +197,6 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
                     </div>
                   </Box>
                 </div>
-              )}
-              {!doc.notes && !doc.termsConditions && (
-                <Box>
-                  <Label>Notes</Label>
-                  <div style={{ marginTop: 8 }}>
-                    <Muted>—</Muted>
-                  </div>
-                </Box>
               )}
             </div>
 

@@ -15,6 +15,8 @@ import { AnalyticsPageWrapper } from './pages/AnalyticsPageWrapper';
 import { SubscriptionPageWrapper } from './pages/SubscriptionPageWrapper';
 import { GstReportsPage } from './pages/GstReportsPage';
 import { PartyLedgerPageWrapper } from './pages/PartyLedgerPageWrapper';
+import { PaymentInPageWrapper } from './pages/PaymentInPageWrapper';
+import { PosPageWrapper } from './pages/PosPageWrapper';
 
 const router = createBrowserRouter([
   {
@@ -72,6 +74,14 @@ const router = createBrowserRouter([
   {
     path: "/subscription",
     Component: SubscriptionPageWrapper,
+  },
+  {
+    path: "/payments-in",
+    Component: PaymentInPageWrapper,
+  },
+  {
+    path: "/pos",
+    Component: PosPageWrapper,
   },
 ]);
 

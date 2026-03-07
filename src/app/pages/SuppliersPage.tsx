@@ -48,10 +48,38 @@ export function SuppliersPage() {
   const currentProfile = JSON.parse(localStorage.getItem('currentProfile') || '{}');
   const profileId = currentProfile?.id;
 
+  const suppliersCacheKey = profileId ? `cache:suppliers:${profileId}` : null;
+  const SUPPLIERS_CACHE_TTL_MS = 60 * 1000;
+
+  const readSuppliersCache = () => {
+    if (!suppliersCacheKey) return null;
+    try {
+      const raw = sessionStorage.getItem(suppliersCacheKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const ts = Number(parsed?.ts || 0);
+      const data = Array.isArray(parsed?.data) ? parsed.data : null;
+      if (!data || !ts) return null;
+      return { ts, data } as { ts: number; data: Supplier[] };
+    } catch {
+      return null;
+    }
+  };
+
+  const writeSuppliersCache = (data: Supplier[]) => {
+    if (!suppliersCacheKey) return;
+    try {
+      sessionStorage.setItem(suppliersCacheKey, JSON.stringify({ ts: Date.now(), data }));
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
+    if (!accessToken || !deviceId || !profileId) return;
     loadSuppliers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [accessToken, deviceId, profileId]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -67,14 +95,29 @@ export function SuppliersPage() {
     }
   }, [searchTerm, suppliers]);
 
-  const loadSuppliers = async () => {
+  const loadSuppliers = async ({ force = false }: { force?: boolean } = {}) => {
+    if (!accessToken || !deviceId || !profileId) return;
+
+    const cached = force ? null : readSuppliersCache();
+    const isFresh = cached ? Date.now() - cached.ts < SUPPLIERS_CACHE_TTL_MS : false;
+
+    if (cached?.data?.length) {
+      setSuppliers(cached.data);
+      if (isFresh) {
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
+      setLoading(true);
       const response = await fetch(`${apiUrl}/suppliers`, {
         headers: { 'Authorization': `Bearer ${accessToken}`, 'X-Device-ID': deviceId, 'X-Profile-ID': profileId },
       });
       const data = await response.json();
       if (!data.error) {
         setSuppliers(data);
+        if (Array.isArray(data)) writeSuppliersCache(data);
       }
     } catch {
       toast.error('Failed to load suppliers');

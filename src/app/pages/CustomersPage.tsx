@@ -55,9 +55,38 @@ export function CustomersPage() {
   const currentProfile = JSON.parse(localStorage.getItem('currentProfile') || '{}');
   const profileId = currentProfile?.id;
 
+  const customersCacheKey = profileId ? `cache:customers:${profileId}` : null;
+  const CUSTOMERS_CACHE_TTL_MS = 60 * 1000;
+
+  const readCustomersCache = () => {
+    if (!customersCacheKey) return null;
+    try {
+      const raw = sessionStorage.getItem(customersCacheKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const ts = Number(parsed?.ts || 0);
+      const data = Array.isArray(parsed?.data) ? parsed.data : null;
+      if (!data || !ts) return null;
+      return { ts, data } as { ts: number; data: Customer[] };
+    } catch {
+      return null;
+    }
+  };
+
+  const writeCustomersCache = (data: Customer[]) => {
+    if (!customersCacheKey) return;
+    try {
+      sessionStorage.setItem(customersCacheKey, JSON.stringify({ ts: Date.now(), data }));
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
+    if (!accessToken || !deviceId || !profileId) return;
     loadCustomers();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, deviceId, profileId]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -73,14 +102,29 @@ export function CustomersPage() {
     }
   }, [searchTerm, customers]);
 
-  const loadCustomers = async () => {
+  const loadCustomers = async ({ force = false }: { force?: boolean } = {}) => {
+    if (!accessToken || !deviceId || !profileId) return;
+
+    const cached = force ? null : readCustomersCache();
+    const isFresh = cached ? Date.now() - cached.ts < CUSTOMERS_CACHE_TTL_MS : false;
+
+    if (cached?.data?.length) {
+      setCustomers(cached.data);
+      if (isFresh) {
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
+      setLoading(true);
       const response = await fetch(`${apiUrl}/customers`, {
         headers: { 'Authorization': `Bearer ${accessToken}`, 'X-Device-ID': deviceId, 'X-Profile-ID': profileId },
       });
       const data = await response.json();
       if (!data.error) {
         setCustomers(data);
+        if (Array.isArray(data)) writeCustomersCache(data);
       }
     } catch (error) {
       toast.error('Failed to load customers');

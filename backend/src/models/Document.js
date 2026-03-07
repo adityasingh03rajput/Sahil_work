@@ -22,6 +22,14 @@ const documentItemSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const customFieldSchema = new mongoose.Schema(
+  {
+    label: { type: String, default: null },
+    value: { type: String, default: null },
+  },
+  { _id: false }
+);
+
 const reminderLogSchema = new mongoose.Schema(
   {
     sentAt: { type: Date, default: Date.now },
@@ -138,6 +146,8 @@ const documentSchema = new mongoose.Schema(
 
     lastReminderSentAt: { type: Date, default: null },
     reminderLogs: { type: [reminderLogSchema], default: [] },
+
+    customFields: { type: [customFieldSchema], default: [] },
   },
   { timestamps: true }
 );

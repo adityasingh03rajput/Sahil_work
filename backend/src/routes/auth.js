@@ -8,6 +8,7 @@ import { PasswordResetOtp } from '../models/PasswordResetOtp.js';
 import { signAccessToken } from '../lib/jwt.js';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { canSendSms, sendSms } from '../lib/twilio.js';
+import { canSendEmail, sendEmail } from '../lib/email.js';
 
 export const authRouter = Router();
 
@@ -110,12 +111,12 @@ authRouter.post('/signin', async (req, res, next) => {
 
     const user = await User.findOne({ email: String(email).toLowerCase() });
     if (!user) {
-      return res.status(400).json({ error: 'Invalid login credentials' });
+      return res.status(400).json({ error: 'User not found' });
     }
 
     const ok = await bcrypt.compare(String(password), user.passwordHash);
     if (!ok) {
-      return res.status(400).json({ error: 'Invalid login credentials' });
+      return res.status(400).json({ error: 'Wrong password' });
     }
 
     const deviceId = req.header('X-Device-ID') || `web-${Date.now()}`;
@@ -170,9 +171,16 @@ authRouter.post('/signout', requireAuth, async (req, res, next) => {
 
 authRouter.post('/forgot-password', async (req, res, next) => {
   try {
-    const { email } = req.body || {};
+    const { email, channel } = req.body || {};
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const mode = String(channel || 'sms').toLowerCase();
+    const wantSms = mode === 'sms' || mode === 'both';
+    const wantEmail = mode === 'email' || mode === 'both';
+    if (!wantSms && !wantEmail) {
+      return res.status(400).json({ error: 'Invalid channel. Use sms, email, or both.' });
     }
 
     const user = await User.findOne({ email: String(email).toLowerCase() });
@@ -180,7 +188,7 @@ authRouter.post('/forgot-password', async (req, res, next) => {
     // Always respond success to avoid account enumeration.
     res.json({ ok: true });
 
-    if (!user || !user.phone) return;
+    if (!user) return;
 
     const otp = generateOtp4();
     const otpHash = await bcrypt.hash(otp, 10);
@@ -197,11 +205,47 @@ authRouter.post('/forgot-password', async (req, res, next) => {
     });
 
     const msg = `Hukum: Your password reset OTP is ${otp}. Valid for 10 minutes. Do not share this OTP with anyone.`;
-    if (canSendSms()) {
-      await sendSms({ to: user.phone, body: msg });
-    } else {
+
+    let sentAny = false;
+
+    if (wantSms && user.phone) {
+      if (canSendSms()) {
+        try {
+          await sendSms({ to: user.phone, body: msg });
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error(`[OTP] SMS send failed for ${user.email} (${user.phone})`, e);
+        }
+      } else {
+        // eslint-disable-next-line no-console
+        console.log(`[DEV] Password reset OTP (SMS) for ${user.email} (${user.phone}): ${otp}`);
+      }
+      sentAny = true;
+    }
+
+    if (wantEmail && user.email) {
+      const html = `<p>Your password reset OTP is <strong>${otp}</strong>.</p><p>Valid for 10 minutes. Do not share this OTP with anyone.</p>`;
+      if (canSendEmail()) {
+        try {
+          await sendEmail({
+            to: user.email,
+            subject: 'BillVyapar Password Reset OTP',
+            html,
+          });
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error(`[OTP] Email send failed for ${user.email}`, e);
+        }
+      } else {
+        // eslint-disable-next-line no-console
+        console.log(`[DEV] Password reset OTP (Email) for ${user.email}: ${otp}`);
+      }
+      sentAny = true;
+    }
+
+    if (!sentAny) {
       // eslint-disable-next-line no-console
-      console.log(`[DEV] Password reset OTP for ${user.email} (${user.phone}): ${otp}`);
+      console.log(`[DEV] Password reset requested but no deliverable channel for ${user.email}. OTP: ${otp}`);
     }
   } catch (err) {
     next(err);

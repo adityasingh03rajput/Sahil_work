@@ -55,6 +55,15 @@ export function DocumentsPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || '');
+    const t = String(params.get('type') || '').trim();
+    if (t && t !== filterType) {
+      setFilterType(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
   const apiUrl = API_URL;
   const readCurrentProfile = () => {
     const raw = localStorage.getItem('currentProfile');
@@ -140,6 +149,33 @@ export function DocumentsPage() {
   const currentProfile = readCurrentProfile();
   const profileId = currentProfile?.id;
 
+  const docsCacheKey = profileId ? `cache:documents:${profileId}` : null;
+  const DOCS_CACHE_TTL_MS = 60 * 1000;
+
+  const readDocsCache = () => {
+    if (!docsCacheKey) return null;
+    try {
+      const raw = sessionStorage.getItem(docsCacheKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const ts = Number(parsed?.ts || 0);
+      const data = Array.isArray(parsed?.data) ? parsed.data : null;
+      if (!data || !ts) return null;
+      return { ts, data };
+    } catch {
+      return null;
+    }
+  };
+
+  const writeDocsCache = (data: any[]) => {
+    if (!docsCacheKey) return;
+    try {
+      sessionStorage.setItem(docsCacheKey, JSON.stringify({ ts: Date.now(), data }));
+    } catch {
+      // ignore
+    }
+  };
+
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfTemplateId, setPdfTemplateId] = useState<PdfTemplateId>('classic');
   const [pdfDocumentId, setPdfDocumentId] = useState<string | null>(null);
@@ -164,18 +200,30 @@ export function DocumentsPage() {
     if (!accessToken || !deviceId || !profileId) return;
     loadDocuments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, deviceId, profileId, location.key]);
+  }, [accessToken, deviceId, profileId]);
 
   useEffect(() => {
     filterDocuments();
   }, [documents, searchTerm, partyFilter, filterType, filterStatus]);
 
-  const loadDocuments = async () => {
+  const loadDocuments = async ({ force = false }: { force?: boolean } = {}) => {
     if (!accessToken || !deviceId || !profileId) return;
+    const cached = force ? null : readDocsCache();
+    const isFresh = cached ? Date.now() - cached.ts < DOCS_CACHE_TTL_MS : false;
+
+    if (cached?.data?.length) {
+      setDocuments(cached.data);
+      filterDocuments(cached.data);
+      // If cache is fresh, skip network fetch
+      if (isFresh) {
+        setLoading(false);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const response = await fetch(`${apiUrl}/documents`, {
-        cache: 'no-store',
         headers: { 'Authorization': `Bearer ${accessToken}`, 'X-Device-ID': deviceId, 'X-Profile-ID': profileId },
       });
       const data = await response.json();
@@ -184,6 +232,7 @@ export function DocumentsPage() {
       } else {
         setDocuments(data);
         filterDocuments(data);
+        if (Array.isArray(data)) writeDocsCache(data);
       }
     } catch (error) {
       toast.error('Failed to load documents');

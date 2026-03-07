@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { toast } from 'sonner';
 import { FileText, Shield, Cloud, Zap } from 'lucide-react';
 import { API_URL } from '../config/api';
+import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 
 export function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -19,6 +20,10 @@ export function AuthPage() {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [otpChannel, setOtpChannel] = useState<'sms' | 'email' | 'both'>('sms');
+
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
+  const [checkingBackend, setCheckingBackend] = useState(false);
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
 
@@ -27,6 +32,34 @@ export function AuthPage() {
       navigate('/welcome');
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const check = async () => {
+      setCheckingBackend(true);
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 2000);
+        const res = await fetch(`${API_URL}/health`, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (cancelled) return;
+        setBackendOnline(res.ok);
+      } catch {
+        if (cancelled) return;
+        setBackendOnline(false);
+      } finally {
+        if (!cancelled) setCheckingBackend(false);
+      }
+    };
+
+    void check();
+    const id = setInterval(check, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,8 +70,9 @@ export function AuthPage() {
         const response = await fetch(`${API_URL}/auth/forgot-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, channel: otpChannel }),
         });
+
         const data = await response.json();
         if (data.error) throw new Error(data.error);
         toast.success('OTP sent (if account exists)');
@@ -76,7 +110,20 @@ export function AuthPage() {
           setLoading(false);
           return;
         }
-        await signUp(email, password, name, phone);
+        const normalizePhone = (raw: string) => {
+          const v = String(raw || '').trim();
+          if (!v) return v;
+          if (v.startsWith('+')) return v;
+          const digits = v.replace(/\D/g, '');
+          if (!digits) return v;
+          // Default India if user enters 10-digit local number
+          if (digits.length === 10) return `+91${digits}`;
+          // If user typed country code without +
+          if (digits.length >= 8 && digits.length <= 15) return `+${digits}`;
+          return v;
+        };
+
+        await signUp(email, password, name, normalizePhone(phone));
         toast.success('Account created successfully!');
       } else {
         await signIn(email, password);
@@ -98,6 +145,15 @@ export function AuthPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="container mx-auto px-4 py-8 sm:py-12">
+        <div className="max-w-md mx-auto mb-3">
+          <div className="flex items-center justify-between text-xs">
+            <div className="text-muted-foreground truncate">API: {API_URL}</div>
+            <div className={`font-medium ${backendOnline ? 'text-green-700' : backendOnline === false ? 'text-red-700' : 'text-muted-foreground'}`}>
+              {checkingBackend && backendOnline === null ? 'Checking…' : backendOnline ? 'Backend: Connected' : backendOnline === false ? 'Backend: Disconnected' : 'Backend: Unknown'}
+            </div>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="text-center mb-8 sm:mb-12">
           <div className="flex items-center justify-center gap-2 mb-3 sm:mb-4">
@@ -244,6 +300,36 @@ export function AuthPage() {
                     required
                   />
                 </div>
+
+                {mode === 'forgot' && (
+                  <div>
+                    <Label>Send OTP via</Label>
+                    <RadioGroup
+                      value={otpChannel}
+                      onValueChange={(v) => setOtpChannel(v as any)}
+                      className="mt-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="sms" id="otp-sms" />
+                        <Label htmlFor="otp-sms" className="text-sm font-normal">
+                          SMS
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="email" id="otp-email" />
+                        <Label htmlFor="otp-email" className="text-sm font-normal">
+                          Email
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <RadioGroupItem value="both" id="otp-both" />
+                        <Label htmlFor="otp-both" className="text-sm font-normal">
+                          Both
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                )}
 
                 {mode === 'auth' && (
                   <div>

@@ -52,9 +52,38 @@ export function ItemsPage() {
   const currentProfile = JSON.parse(localStorage.getItem('currentProfile') || '{}');
   const profileId = currentProfile?.id;
 
+  const itemsCacheKey = profileId ? `cache:items:${profileId}` : null;
+  const ITEMS_CACHE_TTL_MS = 60 * 1000;
+
+  const readItemsCache = () => {
+    if (!itemsCacheKey) return null;
+    try {
+      const raw = sessionStorage.getItem(itemsCacheKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const ts = Number(parsed?.ts || 0);
+      const data = Array.isArray(parsed?.data) ? parsed.data : null;
+      if (!data || !ts) return null;
+      return { ts, data } as { ts: number; data: Item[] };
+    } catch {
+      return null;
+    }
+  };
+
+  const writeItemsCache = (data: Item[]) => {
+    if (!itemsCacheKey) return;
+    try {
+      sessionStorage.setItem(itemsCacheKey, JSON.stringify({ ts: Date.now(), data }));
+    } catch {
+      // ignore
+    }
+  };
+
   useEffect(() => {
+    if (!accessToken || !deviceId || !profileId) return;
     loadItems();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, deviceId, profileId]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -69,14 +98,29 @@ export function ItemsPage() {
     }
   }, [searchTerm, items]);
 
-  const loadItems = async () => {
+  const loadItems = async ({ force = false }: { force?: boolean } = {}) => {
+    if (!accessToken || !deviceId || !profileId) return;
+
+    const cached = force ? null : readItemsCache();
+    const isFresh = cached ? Date.now() - cached.ts < ITEMS_CACHE_TTL_MS : false;
+
+    if (cached?.data?.length) {
+      setItems(cached.data);
+      if (isFresh) {
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
+      setLoading(true);
       const response = await fetch(`${apiUrl}/items`, {
         headers: { 'Authorization': `Bearer ${accessToken}`, 'X-Device-ID': deviceId, 'X-Profile-ID': profileId },
       });
       const data = await response.json();
       if (!data.error) {
         setItems(data);
+        if (Array.isArray(data)) writeItemsCache(data);
       }
     } catch (error) {
       toast.error('Failed to load items');

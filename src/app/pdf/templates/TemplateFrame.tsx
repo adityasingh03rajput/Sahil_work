@@ -124,6 +124,13 @@ export function KeyValue({ label, value }: { label: string; value: React.ReactNo
   );
 }
 
+export function KeyValueOptional({ label, value }: { label: string; value: any }) {
+  const v = typeof value === 'string' ? value.trim() : value;
+  const empty = v === null || v === undefined || v === '';
+  if (empty) return null;
+  return <KeyValue label={label} value={String(v)} />;
+}
+
 export function TemplateCommonHeader({ doc, profile }: PdfTemplateProps) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>

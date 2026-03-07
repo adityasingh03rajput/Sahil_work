@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PdfTemplateProps } from '../types';
-import { Hr, KeyValue, Label, Money, Muted, safeText, SmallText, TemplateFrame, docTitleFromType } from './TemplateFrame';
+import { Hr, KeyValue, KeyValueOptional, Label, Money, Muted, safeText, SmallText, TemplateFrame, docTitleFromType } from './TemplateFrame';
 
 export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
   const taxes = Number(doc.totalCgst || 0) + Number(doc.totalSgst || 0) + Number(doc.totalIgst || 0);
@@ -8,6 +8,11 @@ export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
   const isQuotation = typeLower === 'quotation';
   const isOrder = typeLower === 'order';
   const isQuoteLike = isQuotation || isOrder;
+  const customFields = Array.isArray(doc.customFields)
+    ? doc.customFields
+        .map((x) => ({ label: String(x?.label || '').trim(), value: String(x?.value || '').trim() }))
+        .filter((x) => x.label && x.value)
+    : [];
 
   return (
     <TemplateFrame>
@@ -34,7 +39,7 @@ export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
       <div style={{ display: 'flex', gap: 16, marginTop: 14, alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <Label>Customer</Label>
-          <div style={{ marginTop: 8, fontSize: 14, fontWeight: 800, color: '#111827' }}>{safeText(doc.customerName) || '—'}</div>
+          <div style={{ marginTop: 8, fontSize: 14, fontWeight: 800, color: '#111827' }}>{safeText(doc.customerName)}</div>
           {!!doc.customerAddress && (
             <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280', whiteSpace: 'pre-line' }}>{doc.customerAddress}</div>
           )}
@@ -43,12 +48,18 @@ export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
         <div style={{ width: 280, minWidth: 280 }}>
           <Label>Details</Label>
           <div style={{ marginTop: 8 }}>
-            {!!doc.dueDate && <KeyValue label="Due" value={doc.dueDate} />}
+            <KeyValueOptional label="Due" value={doc.dueDate} />
             {isOrder && !!doc.referenceDocumentNumber && (
               <KeyValue label="Ref Quote" value={doc.referenceDocumentNumber} />
             )}
-            {isQuoteLike && !!doc.orderNumber && <KeyValue label="Order" value={doc.orderNumber} />}
-            {!!doc.paymentStatus && <KeyValue label="Status" value={doc.paymentStatus} />}
+            <KeyValueOptional label="Order" value={isQuoteLike ? doc.orderNumber : null} />
+            <KeyValueOptional label="Status" value={doc.paymentStatus} />
+            <KeyValueOptional label="Invoice No" value={doc.invoiceNo} />
+            <KeyValueOptional label="Challan No" value={doc.challanNo} />
+            <KeyValueOptional label="E-way Bill No" value={doc.ewayBillNo} />
+            <KeyValueOptional label="Vehicle No" value={doc.ewayBillVehicleNo} />
+            <KeyValueOptional label="Transport" value={doc.transport} />
+            <KeyValueOptional label="Transport ID" value={doc.transportId} />
           </div>
         </div>
       </div>
@@ -114,6 +125,20 @@ export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
               <SmallText>
                 <div style={{ whiteSpace: 'pre-line' }}>{doc.termsConditions}</div>
               </SmallText>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {customFields.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <Hr />
+          <div style={{ marginTop: 12 }}>
+            <Label>Custom Fields</Label>
+            <div style={{ marginTop: 8 }}>
+              {customFields.map((f, idx) => (
+                <KeyValue key={idx} label={f.label} value={f.value} />
+              ))}
             </div>
           </div>
         </div>

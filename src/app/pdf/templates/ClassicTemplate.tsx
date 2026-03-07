@@ -4,6 +4,7 @@ import {
   Box,
   Hr,
   KeyValue,
+  KeyValueOptional,
   Label,
   Money,
   Muted,
@@ -20,6 +21,11 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
   const isQuotation = typeLower === 'quotation';
   const isOrder = typeLower === 'order';
   const isQuoteLike = isQuotation || isOrder;
+  const customFields = Array.isArray(doc.customFields)
+    ? doc.customFields
+        .map((x) => ({ label: String(x?.label || '').trim(), value: String(x?.value || '').trim() }))
+        .filter((x) => x.label && x.value)
+    : [];
 
   return (
     <TemplateFrame>
@@ -52,7 +58,7 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
               <Box>
                 <Label>Bill To</Label>
                 <div style={{ marginTop: 8, fontSize: 14, fontWeight: 800, color: '#111827' }}>
-                  {safeText(doc.customerName) || '—'}
+                  {safeText(doc.customerName)}
                 </div>
                 {!!doc.customerAddress && (
                   <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280', whiteSpace: 'pre-line' }}>
@@ -68,12 +74,18 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
                 <Label>Invoice Details</Label>
                 <div style={{ marginTop: 10 }}>
                   <KeyValue label="Document" value={doc.documentNumber} />
-                  {!!doc.date && <KeyValue label="Date" value={doc.date} />}
-                  {!!doc.dueDate && <KeyValue label="Due" value={doc.dueDate} />}
+                  <KeyValueOptional label="Date" value={doc.date} />
+                  <KeyValueOptional label="Due" value={doc.dueDate} />
                   {isOrder && !!doc.referenceDocumentNumber && (
                     <KeyValue label="Ref Quote" value={doc.referenceDocumentNumber} />
                   )}
-                  {isQuoteLike && !!doc.orderNumber && <KeyValue label="Order" value={doc.orderNumber} />}
+                  <KeyValueOptional label="Order" value={isQuoteLike ? doc.orderNumber : null} />
+                  <KeyValueOptional label="Invoice No" value={doc.invoiceNo} />
+                  <KeyValueOptional label="Challan No" value={doc.challanNo} />
+                  <KeyValueOptional label="E-way Bill No" value={doc.ewayBillNo} />
+                  <KeyValueOptional label="Vehicle No" value={doc.ewayBillVehicleNo} />
+                  <KeyValueOptional label="Transport" value={doc.transport} />
+                  <KeyValueOptional label="Transport ID" value={doc.transportId} />
                 </div>
               </Box>
             </div>
@@ -86,13 +98,10 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
                   <Box>
                     <Label>Contact</Label>
                     <div style={{ marginTop: 10 }}>
-                      {!!doc.customerContactPerson && <KeyValue label="Person" value={doc.customerContactPerson} />}
-                      {!!doc.customerMobile && <KeyValue label="Mobile" value={doc.customerMobile} />}
-                      {!!doc.customerEmail && <KeyValue label="Email" value={doc.customerEmail} />}
-                      {!!doc.customerStateCode && <KeyValue label="State Code" value={doc.customerStateCode} />}
-                      {!doc.customerContactPerson && !doc.customerMobile && !doc.customerEmail && !doc.customerStateCode && (
-                        <Muted>—</Muted>
-                      )}
+                      <KeyValueOptional label="Person" value={doc.customerContactPerson} />
+                      <KeyValueOptional label="Mobile" value={doc.customerMobile} />
+                      <KeyValueOptional label="Email" value={doc.customerEmail} />
+                      <KeyValueOptional label="State Code" value={doc.customerStateCode} />
                     </div>
                   </Box>
                 }
@@ -100,10 +109,11 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
                   <Box>
                     <Label>Delivery</Label>
                     <div style={{ marginTop: 10 }}>
-                      {!!doc.deliveryMethod && <KeyValue label="Method" value={doc.deliveryMethod} />}
-                      {!!doc.expectedDeliveryDate && <KeyValue label="Expected" value={doc.expectedDeliveryDate} />}
-                      {!!doc.deliveryAddress && <KeyValue label="Address" value={<div style={{ maxWidth: 170, whiteSpace: 'pre-line' }}>{doc.deliveryAddress}</div>} />}
-                      {!doc.deliveryMethod && !doc.expectedDeliveryDate && !doc.deliveryAddress && <Muted>—</Muted>}
+                      <KeyValueOptional label="Method" value={doc.deliveryMethod} />
+                      <KeyValueOptional label="Expected" value={doc.expectedDeliveryDate} />
+                      {!!doc.deliveryAddress && (
+                        <KeyValue label="Address" value={<div style={{ maxWidth: 170, whiteSpace: 'pre-line' }}>{doc.deliveryAddress}</div>} />
+                      )}
                     </div>
                   </Box>
                 }
@@ -154,18 +164,16 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
 
           <div style={{ display: 'flex', gap: 18, marginTop: 18, alignItems: 'flex-start' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <Box>
-                <Label>Terms</Label>
-                <div style={{ marginTop: 8 }}>
-                  {doc.termsConditions ? (
+              {!!doc.termsConditions && (
+                <Box>
+                  <Label>Terms</Label>
+                  <div style={{ marginTop: 8 }}>
                     <SmallText>
                       <div style={{ whiteSpace: 'pre-line' }}>{doc.termsConditions}</div>
                     </SmallText>
-                  ) : (
-                    <Muted>—</Muted>
-                  )}
-                </div>
-              </Box>
+                  </div>
+                </Box>
+              )}
 
               {isQuotation && !!doc.paymentTerms && (
                 <div style={{ marginTop: 12 }}>
@@ -231,7 +239,20 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
                       <SmallText>
                         UPI: <span style={{ fontWeight: 800 }}>{safeText(doc.upiId || profile.upiId)}</span>
                       </SmallText>
-                      {!!doc.paymentMode && <Muted style={{ marginTop: 4 } as any}>Mode: {doc.paymentMode}</Muted>}
+                      <KeyValueOptional label="Mode" value={doc.paymentMode} />
+                    </div>
+                  </Box>
+                </div>
+              )}
+
+              {customFields.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <Box>
+                    <Label>Custom Fields</Label>
+                    <div style={{ marginTop: 10 }}>
+                      {customFields.map((f, idx) => (
+                        <KeyValue key={idx} label={f.label} value={f.value} />
+                      ))}
                     </div>
                   </Box>
                 </div>

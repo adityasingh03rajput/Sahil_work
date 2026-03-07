@@ -105,6 +105,8 @@ export type DocumentDto = {
   totalCgst?: number;
   totalSgst?: number;
   totalIgst?: number;
+
+  customFields?: Array<{ label?: string | null; value?: string | null }>;
 };
 
 export type BusinessProfileDto = {

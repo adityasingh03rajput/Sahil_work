@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -30,6 +30,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 import { TraceLoader } from '../components/TraceLoader';
+import { PDF_TEMPLATES, PdfRenderer, exportElementToPdf, type DocumentDto, type PdfTemplateId } from '../pdf';
 
 type CurrencyCode = 'INR' | 'USD' | 'EUR' | 'GBP';
 
@@ -90,6 +91,7 @@ export function CreateDocumentPage() {
   const { id } = useParams();
   const isEdit = !!id;
   const navigate = useNavigate();
+  const location = useLocation();
   const { accessToken, deviceId } = useAuth();
   
   const [loading, setLoading] = useState(false);
@@ -129,6 +131,16 @@ export function CreateDocumentPage() {
   const [paymentStatus, setPaymentStatus] = useState<'unpaid' | 'paid'>('unpaid');
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('cash');
   const [status, setStatus] = useState<'draft' | 'final'>('draft');
+
+  useEffect(() => {
+    if (isEdit) return;
+    const params = new URLSearchParams(location.search || '');
+    const t = String(params.get('type') || '').trim();
+    if (t && t !== type) {
+      setType(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, isEdit]);
 
   const [invoiceNo, setInvoiceNo] = useState('');
   const [challanNo, setChallanNo] = useState('');
@@ -195,6 +207,12 @@ export function CreateDocumentPage() {
   const [partyId, setPartyId] = useState<string>('');
 
   const [expandedItemRows, setExpandedItemRows] = useState<Record<number, boolean>>({});
+
+  const [customFields, setCustomFields] = useState<Array<{ label: string; value: string }>>([]);
+
+  const [pdfTemplateId, setPdfTemplateId] = useState<PdfTemplateId>('classic');
+  const [previewDoc, setPreviewDoc] = useState<DocumentDto | null>(null);
+  const pdfRef = useRef<HTMLDivElement | null>(null);
 
   const smoothPanTo = (el: HTMLElement | null | undefined) => {
     if (!el) return;
@@ -608,12 +626,36 @@ export function CreateDocumentPage() {
         setPaymentStatus(doc.paymentStatus || 'unpaid');
         setPaymentMode((doc.paymentMode as PaymentMode) || 'cash');
         setStatus(doc.status || 'draft');
+
+        const cf = Array.isArray((doc as any)?.customFields) ? (doc as any).customFields : [];
+        setCustomFields(
+          cf
+            .map((x: any) => ({ label: String(x?.label || '').trim(), value: String(x?.value || '').trim() }))
+            .filter((x: any) => x.label || x.value)
+        );
       }
     } catch (error) {
       toast.error('Failed to load document');
     } finally {
       setLoading(false);
     }
+  };
+
+  const addCustomField = () => {
+    setCustomFields((prev) => [...prev, { label: '', value: '' }]);
+  };
+
+  const updateCustomField = (index: number, field: 'label' | 'value', value: string) => {
+    setCustomFields((prev) => {
+      const next = [...prev];
+      const row = next[index] || { label: '', value: '' };
+      next[index] = { ...row, [field]: value };
+      return next;
+    });
+  };
+
+  const removeCustomField = (index: number) => {
+    setCustomFields((prev) => prev.filter((_, i) => i !== index));
   };
 
   const calculateItemTotal = (item: DocumentItem) => {
@@ -915,6 +957,9 @@ export function CreateDocumentPage() {
         paymentMode: shouldShowPaymentMode ? paymentMode : null,
         status,
         warrantyReturnCancellationPolicies,
+        customFields: (customFields || [])
+          .map((x) => ({ label: String(x.label || '').trim(), value: String(x.value || '').trim() }))
+          .filter((x) => x.label || x.value),
         ...totals
       };
 
@@ -951,6 +996,211 @@ export function CreateDocumentPage() {
   };
 
   const totals = calculateTotals();
+
+  const previewProfile = useMemo(() => {
+    return {
+      id: String(currentProfile?.id || ''),
+      businessName: String(currentProfile?.businessName || ''),
+      ownerName: String(currentProfile?.ownerName || ''),
+      gstin: currentProfile?.gstin || null,
+      pan: currentProfile?.pan || null,
+      email: currentProfile?.email || null,
+      phone: currentProfile?.phone || null,
+      billingAddress: currentProfile?.billingAddress || null,
+      shippingAddress: currentProfile?.shippingAddress || null,
+      bankName: currentProfile?.bankName || null,
+      accountNumber: currentProfile?.accountNumber || null,
+      ifscCode: currentProfile?.ifscCode || null,
+      upiId: currentProfile?.upiId || null,
+    };
+  }, [currentProfile]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const docNo = String(invoiceNo || challanNo || orderNumber || 'DRAFT').trim() || 'DRAFT';
+      const computedTotals = type === 'invoice_cancellation'
+        ? {
+            itemsTotal: 0,
+            subtotal: 0,
+            grandTotal: 0,
+            totalCgst: 0,
+            totalSgst: 0,
+            totalIgst: 0,
+          }
+        : calculateTotals();
+
+      const next: DocumentDto = {
+        id: String(id || 'preview'),
+        documentNumber: docNo,
+        type,
+
+        referenceDocumentId,
+        referenceDocumentNumber,
+
+        customerName,
+        customerAddress,
+        customerGstin,
+        date,
+        dueDate,
+
+        orderNumber,
+        revisionNumber,
+        referenceNo,
+        purchaseOrderNo,
+        poDate,
+
+        invoiceNo,
+        challanNo,
+        ewayBillNo,
+        ewayBillDate,
+        ewayBillValidUpto,
+        ewayBillVehicleNo,
+        ewayBillTransporterName,
+        ewayBillTransporterDocNo,
+        ewayBillDistanceKm: ewayBillDistanceKm ? Number(ewayBillDistanceKm) : 0,
+        transport,
+        transportId,
+        placeOfSupply: null,
+
+        customerContactPerson,
+        customerMobile,
+        customerEmail,
+        customerStateCode,
+
+        deliveryAddress,
+        deliveryMethod,
+        expectedDeliveryDate,
+
+        departureFromAddress,
+        departureFromCity,
+        departureFromState,
+        departureFromPostalCode,
+
+        departureToAddress,
+        departureToCity,
+        departureToState,
+        departureToPostalCode,
+
+        bankName,
+        bankBranch,
+        bankAccountNumber,
+        bankIfsc,
+        upiId,
+        upiQrText,
+
+        items: type === 'invoice_cancellation' ? [] : (items as any),
+
+        transportCharges,
+        additionalCharges,
+        packingHandlingCharges,
+        tcs,
+        roundOff,
+
+        notes,
+        internalNotes: internalNotes || notes,
+        termsConditions,
+
+        paymentTerms,
+        creditPeriod,
+        lateFeeTerms,
+        warrantyReturnCancellationPolicies,
+
+        paymentStatus,
+        paymentMode: shouldShowPaymentMode ? paymentMode : null,
+        status,
+
+        currency: primaryCurrency,
+
+        customFields: (customFields || [])
+          .map((x) => ({ label: String(x.label || '').trim(), value: String(x.value || '').trim() }))
+          .filter((x) => x.label || x.value),
+
+        ...computedTotals,
+      };
+
+      setPreviewDoc(next);
+    }, 200);
+
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    id,
+    type,
+    customerName,
+    customerAddress,
+    customerGstin,
+    date,
+    dueDate,
+    items,
+    transportCharges,
+    additionalCharges,
+    packingHandlingCharges,
+    tcs,
+    roundOff,
+    notes,
+    termsConditions,
+    paymentStatus,
+    paymentMode,
+    status,
+    invoiceNo,
+    challanNo,
+    orderNumber,
+    revisionNumber,
+    referenceNo,
+    purchaseOrderNo,
+    poDate,
+    ewayBillNo,
+    ewayBillDate,
+    ewayBillValidUpto,
+    ewayBillVehicleNo,
+    ewayBillTransporterName,
+    ewayBillTransporterDocNo,
+    ewayBillDistanceKm,
+    transport,
+    transportId,
+    customerContactPerson,
+    customerMobile,
+    customerEmail,
+    customerStateCode,
+    deliveryAddress,
+    deliveryMethod,
+    expectedDeliveryDate,
+    departureFromAddress,
+    departureFromCity,
+    departureFromState,
+    departureFromPostalCode,
+    departureToAddress,
+    departureToCity,
+    departureToState,
+    departureToPostalCode,
+    bankName,
+    bankBranch,
+    bankAccountNumber,
+    bankIfsc,
+    upiId,
+    upiQrText,
+    paymentTerms,
+    creditPeriod,
+    lateFeeTerms,
+    internalNotes,
+    warrantyReturnCancellationPolicies,
+    referenceDocumentId,
+    referenceDocumentNumber,
+    shouldShowPaymentMode,
+    customFields,
+  ]);
+
+  const handleExportPreviewPdf = async () => {
+    if (!previewDoc) return;
+    if (!pdfRef.current) return;
+    try {
+      const docNo = String(previewDoc.documentNumber || 'document').trim() || 'document';
+      await exportElementToPdf({ element: pdfRef.current, filename: `${docNo}.pdf` });
+      toast.success('PDF downloaded');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to export PDF');
+    }
+  };
 
   const currencySymbol = (code: CurrencyCode) => {
     switch (code) {
@@ -1013,7 +1263,9 @@ export function CreateDocumentPage() {
           </div>
         </div>
 
-        {/* Document Type & Status */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+          <div className="xl:col-span-7">
+            {/* Document Type & Status */}
         <Card className="mb-6">
           <CardHeader className="border-b bg-muted/40">
             <CardTitle>Document Information</CardTitle>
@@ -1609,417 +1861,111 @@ export function CreateDocumentPage() {
               </div>
             )}
           </CardContent>
-        </Card>
+          </Card>
 
-        {/* Items */}
-        <Card className="mb-6">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Items</CardTitle>
-            <Button onClick={addItem} size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Item
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {items.map((item, index) => {
-                const isOpen = !!expandedItemRows[index];
-                return (
-                  <Collapsible
-                    key={index}
-                    open={isOpen}
-                    onOpenChange={(open) => {
-                      setExpandedItemRows((prev) => ({ ...prev, [index]: open }));
-                      if (open) {
-                        const root = document.getElementById(`doc-item-${index}`);
-                        window.setTimeout(() => smoothPanTo(root), 50);
-                      }
-                    }}
-                    className="rounded-lg border bg-card shadow-sm transition-shadow hover:shadow-md"
-                  >
-                    <div id={`doc-item-${index}`} className="p-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start sm:items-center">
-                        <div className="sm:col-span-5">
-                          <Label className="text-xs text-muted-foreground">Product/Service</Label>
-                          <Input
-                            value={item.name}
-                            onChange={(e) => {
-                              const next = e.target.value;
-                              updateItem(index, 'name', next);
-                              tryApplyPresetItem(index, next);
-                            }}
-                            placeholder="Item name"
-                            list={`item-presets-${index}`}
-                          />
-                          <datalist id={`item-presets-${index}`}>
-                            {presetItems.map(i => (
-                              <option key={i.id} value={i.name} />
-                            ))}
-                          </datalist>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3 sm:contents">
-                          <div className="sm:col-span-2">
-                          <Label className="text-xs text-muted-foreground">Qty</Label>
-                          <Input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
-                            min="0"
-                          />
-                        </div>
-
-                          <div className="sm:col-span-3">
-                          <Label className="text-xs text-muted-foreground">Rate</Label>
-                          <div className="flex items-center">
-                            <Input
-                              className="rounded-r-none"
-                              type="number"
-                              value={item.rate}
-                              onChange={(e) => updateItem(index, 'rate', parseFloat(e.target.value) || 0)}
-                              min="0"
-                              step="0.01"
-                            />
-                            <Select
-                              value={item.currency}
-                              onValueChange={(v) => updateItem(index, 'currency', v as CurrencyCode)}
-                            >
-                              <SelectTrigger className="w-[76px] rounded-l-none border-l-0 px-2">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="INR">₹</SelectItem>
-                                <SelectItem value="USD">$</SelectItem>
-                                <SelectItem value="EUR">€</SelectItem>
-                                <SelectItem value="GBP">£</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
-                          <div className="flex items-center justify-between gap-3 sm:col-span-4 sm:justify-end">
-                            <div className="sm:text-right">
-                              <div className="text-xs text-muted-foreground">Total</div>
-                              <div className="font-semibold text-primary">
-                                {currencySymbol(item.currency)}{item.total.toFixed(2)}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-1">
-                              <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="icon" className="neon-target neon-hover transition-all hover:text-primary">
-                                  {isOpen ? (
-                                    <ChevronUp className={`h-4 w-4 transition-all`} />
-                                  ) : (
-                                    <ChevronDown className={`h-4 w-4 transition-all`} />
-                                  )}
-                                </Button>
-                              </CollapsibleTrigger>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeItem(index)}
-                                className="neon-target neon-hover transition-all"
-                              >
-                                <Trash2 className="h-4 w-4 text-red-600" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <CollapsibleContent>
-                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-12 gap-3 rounded-md bg-muted/40 p-3 transition-all duration-300 ease-out">
-                          <div className="sm:col-span-12">
-                            <Label className="text-xs text-muted-foreground">Item Description</Label>
-                            <Textarea
-                              value={item.description || ''}
-                              onChange={(e) => updateItem(index, 'description', e.target.value)}
-                              placeholder="Description"
-                              rows={2}
-                            />
-                          </div>
-
-                          <div className="sm:col-span-6">
-                            <Label className="text-xs text-muted-foreground">Item Code / SKU</Label>
-                            <Input
-                              value={item.sku || ''}
-                              onChange={(e) => updateItem(index, 'sku', e.target.value)}
-                              placeholder="SKU"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-6">
-                            <Label className="text-xs text-muted-foreground">Service Period</Label>
-                            <Input
-                              value={item.servicePeriod || ''}
-                              onChange={(e) => updateItem(index, 'servicePeriod', e.target.value)}
-                              placeholder="e.g., 01-Apr-2026 to 30-Apr-2026"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-3">
-                            <Label className="text-xs text-muted-foreground">HSN/SAC</Label>
-                            <Input
-                              value={item.hsnSac}
-                              onChange={(e) => updateItem(index, 'hsnSac', e.target.value)}
-                              placeholder="HSN"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <Label className="text-xs text-muted-foreground">Unit</Label>
-                            <Select value={item.unit} onValueChange={(v) => updateItem(index, 'unit', v)}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pcs">Pcs</SelectItem>
-                                <SelectItem value="kg">Kg</SelectItem>
-                                <SelectItem value="ltr">Ltr</SelectItem>
-                                <SelectItem value="box">Box</SelectItem>
-                                <SelectItem value="hrs">Hrs</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="sm:col-span-2">
-                            <Label className="text-xs text-muted-foreground">Disc%</Label>
-                            <Input
-                              type="number"
-                              value={item.discount}
-                              onChange={(e) => updateItem(index, 'discount', parseFloat(e.target.value) || 0)}
-                              min="0"
-                              max="100"
-                            />
-                          </div>
-
-                          <div className="sm:col-span-5">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                              <div>
-                                <Label className="text-xs text-muted-foreground">CGST%</Label>
-                                <Input
-                                  type="number"
-                                  value={item.cgst}
-                                  onChange={(e) => updateItem(index, 'cgst', parseFloat(e.target.value) || 0)}
-                                  min="0"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground">SGST%</Label>
-                                <Input
-                                  type="number"
-                                  value={item.sgst}
-                                  onChange={(e) => updateItem(index, 'sgst', parseFloat(e.target.value) || 0)}
-                                  min="0"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs text-muted-foreground">IGST%</Label>
-                                <Input
-                                  type="number"
-                                  value={item.igst}
-                                  onChange={(e) => updateItem(index, 'igst', parseFloat(e.target.value) || 0)}
-                                  min="0"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Additional Details */}
+          {/* Custom Fields */}
           <Card>
             <CardHeader>
-              <CardTitle>Additional Details</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                <span>Custom Fields</span>
+                <Button type="button" variant="outline" size="sm" onClick={addCustomField}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Field
+                </Button>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Transport Charges</Label>
-                <Input
-                  type="number"
-                  value={transportCharges}
-                  onChange={(e) => setTransportCharges(parseFloat(e.target.value) || 0)}
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              <div>
-                <Label>Additional Charges</Label>
-                <Input
-                  type="number"
-                  value={additionalCharges}
-                  onChange={(e) => setAdditionalCharges(parseFloat(e.target.value) || 0)}
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-
-              {type === 'quotation' && (
-                <></>
-              )}
-              <div>
-                <Label>Round Off</Label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    type="number"
-                    value={roundOff}
-                    onChange={(e) => setRoundOff(parseFloat(e.target.value) || 0)}
-                    step="0.01"
-                    disabled={autoRoundOff}
-                  />
-                  <div className="flex items-center gap-2 whitespace-nowrap">
-                    <Switch checked={autoRoundOff} onCheckedChange={setAutoRoundOff} />
-                    <span className="text-sm text-muted-foreground">Auto</span>
-                  </div>
+            <CardContent className="space-y-3">
+              {customFields.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No custom fields added.</div>
+              ) : (
+                <div className="space-y-3">
+                  {customFields.map((f, idx) => (
+                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                      <div className="sm:col-span-5">
+                        <Label>Label</Label>
+                        <Input value={f.label} onChange={(e) => updateCustomField(idx, 'label', e.target.value)} placeholder="e.g., PO Ref" />
+                      </div>
+                      <div className="sm:col-span-6">
+                        <Label>Value</Label>
+                        <Input value={f.value} onChange={(e) => updateCustomField(idx, 'value', e.target.value)} placeholder="e.g., 12345" />
+                      </div>
+                      <div className="sm:col-span-1 flex sm:justify-end">
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeCustomField(idx)}>
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <div>
-                <Label>Payment Status</Label>
-                <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as any)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unpaid">Unpaid</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              )}
+            </CardContent>
+          </Card>
 
-              {shouldShowPaymentMode && (
-                <div>
-                  <Label>Mode of Payment</Label>
-                  <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as PaymentMode)}>
-                    <SelectTrigger>
+          {/* Items Section */}
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Items</CardTitle>
+              <Button onClick={addItem} size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Item
+              </Button>
+            </CardHeader>
+            {/* ... */}
+          </Card>
+
+          {/* ... */}
+
+          <div className="flex justify-end gap-4 mt-8">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/documents')}
+              className="neon-target neon-hover transition-all"
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? 'Saving...' : 'Save Document'}
+            </Button>
+          </div>
+        </div>
+
+        <div className="xl:col-span-5">
+          <Card className="xl:sticky xl:top-4">
+            <CardHeader className="border-b bg-muted/40">
+              <CardTitle className="flex items-center justify-between gap-3">
+                <span>PDF Preview</span>
+                <div className="flex items-center gap-2">
+                  <Select value={pdfTemplateId} onValueChange={(v) => setPdfTemplateId(v as PdfTemplateId)}>
+                    <SelectTrigger className="w-[160px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="cheque">Cheque</SelectItem>
-                      <SelectItem value="online">Online Payment</SelectItem>
+                      {PDF_TEMPLATES.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  <Button type="button" variant="outline" size="sm" onClick={handleExportPreviewPdf}>
+                    Download
+                  </Button>
                 </div>
-              )}
-              {type !== 'quotation' && (
-                <div>
-                  <Label>Notes</Label>
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Internal notes..."
-                    rows={2}
-                  />
-                </div>
-              )}
-              <div>
-                <Label>Terms & Conditions</Label>
-                <Textarea
-                  value={termsConditions}
-                  onChange={(e) => setTermsConditions(e.target.value)}
-                  placeholder="Payment terms, warranty, etc..."
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Summary</CardTitle>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Items Total:</span>
-                <span className="font-semibold">{primarySymbol}{totals.itemsTotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total CGST:</span>
-                <span className="font-semibold">{primarySymbol}{totals.totalCgst.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total SGST:</span>
-                <span className="font-semibold">{primarySymbol}{totals.totalSgst.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Total IGST:</span>
-                <span className="font-semibold">{primarySymbol}{totals.totalIgst.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Transport Charges:</span>
-                <span className="font-semibold">{primarySymbol}{transportCharges.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Additional Charges:</span>
-                <span className="font-semibold">{primarySymbol}{additionalCharges.toFixed(2)}</span>
-              </div>
-              {type === 'quotation' && (
-                <>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Packing/Handling:</span>
-                    <span className="font-semibold">{primarySymbol}{packingHandlingCharges.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">TCS:</span>
-                    <span className="font-semibold">{primarySymbol}{tcs.toFixed(2)}</span>
-                  </div>
-                </>
+            <CardContent className="p-3 overflow-auto" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+              {previewDoc ? (
+                <div className="bg-white rounded-md border">
+                  <PdfRenderer ref={pdfRef} templateId={pdfTemplateId} doc={previewDoc} profile={previewProfile as any} />
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">Preview will appear here…</div>
               )}
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Round Off:</span>
-                <span className="font-semibold">{primarySymbol}{roundOff.toFixed(2)}</span>
-              </div>
-              <div className="border-t pt-3 flex justify-between">
-                <span className="text-lg font-bold">Grand Total:</span>
-                <span className="text-lg font-bold text-blue-600">{primarySymbol}{totals.grandTotal.toFixed(2)}</span>
-              </div>
             </CardContent>
           </Card>
         </div>
-
-        <div className="hidden sm:flex mt-6 justify-end gap-3">
-          <Button variant="outline" onClick={() => navigate('/documents')}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Document'}
-          </Button>
-        </div>
-
-        <div className="h-24 sm:hidden" aria-hidden />
-
-        <div className="sm:hidden fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-          <div className="max-w-7xl mx-auto px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-xs text-muted-foreground">Grand Total</div>
-                <div className="text-base font-bold text-foreground truncate">
-                  {primarySymbol}{totals.grandTotal.toFixed(2)}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => navigate('/documents')}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSave} disabled={saving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {saving ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+      </div>
       </div>
     </AppLayout>
   );
