@@ -1,10 +1,10 @@
 import { ProtectedRoute } from '../components/ProtectedRoute';
-import { PaymentInPage } from './PaymentInPage';
+import { VyaparKhataPage } from './VyaparKhataPage';
 
-export function PaymentInPageWrapper() {
+export function VyaparKhataPageWrapper() {
   return (
     <ProtectedRoute>
-      <PaymentInPage />
+      <VyaparKhataPage />
     </ProtectedRoute>
   );
 }

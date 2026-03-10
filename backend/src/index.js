@@ -1,10 +1,16 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+// Load .env from backend directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 import { authRouter } from './routes/auth.js';
 import { profilesRouter } from './routes/profiles.js';
@@ -17,6 +23,9 @@ import { analyticsRouter } from './routes/analytics.js';
 import { paymentsRouter } from './routes/payments.js';
 import { reportsRouter } from './routes/reports.js';
 import { ledgerRouter } from './routes/ledger.js';
+import { extraExpensesRouter } from './routes/extra-expenses.js';
+import { vyaparKhataRouter } from './routes/vyapar-khata.js';
+import { uploadsRouter } from './routes/uploads.js';
 import twilio from 'twilio';
 import { Document } from './models/Document.js';
 import { BusinessProfile } from './models/BusinessProfile.js';
@@ -31,6 +40,9 @@ app.use(cors({
   origin(origin, cb) {
     if (!origin) return cb(null, true);
 
+    // When running scripts from file:// (or certain embedded webviews), browsers send Origin: null
+    if (origin === 'null') return cb(null, true);
+
     if (allowedOrigins.includes(origin)) return cb(null, true);
 
     // Allow Vite/localhost dev ports by default
@@ -41,7 +53,7 @@ app.use(cors({
   },
   credentials: false,
 }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '10mb' }));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
@@ -58,9 +70,10 @@ app.use('/analytics', analyticsRouter);
 app.use('/payments', paymentsRouter);
 app.use('/reports', reportsRouter);
 app.use('/ledger', ledgerRouter);
+app.use('/extra-expenses', extraExpensesRouter);
+app.use('/vyapar-khata', vyaparKhataRouter);
+app.use('/uploads', uploadsRouter);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const distPathCandidates = [
   path.resolve(__dirname, '../../dist'),
   path.resolve(__dirname, '../../src/dist'),
@@ -71,7 +84,7 @@ if (distPath) {
   app.use(express.static(distPath));
 }
 app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/auth') || req.path.startsWith('/profiles') || req.path.startsWith('/documents') || req.path.startsWith('/customers') || req.path.startsWith('/suppliers') || req.path.startsWith('/items') || req.path.startsWith('/subscription') || req.path.startsWith('/analytics') || req.path.startsWith('/payments') || req.path.startsWith('/reports') || req.path.startsWith('/health')) {
+  if (req.path.startsWith('/auth') || req.path.startsWith('/profiles') || req.path.startsWith('/documents') || req.path.startsWith('/customers') || req.path.startsWith('/suppliers') || req.path.startsWith('/items') || req.path.startsWith('/subscription') || req.path.startsWith('/analytics') || req.path.startsWith('/payments') || req.path.startsWith('/reports') || req.path.startsWith('/ledger') || req.path.startsWith('/extra-expenses') || req.path.startsWith('/uploads') || req.path.startsWith('/health')) {
     return next();
   }
   if (!distPath) {
@@ -83,13 +96,23 @@ app.get('*', (req, res, next) => {
 app.use((err, _req, res, _next) => {
   // eslint-disable-next-line no-console
   console.error(err);
-  res.status(500).json({ error: 'Internal server error' });
+  const status = Number(err?.status || err?.statusCode || 500);
+  const message = err?.message ? String(err.message) : 'Internal server error';
+  res.status(status).json({ error: message });
 });
 
 const port = Number(process.env.PORT || 4000);
 const mongoUri = process.env.MONGODB_URI;
 
+// Debug: Check if environment variables are loaded
+console.log('🔧 Environment variables loaded:');
+console.log('- PORT:', process.env.PORT || 'not set');
+console.log('- MONGODB_URI:', mongoUri ? '✅ set' : '❌ not set');
+console.log('- JWT_SECRET:', process.env.JWT_SECRET ? '✅ set' : '❌ not set');
+
 if (!mongoUri) {
+  console.error('❌ MONGODB_URI is missing from .env file');
+  console.error('❌ Make sure .env file exists in backend directory with MONGODB_URI');
   throw new Error('MONGODB_URI is required');
 }
 if (!process.env.JWT_SECRET) {

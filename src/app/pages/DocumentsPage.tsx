@@ -31,7 +31,8 @@ import {
   Repeat,
   CheckCircle2,
   Clock,
-  FileX
+  FileX,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
@@ -47,6 +48,9 @@ export function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [filteredDocs, setFilteredDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteDoc, setDeleteDoc] = useState<any | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [partyFilter, setPartyFilter] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
@@ -80,6 +84,50 @@ export function DocumentsPage() {
       return parsed || ({} as any);
     } catch {
       return {} as any;
+    }
+  };
+
+  const openDeleteDialog = (doc: any) => {
+    setDeleteDoc(doc);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteDoc?.id) return;
+    if (!accessToken) {
+      toast.error('Not authenticated');
+      return;
+    }
+    if (!profileId) {
+      toast.error('Select a business profile first');
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`${apiUrl}/documents/${deleteDoc.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Device-ID': deviceId,
+          'X-Profile-ID': profileId,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || 'Failed to delete document');
+      }
+
+      setDocuments((prev) => prev.filter((d) => d.id !== deleteDoc.id));
+      setFilteredDocs((prev) => prev.filter((d) => d.id !== deleteDoc.id));
+      clearDocsCache();
+      toast.success('Document deleted');
+      setDeleteDialogOpen(false);
+      setDeleteDoc(null);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to delete document');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -171,6 +219,15 @@ export function DocumentsPage() {
     if (!docsCacheKey) return;
     try {
       sessionStorage.setItem(docsCacheKey, JSON.stringify({ ts: Date.now(), data }));
+    } catch {
+      // ignore
+    }
+  };
+
+  const clearDocsCache = () => {
+    if (!docsCacheKey) return;
+    try {
+      sessionStorage.removeItem(docsCacheKey);
     } catch {
       // ignore
     }
@@ -410,6 +467,64 @@ export function DocumentsPage() {
         documentId: pdfDocumentId,
       });
 
+      try {
+        const existingLogo = String((doc as any)?.partyLogoDataUrl || '').trim();
+        if (existingLogo) {
+          // already injected
+        } else {
+          const customerId = String((doc as any)?.customerId || '').trim();
+          const supplierId = String((doc as any)?.supplierId || '').trim();
+          const partyId = customerId || supplierId;
+          const partyKind = customerId ? 'customers' : supplierId ? 'suppliers' : null;
+          if (partyId && partyKind) {
+            const partyRes = await fetch(`${apiUrl}/${partyKind}/${partyId}`, {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'X-Device-ID': deviceId,
+                'X-Profile-ID': profileId,
+              },
+            });
+            const partyData = await partyRes.json().catch(() => ({}));
+            if (partyRes.ok && !partyData?.error) {
+              (doc as any).partyLogoDataUrl =
+                String(partyData?.logoUrl || '').trim() || String(partyData?.logoDataUrl || '').trim() || null;
+            }
+          } else {
+            const partyName = String((doc as any)?.customerName || '').trim();
+            if (partyName) {
+              const norm = (s: string) => String(s || '').trim().toLowerCase();
+              const headers = {
+                Authorization: `Bearer ${accessToken}`,
+                'X-Device-ID': deviceId,
+                'X-Profile-ID': profileId,
+              };
+              const [customersRes, suppliersRes] = await Promise.all([
+                fetch(`${apiUrl}/customers`, { headers }),
+                fetch(`${apiUrl}/suppliers`, { headers }),
+              ]);
+              const [customers, suppliers] = await Promise.all([
+                customersRes.json().catch(() => []),
+                suppliersRes.json().catch(() => []),
+              ]);
+              const inCustomers = Array.isArray(customers)
+                ? customers.find((c: any) => norm(c?.name) === norm(partyName))
+                : null;
+              const inSuppliers = Array.isArray(suppliers)
+                ? suppliers.find((s: any) => norm(s?.name) === norm(partyName))
+                : null;
+
+              const match = inCustomers || inSuppliers;
+              if (match && !match?.error) {
+                (doc as any).partyLogoDataUrl =
+                  String(match?.logoUrl || '').trim() || String(match?.logoDataUrl || '').trim() || null;
+              }
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+
       const upiId = String(doc?.upiId || currentProfile?.upiId || '').trim();
       if (upiId) {
         const params = new URLSearchParams();
@@ -579,6 +694,28 @@ export function DocumentsPage() {
   return (
     <AppLayout>
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete Document</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                This will permanently delete
+                <span className="font-medium text-foreground"> {deleteDoc?.documentNumber || 'this document'}</span>.
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleteLoading}>
+                  Cancel
+                </Button>
+                <Button type="button" variant="destructive" onClick={confirmDelete} disabled={deleteLoading}>
+                  {deleteLoading ? 'Deleting…' : 'Delete'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
           <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
@@ -767,7 +904,7 @@ export function DocumentsPage() {
                   opacity: 1,
                   background: '#ffffff',
                 }}
-                aria-hidden
+                inert
               >
                 {pdfDoc && (
                   <PdfRenderer
@@ -1013,6 +1150,13 @@ export function DocumentsPage() {
                           <DropdownMenuItem data-tour-id="doc-action-download-pdf" onClick={() => openPdfDialog(doc.id)}>
                             <Download className="h-4 w-4 mr-2" />
                             Download PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => openDeleteDialog(doc)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

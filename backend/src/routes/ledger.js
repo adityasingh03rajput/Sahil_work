@@ -75,23 +75,6 @@ ledgerRouter.get('/ranges', async (req, res, next) => {
       partyId: partyObjectId,
     };
 
-    const overallAgg = await LedgerEntry.aggregate([
-      { $match: match },
-      {
-        $group: {
-          _id: null,
-          minDate: { $min: '$date' },
-          maxDate: { $max: '$date' },
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    const overall = overallAgg?.[0] || null;
-    if (!overall || !overall.minDate || !overall.maxDate || !overall.count) {
-      return res.json({ ranges: [] });
-    }
-
     const monthAgg = await LedgerEntry.aggregate([
       { $match: match },
       {
@@ -103,8 +86,23 @@ ledgerRouter.get('/ranges', async (req, res, next) => {
       { $sort: { '_id.y': -1, '_id.m': -1 } },
     ]);
 
+    if (!Array.isArray(monthAgg) || monthAgg.length === 0) {
+      return res.json({ ranges: [] });
+    }
+
+    const yearAgg = await LedgerEntry.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { y: { $year: '$date' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.y': -1 } },
+    ]);
+
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const monthly = (monthAgg || []).map((r) => {
+    const monthly = (monthAgg || []).slice(0, 12).map((r) => {
       const y = Number(r?._id?.y);
       const m = Number(r?._id?.m);
       const label = `${monthNames[Math.max(1, Math.min(12, m)) - 1]} ${y}`;
@@ -122,15 +120,22 @@ ledgerRouter.get('/ranges', async (req, res, next) => {
       };
     });
 
+    const yearly = (yearAgg || []).slice(0, 2).map((r) => {
+      const y = Number(r?._id?.y);
+      const from = new Date(y, 0, 1, 0, 0, 0, 0);
+      const to = new Date(y, 11, 31, 23, 59, 59, 999);
+      return {
+        key: `year-${y}`,
+        label: `Year ${y}`,
+        from,
+        to,
+        count: Number(r.count || 0),
+      };
+    });
+
     res.json({
       ranges: [
-        {
-          key: 'all',
-          label: 'All time',
-          from: new Date(new Date(overall.minDate).setHours(0, 0, 0, 0)),
-          to: new Date(new Date(overall.maxDate).setHours(23, 59, 59, 999)),
-          count: Number(overall.count || 0),
-        },
+        ...yearly,
         ...monthly,
       ],
     });
@@ -225,9 +230,14 @@ ledgerRouter.get('/statement', async (req, res, next) => {
       party: {
         id: String(party._id),
         name: String(party.name || ''),
+        address: party.billingAddress || party.address || null,
+        billingAddress: party.billingAddress || null,
+        shippingAddress: party.shippingAddress || null,
         gstin: party.gstin || null,
         phone: party.phone || null,
         email: party.email || null,
+        logoUrl: party.logoUrl || null,
+        logoDataUrl: party.logoDataUrl || null,
       },
       range: { from: from.toISOString(), to: to.toISOString() },
       openingBalance: balanceFromSigned(openingSigned),

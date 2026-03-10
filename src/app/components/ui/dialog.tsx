@@ -52,6 +52,8 @@ function DialogContent({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   const { "aria-describedby": ariaDescribedBy, ...rest } = props as any;
+  const ariaLabel = (props as any)?.["aria-label"];
+  const ariaLabelledBy = (props as any)?.["aria-labelledby"];
 
   return (
     <DialogPortal data-slot="dialog-portal">
@@ -63,8 +65,11 @@ function DialogContent({
           className,
         )}
         {...rest}
-        {...(ariaDescribedBy ? { "aria-describedby": ariaDescribedBy } : {})}
+        aria-describedby={ariaDescribedBy ?? undefined}
       >
+        {!ariaLabel && !ariaLabelledBy ? (
+          <DialogPrimitive.Title className="sr-only">Dialog</DialogPrimitive.Title>
+        ) : null}
         {children}
         <DialogPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
           <XIcon />

@@ -18,6 +18,10 @@ type BalanceType = 'dr' | 'cr';
 interface Party {
   id: string;
   name: string;
+  logoUrl?: string | null;
+  logoDataUrl?: string | null;
+  address?: string | null;
+  billingAddress?: string | null;
 }
 
 interface BalanceDto {
@@ -56,13 +60,16 @@ interface QuickRangeDto {
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(n || 0));
 
-const fmtBal = (b: BalanceDto) => `${fmtMoney(b?.amount || 0)} ${String(b?.type || 'dr').toUpperCase()}`;
+const fmtBal = (b?: BalanceDto | null) => `${fmtMoney(b?.amount || 0)} ${String(b?.type || 'dr').toUpperCase()}`;
 
 const toYmd = (d: Date) => d.toISOString().slice(0, 10);
 
 const A4_WIDTH_PX = 794;
 const A4_HEIGHT_PX = 1123;
 const LEDGER_ROWS_PER_PAGE = 24;
+
+const LEDGER_GRID_COLUMNS = '80px 80px 90px 80px 90px 90px 100px 100px';
+const LEDGER_TABLE_BORDER = '1px solid #111827';
 
 export function PartyLedgerPage() {
   const { accessToken, deviceId } = useAuth();
@@ -510,11 +517,27 @@ function LedgerStatementPdfPages(props: {
   const businessName = String(profile?.businessName || '').trim();
   const ownerName = String(profile?.ownerName || '').trim();
   const address = String(profile?.billingAddress || '').trim();
+  const phone = String(profile?.phone || '').trim();
+  const email = String(profile?.email || '').trim();
+  const gstin = String(profile?.gstin || '').trim();
+  const state = String(profile?.billingState || profile?.state || '').trim();
+  const businessLogo = String(profile?.logoUrl || profile?.logoDataUrl || '').trim();
 
-  const headerLeft = businessName || 'Business';
-  const headerRight = ownerName || '';
+  const partyLogo = String((statement as any)?.party?.logoUrl || (statement as any)?.party?.logoDataUrl || '').trim();
+
+  const partyName = String(statement.party?.name || '').trim();
+  const partyAddress = String((statement as any)?.party?.address || (statement as any)?.party?.billingAddress || '').trim();
+  const partyGstin = String((statement as any)?.party?.gstin || '').trim();
 
   const opening = statement.openingBalance;
+
+  const balanceSplit = (b?: BalanceDto | null) => {
+    const amt = Number(b?.amount || 0);
+    const t = String(b?.type || 'dr').toLowerCase();
+    const receivable = t === 'dr' ? amt : 0;
+    const payable = t === 'cr' ? amt : 0;
+    return { receivable, payable };
+  };
 
   return (
     <div>
@@ -528,6 +551,8 @@ function LedgerStatementPdfPages(props: {
         const pageLast = pageRows[pageRows.length - 1] || null;
         const carriedOver = !isLast ? pageLast?.balanceAfter : null;
 
+        const bfSplit = balanceSplit(broughtForward);
+
         return (
           <div
             key={pageIndex}
@@ -537,116 +562,235 @@ function LedgerStatementPdfPages(props: {
               height: A4_HEIGHT_PX,
               background: '#ffffff',
               color: '#111827',
-              padding: 24,
+              padding: 34,
               boxSizing: 'border-box',
               fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
               display: 'flex',
               flexDirection: 'column',
             }}
           >
-            <div style={{ textAlign: 'center', marginBottom: 10 }}>
-              <div style={{ fontSize: 16, fontWeight: 700 }}>{headerLeft}</div>
-              {headerRight ? <div style={{ fontSize: 12, marginTop: 2 }}>{headerRight}</div> : null}
-              {address ? <div style={{ fontSize: 11, marginTop: 2, color: '#4b5563' }}>{address}</div> : null}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                <div
+                  style={{
+                    width: 54,
+                    height: 54,
+                    borderRadius: 999,
+                    border: '1px solid #e5e7eb',
+                    overflow: 'hidden',
+                    background: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {partyLogo ? (
+                    <img
+                      src={partyLogo}
+                      alt="Party Logo"
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                    />
+                  ) : businessLogo ? (
+                    <img
+                      src={businessLogo}
+                      alt="Logo"
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', background: '#f3f4f6' }} />
+                  )}
+                </div>
+              </div>
+
+              <div style={{ textAlign: 'right', minWidth: 0 }}>
+                <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: 0.2 }}>{businessName || 'Business'}</div>
+                {address ? <div style={{ fontSize: 10.5, marginTop: 3, whiteSpace: 'pre-line' }}>{address}</div> : null}
+                {(phone || email) ? (
+                  <div style={{ fontSize: 10.5, marginTop: 3 }}>
+                    {phone ? `Phone no: ${phone}` : ''}{phone && email ? '  ' : ''}{email ? `Email: ${email}` : ''}
+                  </div>
+                ) : null}
+                {(gstin || state) ? (
+                  <div style={{ fontSize: 10.5, marginTop: 3, fontWeight: 700 }}>
+                    {gstin ? `GSTIN : ${gstin}` : ''}{gstin && state ? ', ' : ''}{state ? `State: ${state}` : ''}
+                  </div>
+                ) : null}
+              </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>
-                Ledger Account: {String(statement.party?.name || '')}
-              </div>
-              <div style={{ fontSize: 11, color: '#4b5563' }}>
-                {from} to {to}
-              </div>
+            <div style={{ borderTop: '1px solid #111827', opacity: 0.4, marginTop: 10, marginBottom: 14 }} />
+
+            <div style={{ textAlign: 'center', marginBottom: 12 }}>
+              <div style={{ fontSize: 18, fontWeight: 900, textDecoration: 'underline' }}>Party statement</div>
             </div>
 
-            <div style={{ border: '1px solid #e5e7eb', borderRadius: 6, overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 14, fontWeight: 900 }}>
+                Party name: {partyName || '—'}
+              </div>
+              {partyAddress ? <div style={{ fontSize: 11, marginTop: 6 }}>Address: {partyAddress}</div> : null}
+              {partyGstin ? <div style={{ fontSize: 11, marginTop: 2 }}>GSTIN: {partyGstin}</div> : null}
+            </div>
+
+            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>
+              Duration: From {from} to {to}
+            </div>
+
+            <div style={{ border: LEDGER_TABLE_BORDER, flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '90px 1fr 120px 110px 110px 110px',
-                  gap: 0,
-                  padding: '8px 10px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  background: '#f3f4f6',
-                  borderBottom: '1px solid #e5e7eb',
+                  gridTemplateColumns: LEDGER_GRID_COLUMNS,
+                  padding: '8px 8px',
+                  fontSize: 10,
+                  fontWeight: 900,
+                  lineHeight: 1.1,
+                  alignItems: 'center',
+                  background: '#d1d5db',
+                  borderBottom: LEDGER_TABLE_BORDER,
                 }}
               >
                 <div>Date</div>
-                <div>Particulars</div>
-                <div>Vch Type</div>
-                <div>Vch No.</div>
-                <div style={{ textAlign: 'right' }}>Debit</div>
-                <div style={{ textAlign: 'right' }}>Credit</div>
+                <div>Txn Type</div>
+                <div>Ref No.</div>
+                <div style={{ textAlign: 'right' }}>Total</div>
+                <div style={{ textAlign: 'right', lineHeight: 1.05 }}>
+                  Received <br />/ Paid
+                </div>
+                <div style={{ textAlign: 'right', lineHeight: 1.05 }}>
+                  Txn <br />Balance
+                </div>
+                <div style={{ textAlign: 'right', lineHeight: 1.05 }}>
+                  Receivable <br />Balance
+                </div>
+                <div style={{ textAlign: 'right', lineHeight: 1.05 }}>
+                  Payable <br />Balance
+                </div>
               </div>
 
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                {broughtForward ? (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: LEDGER_GRID_COLUMNS,
+                    padding: '8px 8px',
+                    fontSize: 10,
+                    lineHeight: 1.15,
+                    alignItems: 'center',
+                    minHeight: 32,
+                    borderBottom: LEDGER_TABLE_BORDER,
+                    background: '#ffffff',
+                    fontWeight: 700,
+                  }}
+                >
+                  <div>{String(from || '').trim() ? String(from) : ''}</div>
                   <div
                     style={{
-                      display: 'grid',
-                      gridTemplateColumns: '90px 1fr 120px 110px 110px 110px',
-                      padding: '8px 10px',
-                      fontSize: 11,
-                      borderBottom: '1px solid #e5e7eb',
-                      background: '#ffffff',
+                      gridColumn: '2 / span 2',
+                      lineHeight: 1.05,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      paddingTop: 1,
                     }}
                   >
-                    <div style={{ color: '#6b7280' }}>{isFirst ? '' : ''}</div>
-                    <div style={{ fontWeight: 700 }}>{isFirst ? 'Opening Balance' : 'Brought Forward'}</div>
-                    <div />
-                    <div />
-                    <div style={{ textAlign: 'right', color: '#6b7280' }} />
-                    <div style={{ textAlign: 'right', fontWeight: 700 }}>{fmtBal(broughtForward)}</div>
+                    <span>Receivable</span>
+                    <span>Beginning</span>
+                    <span>Balance</span>
                   </div>
-                ) : null}
+                  <div style={{ textAlign: 'right' }} />
+                  <div style={{ textAlign: 'right' }} />
+                  <div style={{ textAlign: 'right' }}>{fmtBal(broughtForward)}</div>
+                  <div style={{ textAlign: 'right' }}>{bfSplit.receivable ? fmtMoney(bfSplit.receivable) : ''}</div>
+                  <div style={{ textAlign: 'right' }}>{bfSplit.payable ? fmtMoney(bfSplit.payable) : ''}</div>
+                </div>
 
-                {pageRows.map((r) => (
-                  <div
-                    key={r.id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '90px 1fr 120px 110px 110px 110px',
-                      padding: '8px 10px',
-                      fontSize: 11,
-                      borderBottom: '1px solid #f3f4f6',
-                      background: '#ffffff',
-                    }}
-                  >
-                    <div style={{ whiteSpace: 'nowrap' }}>{String(r.date || '').slice(0, 10)}</div>
-                    <div>{r.particulars || partyLabel}</div>
-                    <div>{r.voucherType || ''}</div>
-                    <div>{r.voucherNo || ''}</div>
-                    <div style={{ textAlign: 'right' }}>{r.debit ? fmtMoney(r.debit) : ''}</div>
-                    <div style={{ textAlign: 'right' }}>{r.credit ? fmtMoney(r.credit) : ''}</div>
-                  </div>
-                ))}
+                {pageRows.map((r) => {
+                  const total = Number(r.debit || 0);
+                  const received = Number(r.credit || 0);
+                  const txnBal = total - received;
+                  const split = balanceSplit(r.balanceAfter);
+                  return (
+                    <div
+                      key={r.id}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: LEDGER_GRID_COLUMNS,
+                        padding: '9px 8px',
+                        fontSize: 10,
+                        lineHeight: 1.15,
+                        alignItems: 'center',
+                        minHeight: 30,
+                        borderBottom: '1px solid rgba(17,24,39,0.35)',
+                        background: '#ffffff',
+                      }}
+                    >
+                      <div style={{ whiteSpace: 'nowrap' }}>{String(r.date || '').slice(0, 10)}</div>
+                      <div
+                        style={{
+                          whiteSpace: 'normal',
+                          wordBreak: 'break-word',
+                          lineHeight: 1.15,
+                          display: 'flex',
+                          alignItems: 'center',
+                          paddingTop: 1,
+                        }}
+                      >
+                        {String(r.voucherType || 'Txn')}
+                      </div>
+                      <div
+                        style={{
+                          whiteSpace: 'normal',
+                          wordBreak: 'break-word',
+                          lineHeight: 1.15,
+                          display: 'flex',
+                          alignItems: 'center',
+                          paddingTop: 1,
+                        }}
+                      >
+                        {String(r.voucherNo || '')}
+                      </div>
+                      <div style={{ textAlign: 'right' }}>{total ? fmtMoney(total) : ''}</div>
+                      <div style={{ textAlign: 'right' }}>{received ? fmtMoney(received) : ''}</div>
+                      <div style={{ textAlign: 'right' }}>{txnBal ? fmtMoney(txnBal) : ''}</div>
+                      <div style={{ textAlign: 'right' }}>{split.receivable ? fmtMoney(split.receivable) : ''}</div>
+                      <div style={{ textAlign: 'right' }}>{split.payable ? fmtMoney(split.payable) : ''}</div>
+                    </div>
+                  );
+                })}
 
-                {carriedOver ? (
+                {(isLast || carriedOver) && (
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '90px 1fr 120px 110px 110px 110px',
-                      padding: '8px 10px',
-                      fontSize: 11,
-                      borderTop: '1px solid #e5e7eb',
-                      background: '#ffffff',
+                      gridTemplateColumns: LEDGER_GRID_COLUMNS,
+                      padding: '8px 8px',
+                      fontSize: 10,
+                      lineHeight: 1.15,
+                      alignItems: 'center',
+                      minHeight: 32,
+                      background: '#d1d5db',
+                      borderTop: LEDGER_TABLE_BORDER,
+                      fontWeight: 900,
                     }}
                   >
-                    <div style={{ color: '#6b7280' }} />
-                    <div style={{ fontWeight: 700 }}>Carried Over</div>
                     <div />
-                    <div />
-                    <div style={{ textAlign: 'right', color: '#6b7280' }} />
-                    <div style={{ textAlign: 'right', fontWeight: 700 }}>{fmtBal(carriedOver)}</div>
+                    <div style={{ gridColumn: '2 / span 2' }}>Total</div>
+                    <div style={{ textAlign: 'right' }} />
+                    <div style={{ textAlign: 'right' }}>{fmtMoney(statement.periodTotals.debit)}</div>
+                    <div style={{ textAlign: 'right' }}>{fmtMoney(statement.periodTotals.credit)}</div>
+                    <div style={{ textAlign: 'right' }}>{fmtBal(statement.closingBalance)}</div>
+                    <div style={{ textAlign: 'right' }}>{balanceSplit(statement.closingBalance).receivable ? fmtMoney(balanceSplit(statement.closingBalance).receivable) : ''}</div>
+                    <div style={{ textAlign: 'right' }}>{balanceSplit(statement.closingBalance).payable ? fmtMoney(balanceSplit(statement.closingBalance).payable) : ''}</div>
                   </div>
-                ) : null}
+                )}
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, fontSize: 10.5 }}>
               <div style={{ color: '#6b7280' }}>{businessName ? businessName : ''}</div>
-              <div style={{ fontWeight: 700 }}>Page {pageIndex + 1}</div>
+              <div style={{ fontWeight: 900 }}>Page {pageIndex + 1}</div>
             </div>
           </div>
         );

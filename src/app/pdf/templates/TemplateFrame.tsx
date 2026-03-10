@@ -29,6 +29,90 @@ export function safeText(value: any) {
   return String(value);
 }
 
+function wordsBelow20(n: number) {
+  const a = [
+    'Zero',
+    'One',
+    'Two',
+    'Three',
+    'Four',
+    'Five',
+    'Six',
+    'Seven',
+    'Eight',
+    'Nine',
+    'Ten',
+    'Eleven',
+    'Twelve',
+    'Thirteen',
+    'Fourteen',
+    'Fifteen',
+    'Sixteen',
+    'Seventeen',
+    'Eighteen',
+    'Nineteen',
+  ];
+  return a[n] || '';
+}
+
+function tensWord(n: number) {
+  const a = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  return a[n] || '';
+}
+
+function twoDigitsToWords(n: number) {
+  const v = Math.floor(Math.abs(n));
+  if (v < 20) return wordsBelow20(v);
+  const t = Math.floor(v / 10);
+  const r = v % 10;
+  return r ? `${tensWord(t)} ${wordsBelow20(r)}`.trim() : tensWord(t);
+}
+
+function threeDigitsToWords(n: number) {
+  const v = Math.floor(Math.abs(n));
+  const h = Math.floor(v / 100);
+  const rest = v % 100;
+  const parts: string[] = [];
+  if (h) parts.push(`${wordsBelow20(h)} Hundred`);
+  if (rest) parts.push(twoDigitsToWords(rest));
+  return parts.join(' ').trim();
+}
+
+function numberToWordsIndian(n: number) {
+  let v = Math.floor(Math.abs(n));
+  if (!Number.isFinite(v)) return '';
+  if (v === 0) return 'Zero';
+
+  const parts: string[] = [];
+
+  const crore = Math.floor(v / 10000000);
+  v = v % 10000000;
+  const lakh = Math.floor(v / 100000);
+  v = v % 100000;
+  const thousand = Math.floor(v / 1000);
+  v = v % 1000;
+  const hundredBlock = v;
+
+  if (crore) parts.push(`${threeDigitsToWords(crore)} Crore`);
+  if (lakh) parts.push(`${threeDigitsToWords(lakh)} Lakh`);
+  if (thousand) parts.push(`${threeDigitsToWords(thousand)} Thousand`);
+  if (hundredBlock) parts.push(threeDigitsToWords(hundredBlock));
+
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
+}
+
+export function amountInWordsINR(value: number) {
+  const v = Number(value || 0);
+  const sign = v < 0 ? 'Minus ' : '';
+  const abs = Math.abs(v);
+  const rupees = Math.floor(abs);
+  const paise = Math.round((abs - rupees) * 100);
+  const r = numberToWordsIndian(rupees);
+  const p = paise ? twoDigitsToWords(paise) : '';
+  const tail = paise ? ` and ${p} Paise` : '';
+  return `${sign}${r} Rupees${tail} Only`;
+}
+
 export function docTitleFromType(type: string) {
   const t = String(type || '').toLowerCase();
   if (t === 'invoice') return 'TAX INVOICE';

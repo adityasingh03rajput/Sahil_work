@@ -402,23 +402,33 @@ export function AppLayout({ children }: AppLayoutProps) {
                         { label: 'Delivery Challan', type: 'challan' },
                         { label: 'Sale Return / Credit Note', type: 'invoice_cancellation' },
                       ].map((row) => (
-                        <div key={row.type} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted">
-                          <button
-                            type="button"
-                            className="flex-1 text-left text-sm text-foreground/90 hover:text-primary"
-                            onClick={() => {
-                              navigate(`/documents?type=${encodeURIComponent(row.type)}`);
-                              setMobileMenuOpen(false);
-                            }}
-                          >
+                        <div
+                          key={row.type}
+                          className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            navigate(`/documents?type=${encodeURIComponent(row.type)}`);
+                            setMobileMenuOpen(false);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter' && e.key !== ' ') return;
+                            e.preventDefault();
+                            navigate(`/documents?type=${encodeURIComponent(row.type)}`);
+                            setMobileMenuOpen(false);
+                          }}
+                        >
+                          <div className="flex-1 text-left text-sm text-foreground/90 hover:text-primary">
                             {row.label}
-                          </button>
+                          </div>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                               navigate(`/documents/create?type=${encodeURIComponent(row.type)}`);
                               setMobileMenuOpen(false);
                             }}
@@ -435,11 +445,11 @@ export function AppLayout({ children }: AppLayoutProps) {
                           type="button"
                           className="flex-1 text-left text-sm text-foreground/90 hover:text-primary"
                           onClick={() => {
-                            navigate('/payments-in');
+                            navigate('/vyapar-khata-new');
                             setMobileMenuOpen(false);
                           }}
                         >
-                          Payment-In
+                          Vyapar Khata
                         </button>
                       </div>
                       <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted">
@@ -452,6 +462,18 @@ export function AppLayout({ children }: AppLayoutProps) {
                           }}
                         >
                           Vyapar POS
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted">
+                        <button
+                          type="button"
+                          className="flex-1 text-left text-sm text-foreground/90 hover:text-primary"
+                          onClick={() => {
+                            navigate('/extra-expenses');
+                            setMobileMenuOpen(false);
+                          }}
+                        >
+                          Extra Expense
                         </button>
                       </div>
                     </div>

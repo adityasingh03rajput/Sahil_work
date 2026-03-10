@@ -22,6 +22,9 @@ export type DocumentDto = {
   documentNumber: string;
   type: string;
 
+  customerId?: string | null;
+  supplierId?: string | null;
+
   referenceDocumentId?: string | null;
   referenceDocumentNumber?: string | null;
 
@@ -105,6 +108,8 @@ export type DocumentDto = {
   totalCgst?: number;
   totalSgst?: number;
   totalIgst?: number;
+
+  partyLogoDataUrl?: string | null;
 
   customFields?: Array<{ label?: string | null; value?: string | null }>;
 };

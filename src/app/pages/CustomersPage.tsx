@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -8,7 +8,7 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Plus, Search, User, Mail, Phone, MapPin, Edit, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, User, Mail, Phone, MapPin, Edit, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { INDIAN_STATES } from '../utils/indianStates';
@@ -20,6 +20,8 @@ interface Customer {
   name: string;
   email?: string;
   phone?: string;
+  logoDataUrl?: string | null;
+  logoUrl?: string | null;
   billingAddress?: string;
   shippingAddress?: string;
   billingCity?: string;
@@ -44,12 +46,17 @@ export function CustomersPage() {
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Customer>>({});
   const [loading, setLoading] = useState(true);
+  const [gstinLoading, setGstinLoading] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [outstandingOpen, setOutstandingOpen] = useState(false);
   const [outstandingLoading, setOutstandingLoading] = useState(false);
   const [outstandingTotal, setOutstandingTotal] = useState(0);
   const [outstandingByCustomer, setOutstandingByCustomer] = useState<Array<{ customerName: string; amount: number }>>([]);
   const { accessToken, deviceId } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const apiUrl = API_URL;
   const currentProfile = JSON.parse(localStorage.getItem('currentProfile') || '{}');
@@ -82,11 +89,58 @@ export function CustomersPage() {
     }
   };
 
+  const clearCustomersCache = () => {
+    if (!customersCacheKey) return;
+    try {
+      sessionStorage.removeItem(customersCacheKey);
+    } catch {
+      // ignore
+    }
+  };
+
+  const fileToDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.readAsDataURL(file);
+    });
+
+  const uploadLogoToCloudinary = async (dataUrl: string) => {
+    if (!accessToken) throw new Error('Not authenticated');
+    if (!profileId) throw new Error('Select a business profile first');
+    const res = await fetch(`${apiUrl}/uploads/logo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        'X-Device-ID': deviceId,
+        'X-Profile-ID': profileId,
+      },
+      body: JSON.stringify({ dataUrl, folder: `hukum/logos/${profileId}/customers` }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data?.error || 'Failed to upload logo');
+    }
+    const url = String(data?.url || '').trim();
+    if (!url) throw new Error('Failed to upload logo');
+    return url;
+  };
+
   useEffect(() => {
     if (!accessToken || !deviceId || !profileId) return;
     loadCustomers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, deviceId, profileId]);
+
+  useEffect(() => {
+    const st: any = (location as any)?.state;
+    if (st?.openCreateDialog) {
+      setShowCreateDialog(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (searchTerm) {
@@ -360,6 +414,50 @@ export function CustomersPage() {
     setShowEditDialog(true);
   };
 
+  const openDeleteDialog = (customer: Customer) => {
+    setDeleteCustomer(customer);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteCustomer?.id) return;
+    if (!accessToken) {
+      toast.error('Not authenticated');
+      return;
+    }
+    if (!profileId) {
+      toast.error('Select a business profile first');
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      const response = await fetch(`${apiUrl}/customers/${deleteCustomer.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Device-ID': deviceId,
+          'X-Profile-ID': profileId,
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to delete customer');
+      }
+
+      setCustomers((prev) => prev.filter((c) => c.id !== deleteCustomer.id));
+      setFilteredCustomers((prev) => prev.filter((c) => c.id !== deleteCustomer.id));
+      clearCustomersCache();
+      toast.success('Customer deleted');
+      setDeleteDialogOpen(false);
+      setDeleteCustomer(null);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to delete customer');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const handleUpdateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -371,6 +469,9 @@ export function CustomersPage() {
     }
 
     try {
+      const payload: any = { ...editFormData };
+      if (payload.logoUrl && !String(payload.logoUrl).trim()) payload.logoUrl = null;
+      delete payload.logoDataUrl;
       const response = await fetch(`${apiUrl}/customers/${editingCustomerId}`, {
         method: 'PUT',
         headers: {
@@ -379,7 +480,7 @@ export function CustomersPage() {
           'X-Device-ID': deviceId,
           'X-Profile-ID': profileId,
         },
-        body: JSON.stringify(editFormData),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -406,6 +507,9 @@ export function CustomersPage() {
     }
 
     try {
+      const payload: any = { ...formData };
+      if (payload.logoUrl && !String(payload.logoUrl).trim()) payload.logoUrl = null;
+      delete payload.logoDataUrl;
       const response = await fetch(`${apiUrl}/customers`, {
         method: 'POST',
         headers: {
@@ -414,7 +518,7 @@ export function CustomersPage() {
           'X-Device-ID': deviceId,
           'X-Profile-ID': profileId,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -426,9 +530,59 @@ export function CustomersPage() {
         setCustomers([...customers, data]);
         setShowCreateDialog(false);
         setFormData({});
+
+        const st: any = (location as any)?.state;
+        if (st?.returnTo) {
+          navigate(String(st.returnTo));
+        }
       }
     } catch (error) {
       toast.error('Failed to create customer');
+    }
+  };
+
+  const handleCreateByGstin = async () => {
+    const gstin = String(formData.gstin || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!gstin) {
+      toast.error('GSTIN is required');
+      return;
+    }
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(gstin)) {
+      toast.error('Invalid GSTIN format');
+      return;
+    }
+
+    setGstinLoading(true);
+    try {
+      const response = await fetch(`${apiUrl}/customers/gstin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Device-ID': deviceId,
+          'X-Profile-ID': profileId,
+        },
+        body: JSON.stringify({ gstin }),
+      });
+
+      const data = await response.json();
+      if (data.error) {
+        toast.error(data.error);
+      } else {
+        toast.success('Customer created via GSTIN!');
+        setCustomers([...customers, data]);
+        setShowCreateDialog(false);
+        setFormData({});
+
+        const st: any = (location as any)?.state;
+        if (st?.returnTo) {
+          navigate(String(st.returnTo));
+        }
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to create customer');
+    } finally {
+      setGstinLoading(false);
     }
   };
 
@@ -445,6 +599,28 @@ export function CustomersPage() {
   return (
     <AppLayout>
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete Customer</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                This will permanently delete
+                <span className="font-medium text-foreground"> {deleteCustomer?.name || 'this customer'}</span>.
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleteLoading}>
+                  Cancel
+                </Button>
+                <Button type="button" variant="destructive" onClick={confirmDelete} disabled={deleteLoading}>
+                  {deleteLoading ? 'Deleting…' : 'Delete'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>
@@ -567,6 +743,42 @@ export function CustomersPage() {
                   />
                 </div>
 
+                <div>
+                  <Label>Logo</Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="customer-logo-create"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        try {
+                          const dataUrl = await fileToDataUrl(file);
+                          setFormData((prev) => ({ ...prev, logoDataUrl: dataUrl }));
+                          const url = await uploadLogoToCloudinary(dataUrl);
+                          setFormData((prev) => ({ ...prev, logoUrl: url }));
+                        } catch {
+                          toast.error('Failed to upload logo');
+                        }
+                      }}
+                    />
+                    <Button type="button" variant="outline" asChild>
+                      <label htmlFor="customer-logo-create" style={{ cursor: 'pointer' }}>
+                        {formData.logoUrl || formData.logoDataUrl ? 'Change Logo' : 'Upload Logo'}
+                      </label>
+                    </Button>
+                    {!!(formData.logoUrl || formData.logoDataUrl) && (
+                      <img
+                        src={String(formData.logoUrl || formData.logoDataUrl)}
+                        alt="Logo"
+                        className="h-10 w-10 rounded border object-contain bg-white"
+                      />
+                    )}
+                  </div>
+                </div>
+
                 <div className="grid md:grid-cols-3 gap-4">
                   <div>
                     <Label>Billing City</Label>
@@ -652,6 +864,9 @@ export function CustomersPage() {
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
                     Cancel
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={handleCreateByGstin} disabled={gstinLoading}>
+                    {gstinLoading ? 'Creating...' : 'Create via GSTIN'}
                   </Button>
                   <Button type="submit">Add Customer</Button>
                 </div>
@@ -744,8 +959,16 @@ export function CustomersPage() {
                 <CardHeader>
                   <div className="flex items-center gap-3 justify-between">
                     <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="h-6 w-6 text-blue-600" />
+                    <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden border">
+                      {customer.logoUrl || customer.logoDataUrl ? (
+                        <img
+                          src={String(customer.logoUrl || customer.logoDataUrl)}
+                          alt="Logo"
+                          className="h-full w-full object-contain bg-white"
+                        />
+                      ) : (
+                        <User className="h-6 w-6 text-blue-600" />
+                      )}
                     </div>
                     <div>
                       <CardTitle className="text-lg">{customer.name}</CardTitle>
@@ -763,6 +986,17 @@ export function CustomersPage() {
                       className="text-muted-foreground hover:text-foreground"
                     >
                       <Edit className="h-4 w-4" />
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openDeleteDialog(customer)}
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label="Delete customer"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </CardHeader>
@@ -901,6 +1135,42 @@ export function CustomersPage() {
                   placeholder="Enter billing address"
                   rows={2}
                 />
+              </div>
+
+              <div>
+                <Label>Logo</Label>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="customer-logo-edit"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const dataUrl = await fileToDataUrl(file);
+                        setEditFormData((prev) => ({ ...prev, logoDataUrl: dataUrl }));
+                        const url = await uploadLogoToCloudinary(dataUrl);
+                        setEditFormData((prev) => ({ ...prev, logoUrl: url }));
+                      } catch {
+                        toast.error('Failed to upload logo');
+                      }
+                    }}
+                  />
+                  <Button type="button" variant="outline" asChild>
+                    <label htmlFor="customer-logo-edit" style={{ cursor: 'pointer' }}>
+                      {editFormData.logoUrl || editFormData.logoDataUrl ? 'Change Logo' : 'Upload Logo'}
+                    </label>
+                  </Button>
+                  {!!(editFormData.logoUrl || editFormData.logoDataUrl) && (
+                    <img
+                      src={String(editFormData.logoUrl || editFormData.logoDataUrl)}
+                      alt="Logo"
+                      className="h-10 w-10 rounded border object-contain bg-white"
+                    />
+                  )}
+                </div>
               </div>
 
               <div className="grid md:grid-cols-3 gap-4">

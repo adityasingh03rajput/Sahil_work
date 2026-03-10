@@ -15,8 +15,10 @@ import { AnalyticsPageWrapper } from './pages/AnalyticsPageWrapper';
 import { SubscriptionPageWrapper } from './pages/SubscriptionPageWrapper';
 import { GstReportsPage } from './pages/GstReportsPage';
 import { PartyLedgerPageWrapper } from './pages/PartyLedgerPageWrapper';
-import { PaymentInPageWrapper } from './pages/PaymentInPageWrapper';
 import { PosPageWrapper } from './pages/PosPageWrapper';
+import { ExtraExpensesPageWrapper } from './pages/ExtraExpensesPageWrapper';
+import { VyaparKhataPageWrapper } from './pages/VyaparKhataPageWrapper';
+import { VyaparKhataPageNewWrapper } from './pages/VyaparKhataPageNewWrapper';
 
 const router = createBrowserRouter([
   {
@@ -76,12 +78,20 @@ const router = createBrowserRouter([
     Component: SubscriptionPageWrapper,
   },
   {
-    path: "/payments-in",
-    Component: PaymentInPageWrapper,
-  },
-  {
     path: "/pos",
     Component: PosPageWrapper,
+  },
+  {
+    path: "/extra-expenses",
+    Component: ExtraExpensesPageWrapper,
+  },
+  {
+    path: "/vyapar-khata",
+    Component: VyaparKhataPageWrapper,
+  },
+  {
+    path: "/vyapar-khata-new",
+    Component: VyaparKhataPageNewWrapper,
   },
 ]);
 

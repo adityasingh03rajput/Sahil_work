@@ -155,35 +155,79 @@ paymentsRouter.get('/', async (req, res, next) => {
 
 paymentsRouter.get('/outstanding', async (req, res, next) => {
   try {
-    const docs = await Document.find({ userId: req.userId, profileId: req.profileId, type: 'invoice' }).sort({ createdAt: -1 });
-
-    const results = [];
-    let totalOutstanding = 0;
-
-    for (const d of docs) {
-      const paidAmount = await computeDocumentPaidAmount({
-        userId: req.userId,
-        profileId: req.profileId,
-        documentId: d._id,
-      });
-
-      const total = Number(d.grandTotal || 0);
-      const remaining = Math.max(0, total - paidAmount);
-      totalOutstanding += remaining;
-
-      results.push({
-        documentId: String(d._id),
-        documentNumber: d.documentNumber,
-        customerName: d.customerName,
-        date: d.date,
-        total,
-        paidAmount,
-        remaining,
-        paymentStatus: d.paymentStatus,
-      });
+    const { partyType, partyId } = req.query;
+    
+    // Build filter based on party type
+    let filter = { userId: req.userId, profileId: req.profileId, type: 'invoice' };
+    
+    if (partyType && partyId) {
+      if (partyType === 'customer') {
+        filter.customerId = partyId;
+      } else if (partyType === 'supplier') {
+        filter.supplierId = partyId;
+      }
     }
 
-    res.json({ totalOutstanding, documents: results });
+    // Get all invoices with their payment totals in one aggregation
+    const outstandingAgg = await Document.aggregate([
+      { $match: filter },
+      {
+        $lookup: {
+          from: 'payments',
+          let: { docId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$documentId', '$$docId'] },
+                userId: new mongoose.Types.ObjectId(req.userId),
+                profileId: new mongoose.Types.ObjectId(req.profileId),
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                totalPaid: { $sum: '$amount' },
+              },
+            },
+          ],
+          as: 'payments',
+        },
+      },
+      {
+        $addFields: {
+          paidAmount: { $ifNull: [{ $arrayElemAt: ['$payments.totalPaid', 0] }, 0] },
+        },
+      },
+      {
+        $addFields: {
+          remaining: { $max: [0, { $subtract: ['$grandTotal', '$paidAmount'] }] },
+        },
+      },
+      {
+        $match: { remaining: { $gt: 0 } }, // Only return invoices with remaining balance
+      },
+      {
+        $sort: { date: -1 },
+      },
+    ]);
+
+    const results = outstandingAgg.map(d => ({
+      id: String(d._id),
+      invoiceNo: d.documentNumber,
+      date: d.date,
+      dueDate: d.dueDate,
+      totalAmount: d.grandTotal,
+      paidAmount: d.paidAmount,
+      remaining: d.remaining,
+      party: {
+        id: partyId || (d.customerId || d.supplierId || '').toString(),
+        name: partyType === 'customer' ? d.customerName : d.supplierName,
+      },
+    }));
+
+    const totalOutstanding = results.reduce((sum, r) => sum + r.remaining, 0);
+
+    res.json(results);
   } catch (err) {
     next(err);
   }

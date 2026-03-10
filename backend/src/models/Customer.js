@@ -8,6 +8,8 @@ const customerSchema = new mongoose.Schema(
     name: { type: String, required: true },
     email: { type: String, default: null },
     phone: { type: String, default: null },
+    logoDataUrl: { type: String, default: null },
+    logoUrl: { type: String, default: null },
     billingAddress: { type: String, default: null },
     shippingAddress: { type: String, default: null },
     city: { type: String, default: null },

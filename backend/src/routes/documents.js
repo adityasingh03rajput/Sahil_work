@@ -7,6 +7,8 @@ import { Document } from '../models/Document.js';
 import { BusinessProfile } from '../models/BusinessProfile.js';
 import twilio from 'twilio';
 import { upsertLedgerForDocument } from '../lib/ledger.js';
+import { LedgerEntry } from '../models/LedgerEntry.js';
+import { Payment } from '../models/Payment.js';
 
 export const documentsRouter = Router();
 
@@ -160,6 +162,37 @@ documentsRouter.post('/:id/remind', async (req, res, next) => {
       status: 'sent',
       lastReminderSentAt: doc.lastReminderSentAt?.toISOString?.() ?? doc.lastReminderSentAt,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+documentsRouter.delete('/:id', async (req, res, next) => {
+  try {
+    const doc = await Document.findOne({ _id: req.params.id, userId: req.userId, profileId: req.profileId });
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    await Payment.deleteMany({ userId: req.userId, profileId: req.profileId, documentId: doc._id });
+    await LedgerEntry.deleteMany({ userId: req.userId, profileId: req.profileId, sourceType: 'document', sourceId: doc._id });
+
+    const payLedger = await LedgerEntry.find({ userId: req.userId, profileId: req.profileId, sourceType: 'payment' }).lean();
+    const paymentIds = (payLedger || [])
+      .filter((e) => e?.sourceId)
+      .map((e) => String(e.sourceId));
+    if (paymentIds.length) {
+      const stillExisting = await Payment.find({ _id: { $in: paymentIds } }).select('_id').lean();
+      const keep = new Set((stillExisting || []).map((p) => String(p._id)));
+      const toDelete = paymentIds.filter((id) => !keep.has(id));
+      if (toDelete.length) {
+        await LedgerEntry.deleteMany({ userId: req.userId, profileId: req.profileId, sourceType: 'payment', sourceId: { $in: toDelete } });
+      }
+    }
+
+    await Document.deleteOne({ _id: doc._id, userId: req.userId, profileId: req.profileId });
+
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }
