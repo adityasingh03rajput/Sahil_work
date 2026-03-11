@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = 'http://localhost:4000';
+const DEFAULT_API_URL = 'https://accounts-8rx9.onrender.com';
 
 const raw = import.meta.env.VITE_API_URL;
 
@@ -26,22 +26,6 @@ const normalizeApiUrl = (value?: string) => {
   try {
     const u = new URL(trimmed);
     if (u.protocol === 'http:' || u.protocol === 'https:') {
-      // In local dev, protect against stale env vars pointing to another machine on LAN.
-      // If you are opening the frontend on localhost, but VITE_API_URL is set to a different host,
-      // requests will time out (e.g. 192.168.x.x). In that case, fall back to localhost backend.
-      if (!import.meta.env.PROD) {
-        const pageHost = (() => {
-          try {
-            return typeof window !== 'undefined' ? window.location.hostname : '';
-          } catch {
-            return '';
-          }
-        })();
-
-        const allowedHosts = new Set(['localhost', '127.0.0.1', pageHost].filter(Boolean));
-        if (!allowedHosts.has(u.hostname)) return DEFAULT_API_URL;
-      }
-
       return u.origin;
     }
     return DEFAULT_API_URL;

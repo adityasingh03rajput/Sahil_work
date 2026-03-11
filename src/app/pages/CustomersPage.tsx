@@ -47,6 +47,7 @@ export function CustomersPage() {
   const [editFormData, setEditFormData] = useState<Partial<Customer>>({});
   const [loading, setLoading] = useState(true);
   const [gstinLoading, setGstinLoading] = useState(false);
+  const [gstinLookupLoading, setGstinLookupLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteCustomer, setDeleteCustomer] = useState<Customer | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -86,6 +87,71 @@ export function CustomersPage() {
       sessionStorage.setItem(customersCacheKey, JSON.stringify({ ts: Date.now(), data }));
     } catch {
       // ignore
+    }
+  };
+
+  const handleGstinLookupAutofill = async (target: 'create' | 'edit') => {
+    if (!accessToken || !deviceId || !profileId) return;
+    const current = target === 'edit' ? editFormData : formData;
+    const gstin = String(current?.gstin || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!gstin) return;
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(gstin)) return;
+
+    setGstinLookupLoading(true);
+    try {
+      const response = await fetch(`${apiUrl}/customers/gstin/lookup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Device-ID': deviceId,
+          'X-Profile-ID': profileId,
+        },
+        body: JSON.stringify({ gstin }),
+      });
+
+      const rawText = await response.text().catch(() => '');
+      const data = (() => {
+        try {
+          return rawText ? JSON.parse(rawText) : null;
+        } catch {
+          return null;
+        }
+      })();
+      if (!response.ok || data?.error) {
+        const serverMsg = String(data?.error || data?.message || '').trim();
+        const hint = response.status === 404 ? 'GSTIN lookup endpoint not available on server (deploy backend / restart server).' : '';
+        toast.error(serverMsg || hint || `GSTIN lookup failed (${response.status})`);
+        return;
+      }
+
+      const apply = (prev: Partial<Customer>) => {
+        const next: Partial<Customer> = { ...prev };
+        if (!String(next.name || '').trim() && String(data?.name || '').trim()) next.name = String(data.name);
+        if (!String(next.pan || '').trim() && String(data?.pan || '').trim()) next.pan = String(data.pan);
+
+        if (!String(next.billingAddress || '').trim() && String(data?.billingAddress || '').trim()) next.billingAddress = String(data.billingAddress);
+        if (!String(next.billingCity || '').trim() && String(data?.billingCity || '').trim()) next.billingCity = String(data.billingCity);
+        if (!String(next.billingState || '').trim() && String(data?.billingState || '').trim()) next.billingState = String(data.billingState);
+        if (!String(next.billingPostalCode || '').trim() && String(data?.billingPostalCode || '').trim()) next.billingPostalCode = String(data.billingPostalCode);
+
+        if (!String(next.shippingAddress || '').trim() && String(data?.shippingAddress || '').trim()) next.shippingAddress = String(data.shippingAddress);
+        if (!String(next.shippingCity || '').trim() && String(data?.shippingCity || '').trim()) next.shippingCity = String(data.shippingCity);
+        if (!String(next.shippingState || '').trim() && String(data?.shippingState || '').trim()) next.shippingState = String(data.shippingState);
+        if (!String(next.shippingPostalCode || '').trim() && String(data?.shippingPostalCode || '').trim()) next.shippingPostalCode = String(data.shippingPostalCode);
+
+        return next;
+      };
+
+      if (target === 'edit') {
+        setEditFormData((prev) => apply(prev));
+      } else {
+        setFormData((prev) => apply(prev));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'GSTIN lookup failed');
+    } finally {
+      setGstinLookupLoading(false);
     }
   };
 
@@ -721,8 +787,14 @@ export function CustomersPage() {
                     <Input
                       value={formData.gstin || ''}
                       onChange={(e) => setFormData({...formData, gstin: e.target.value})}
+                      onBlur={() => {
+                        void handleGstinLookupAutofill('create');
+                      }}
                       placeholder="22AAAAA0000A1Z5"
                     />
+                    {gstinLookupLoading ? (
+                      <div className="text-xs text-muted-foreground mt-1">Fetching GST details...</div>
+                    ) : null}
                   </div>
                 </div>
                 <div>
@@ -1115,8 +1187,14 @@ export function CustomersPage() {
                   <Input
                     value={editFormData.gstin || ''}
                     onChange={(e) => setEditFormData({ ...editFormData, gstin: e.target.value })}
+                    onBlur={() => {
+                      void handleGstinLookupAutofill('edit');
+                    }}
                     placeholder="22AAAAA0000A1Z5"
                   />
+                  {gstinLookupLoading ? (
+                    <div className="text-xs text-muted-foreground mt-1">Fetching GST details...</div>
+                  ) : null}
                 </div>
               </div>
               <div>

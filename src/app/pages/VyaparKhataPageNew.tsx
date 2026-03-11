@@ -125,6 +125,7 @@ export function VyaparKhataPageNew() {
   const [addPartyType, setAddPartyType] = useState<PartyType>('customer');
   const [addPartyExpanded, setAddPartyExpanded] = useState(false);
   const [addPartySaving, setAddPartySaving] = useState(false);
+  const [addPartyGstinLookupLoading, setAddPartyGstinLookupLoading] = useState(false);
   const [addPartyForm, setAddPartyForm] = useState({
     name: '',
     phone: '',
@@ -154,6 +155,46 @@ export function VyaparKhataPageNew() {
       postalCode: '',
     });
     setAddPartyOpen(true);
+  };
+
+  const handleAddPartyGstinLookup = async () => {
+    if (!accessToken || !deviceId || !profileId) return;
+    const gstin = String(addPartyForm.gstin || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!gstin) return;
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(gstin)) return;
+
+    setAddPartyGstinLookupLoading(true);
+    try {
+      const url = addPartyType === 'customer' ? `${API_URL}/customers/gstin/lookup` : `${API_URL}/suppliers/gstin/lookup`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ gstin }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || data?.error) {
+        toast.error(data?.error || 'GSTIN lookup failed');
+        return;
+      }
+
+      setAddPartyForm((prev) => {
+        const next = { ...prev };
+        if (!String(next.pan || '').trim() && String(data?.pan || '').trim()) next.pan = String(data.pan);
+        if (!String(next.address || '').trim() && String(data?.billingAddress || '').trim()) next.address = String(data.billingAddress);
+        if (!String(next.city || '').trim() && String(data?.billingCity || '').trim()) next.city = String(data.billingCity);
+        if (!String(next.state || '').trim() && String(data?.billingState || '').trim()) next.state = String(data.billingState);
+        if (!String(next.postalCode || '').trim() && String(data?.billingPostalCode || '').trim()) next.postalCode = String(data.billingPostalCode);
+        if (!String(next.name || '').trim() && String(data?.name || '').trim()) next.name = String(data.name);
+        return next;
+      });
+    } catch (e: any) {
+      toast.error(e?.message || 'GSTIN lookup failed');
+    } finally {
+      setAddPartyGstinLookupLoading(false);
+    }
   };
 
   const [entrySheetOpen, setEntrySheetOpen] = useState(false);
@@ -801,7 +842,16 @@ export function VyaparKhataPageNew() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label>GSTIN</Label>
-                        <Input value={addPartyForm.gstin} onChange={(e) => setAddPartyForm((p) => ({ ...p, gstin: e.target.value }))} />
+                        <Input
+                          value={addPartyForm.gstin}
+                          onChange={(e) => setAddPartyForm((p) => ({ ...p, gstin: e.target.value }))}
+                          onBlur={() => {
+                            void handleAddPartyGstinLookup();
+                          }}
+                        />
+                        {addPartyGstinLookupLoading ? (
+                          <div className="text-xs text-muted-foreground mt-1">Fetching GST details...</div>
+                        ) : null}
                       </div>
                       <div>
                         <Label>PAN</Label>

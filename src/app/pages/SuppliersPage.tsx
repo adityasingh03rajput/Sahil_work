@@ -44,6 +44,7 @@ export function SuppliersPage() {
   const [editFormData, setEditFormData] = useState<Partial<Supplier>>({});
   const [loading, setLoading] = useState(true);
   const [gstinLoading, setGstinLoading] = useState(false);
+  const [gstinLookupLoading, setGstinLookupLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteSupplier, setDeleteSupplier] = useState<Supplier | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -79,6 +80,63 @@ export function SuppliersPage() {
       sessionStorage.setItem(suppliersCacheKey, JSON.stringify({ ts: Date.now(), data }));
     } catch {
       // ignore
+    }
+  };
+
+  const handleGstinLookupAutofill = async (target: 'create' | 'edit') => {
+    if (!accessToken || !deviceId || !profileId) return;
+    const current = target === 'edit' ? editFormData : formData;
+    const gstin = String(current?.gstin || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!gstin) return;
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(gstin)) return;
+
+    setGstinLookupLoading(true);
+    try {
+      const response = await fetch(`${apiUrl}/suppliers/gstin/lookup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'X-Device-ID': deviceId,
+          'X-Profile-ID': profileId,
+        },
+        body: JSON.stringify({ gstin }),
+      });
+
+      const rawText = await response.text().catch(() => '');
+      const data = (() => {
+        try {
+          return rawText ? JSON.parse(rawText) : null;
+        } catch {
+          return null;
+        }
+      })();
+      if (!response.ok || data?.error) {
+        const serverMsg = String(data?.error || data?.message || '').trim();
+        const hint = response.status === 404 ? 'GSTIN lookup endpoint not available on server (deploy backend / restart server).' : '';
+        toast.error(serverMsg || hint || `GSTIN lookup failed (${response.status})`);
+        return;
+      }
+
+      const apply = (prev: Partial<Supplier>) => {
+        const next: Partial<Supplier> = { ...prev };
+        if (!String(next.name || '').trim() && String(data?.name || '').trim()) next.name = String(data.name);
+        if (!String(next.pan || '').trim() && String(data?.pan || '').trim()) next.pan = String(data.pan);
+        if (!String(next.address || '').trim() && String(data?.billingAddress || data?.address || '').trim()) {
+          next.address = String(data?.billingAddress || data?.address || '');
+        }
+        return next;
+      };
+
+      if (target === 'edit') {
+        setEditFormData((prev) => apply(prev));
+      } else {
+        setFormData((prev) => apply(prev));
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'GSTIN lookup failed');
+    } finally {
+      setGstinLookupLoading(false);
     }
   };
 
@@ -488,8 +546,14 @@ export function SuppliersPage() {
                     <Input
                       value={formData.gstin || ''}
                       onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+                      onBlur={() => {
+                        void handleGstinLookupAutofill('create');
+                      }}
                       placeholder="22AAAAA0000A1Z5"
                     />
+                    {gstinLookupLoading ? (
+                      <div className="text-xs text-muted-foreground mt-1">Fetching GST details...</div>
+                    ) : null}
                   </div>
                 </div>
                 <div>
@@ -779,8 +843,14 @@ export function SuppliersPage() {
                   <Input
                     value={editFormData.gstin || ''}
                     onChange={(e) => setEditFormData({ ...editFormData, gstin: e.target.value })}
+                    onBlur={() => {
+                      void handleGstinLookupAutofill('edit');
+                    }}
                     placeholder="22AAAAA0000A1Z5"
                   />
+                  {gstinLookupLoading ? (
+                    <div className="text-xs text-muted-foreground mt-1">Fetching GST details...</div>
+                  ) : null}
                 </div>
               </div>
               <div>

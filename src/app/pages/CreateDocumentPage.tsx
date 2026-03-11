@@ -24,6 +24,7 @@ import {
 } from '../components/ui/command';
 import { Switch } from '../components/ui/switch';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '../components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/ui/collapsible';
 import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Plus, Save, Trash2, ArrowLeft } from 'lucide-react';
@@ -221,8 +222,45 @@ export function CreateDocumentPage() {
   const [partyPopoverOpen, setPartyPopoverOpen] = useState(false);
   const [createCustomerOpen, setCreateCustomerOpen] = useState(false);
   const [createCustomerSaving, setCreateCustomerSaving] = useState(false);
-  const [createCustomerForm, setCreateCustomerForm] = useState<{ name: string; phone: string; gstin: string; billingAddress: string; logoDataUrl: string; logoUrl: string }>(
-    { name: '', phone: '', gstin: '', billingAddress: '', logoDataUrl: '', logoUrl: '' }
+  const [createCustomerGstinLookupLoading, setCreateCustomerGstinLookupLoading] = useState(false);
+  const [createCustomerForm, setCreateCustomerForm] = useState<{
+    name: string;
+    email: string;
+    phone: string;
+    openingBalance: string;
+    openingBalanceType: 'dr' | 'cr';
+    gstin: string;
+    pan: string;
+    billingAddress: string;
+    billingCity: string;
+    billingState: string;
+    billingPostalCode: string;
+    shippingAddress: string;
+    shippingCity: string;
+    shippingState: string;
+    shippingPostalCode: string;
+    logoDataUrl: string;
+    logoUrl: string;
+  }>(
+    {
+      name: '',
+      email: '',
+      phone: '',
+      openingBalance: '',
+      openingBalanceType: 'dr',
+      gstin: '',
+      pan: '',
+      billingAddress: '',
+      billingCity: '',
+      billingState: '',
+      billingPostalCode: '',
+      shippingAddress: '',
+      shippingCity: '',
+      shippingState: '',
+      shippingPostalCode: '',
+      logoDataUrl: '',
+      logoUrl: '',
+    }
   );
 
   const [proformaItemPopoverOpen, setProformaItemPopoverOpen] = useState<Record<number, boolean>>({});
@@ -231,11 +269,29 @@ export function CreateDocumentPage() {
   const [createItemTargetIndex, setCreateItemTargetIndex] = useState<number | null>(null);
   const [createItemForm, setCreateItemForm] = useState<{
     name: string;
+    hsnSac: string;
     unit: string;
     rate: string;
-    hsnSac: string;
-    taxPct: string;
-  }>({ name: '', unit: 'NONE', rate: '', hsnSac: '', taxPct: '18' });
+    sellingPrice: string;
+    purchaseCost: string;
+    discount: string;
+    cgst: string;
+    sgst: string;
+    igst: string;
+    description: string;
+  }>({
+    name: '',
+    hsnSac: '',
+    unit: 'pcs',
+    rate: '0',
+    sellingPrice: '0',
+    purchaseCost: '0',
+    discount: '0',
+    cgst: '9',
+    sgst: '9',
+    igst: '0',
+    description: '',
+  });
 
   const [proformaShowDescription, setProformaShowDescription] = useState(false);
   const [proformaAttachment, setProformaAttachment] = useState<File | null>(null);
@@ -279,6 +335,69 @@ export function CreateDocumentPage() {
     return url;
   };
 
+  const handleCreateCustomerGstinLookup = async () => {
+    if (!accessToken || !deviceId || !profileId) return;
+    const gstin = String(createCustomerForm.gstin || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!gstin) return;
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(gstin)) return;
+
+    setCreateCustomerGstinLookupLoading(true);
+    try {
+      const lookupUrl = partyKind === 'supplier' ? `${apiUrl}/suppliers/gstin/lookup` : `${apiUrl}/customers/gstin/lookup`;
+      const res = await fetch(lookupUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+          'X-Device-ID': deviceId,
+          'X-Profile-ID': profileId,
+        },
+        body: JSON.stringify({ gstin }),
+      });
+      const rawText = await res.text().catch(() => '');
+      const data = (() => {
+        try {
+          return rawText ? JSON.parse(rawText) : null;
+        } catch {
+          return null;
+        }
+      })();
+
+      if (!res.ok || data?.error) {
+        const serverMsg = String(data?.error || data?.message || '').trim();
+        const hint = res.status === 404
+          ? 'GSTIN lookup endpoint not available on server (deploy backend / restart server).'
+          : res.status === 405
+            ? 'GSTIN lookup method not allowed (server route mismatch).'
+            : '';
+        toast.error(serverMsg || hint || `GSTIN lookup failed (${res.status})`);
+        return;
+      }
+
+      setCreateCustomerForm((prev) => {
+        const next = { ...prev };
+        if (!String(next.name || '').trim() && String(data?.name || '').trim()) next.name = String(data.name);
+        if (!String(next.pan || '').trim() && String(data?.pan || '').trim()) next.pan = String(data.pan);
+
+        if (!String(next.billingAddress || '').trim() && String(data?.billingAddress || '').trim()) next.billingAddress = String(data.billingAddress);
+        if (!String(next.billingCity || '').trim() && String(data?.billingCity || '').trim()) next.billingCity = String(data.billingCity);
+        if (!String(next.billingState || '').trim() && String(data?.billingState || '').trim()) next.billingState = String(data.billingState);
+        if (!String(next.billingPostalCode || '').trim() && String(data?.billingPostalCode || '').trim()) next.billingPostalCode = String(data.billingPostalCode);
+
+        if (!String(next.shippingAddress || '').trim() && String(data?.shippingAddress || '').trim()) next.shippingAddress = String(data.shippingAddress);
+        if (!String(next.shippingCity || '').trim() && String(data?.shippingCity || '').trim()) next.shippingCity = String(data.shippingCity);
+        if (!String(next.shippingState || '').trim() && String(data?.shippingState || '').trim()) next.shippingState = String(data.shippingState);
+        if (!String(next.shippingPostalCode || '').trim() && String(data?.shippingPostalCode || '').trim()) next.shippingPostalCode = String(data.shippingPostalCode);
+
+        return next;
+      });
+    } catch (e: any) {
+      toast.error(e?.message || 'GSTIN lookup failed');
+    } finally {
+      setCreateCustomerGstinLookupLoading(false);
+    }
+  };
+
   const handleCreateItemInline = async () => {
     if (!accessToken || !deviceId || !profileId) {
       toast.error('Missing session/profile');
@@ -291,11 +410,16 @@ export function CreateDocumentPage() {
       return;
     }
 
-    const unit = String(createItemForm.unit || 'NONE').trim() || 'NONE';
+    const unit = String(createItemForm.unit || 'pcs').trim() || 'pcs';
     const rate = Number(createItemForm.rate || 0);
+    const sellingPrice = Number(createItemForm.sellingPrice || 0);
+    const purchaseCost = Number(createItemForm.purchaseCost || 0);
+    const discount = Number(createItemForm.discount || 0);
+    const cgst = Number(createItemForm.cgst || 0);
+    const sgst = Number(createItemForm.sgst || 0);
+    const igst = Number(createItemForm.igst || 0);
+    const description = String(createItemForm.description || '').trim() || undefined;
     const hsnSac = String(createItemForm.hsnSac || '').trim() || undefined;
-    const taxPct = Number(createItemForm.taxPct || 0);
-    const halfTax = parseFloat((taxPct / 2).toFixed(2));
 
     setCreateItemSaving(true);
     try {
@@ -311,11 +435,14 @@ export function CreateDocumentPage() {
           name,
           unit,
           rate: Number.isFinite(rate) ? rate : 0,
-          sellingPrice: Number.isFinite(rate) ? rate : 0,
+          sellingPrice: Number.isFinite(sellingPrice) ? sellingPrice : Number.isFinite(rate) ? rate : 0,
+          purchaseCost: Number.isFinite(purchaseCost) ? purchaseCost : 0,
+          discount: Number.isFinite(discount) ? discount : 0,
           hsnSac,
-          igst: 0,
-          cgst: Number.isFinite(halfTax) ? halfTax : 0,
-          sgst: Number.isFinite(halfTax) ? halfTax : 0,
+          cgst: Number.isFinite(cgst) ? cgst : 0,
+          sgst: Number.isFinite(sgst) ? sgst : 0,
+          igst: Number.isFinite(igst) ? igst : 0,
+          description,
         }),
       });
 
@@ -334,13 +461,13 @@ export function CreateDocumentPage() {
           name: createdName,
           unit: String(data?.unit || unit || 'NONE'),
           rate: Number(data?.rate ?? rate ?? 0) || 0,
-          sellingPrice: typeof data?.sellingPrice === 'number' ? data.sellingPrice : Number(rate || 0),
-          purchaseCost: typeof data?.purchaseCost === 'number' ? data.purchaseCost : 0,
-          discount: typeof data?.discount === 'number' ? data.discount : 0,
+          sellingPrice: typeof data?.sellingPrice === 'number' ? data.sellingPrice : Number.isFinite(sellingPrice) ? sellingPrice : Number(rate || 0),
+          purchaseCost: typeof data?.purchaseCost === 'number' ? data.purchaseCost : Number.isFinite(purchaseCost) ? purchaseCost : 0,
+          discount: typeof data?.discount === 'number' ? data.discount : Number.isFinite(discount) ? discount : 0,
           hsnSac: String(data?.hsnSac || data?.hsn || data?.sac || hsnSac || ''),
-          cgst: Number(data?.cgst ?? halfTax ?? 0) || 0,
-          sgst: Number(data?.sgst ?? halfTax ?? 0) || 0,
-          igst: Number(data?.igst ?? 0) || 0,
+          cgst: Number(data?.cgst ?? cgst ?? 0) || 0,
+          sgst: Number(data?.sgst ?? sgst ?? 0) || 0,
+          igst: Number(data?.igst ?? igst ?? 0) || 0,
         },
         ...prev.filter((i) => String(i.id) !== createdId),
       ]);
@@ -354,10 +481,14 @@ export function CreateDocumentPage() {
           name: createdName,
           unit,
           rate: Number.isFinite(rate) ? rate : 0,
+          sellingPrice: Number.isFinite(sellingPrice) ? sellingPrice : Number.isFinite(rate) ? rate : 0,
+          purchaseCost: Number.isFinite(purchaseCost) ? purchaseCost : 0,
+          discount: Number.isFinite(discount) ? discount : 0,
           hsnSac: String(hsnSac || ''),
-          cgst: halfTax,
-          sgst: halfTax,
-          igst: 0,
+          cgst: Number.isFinite(cgst) ? cgst : 0,
+          sgst: Number.isFinite(sgst) ? sgst : 0,
+          igst: Number.isFinite(igst) ? igst : 0,
+          description: String(createItemForm.description || '').trim() || undefined,
         };
         newItems[idx].total = calculateItemTotal(newItems[idx]);
         setItems(newItems);
@@ -365,7 +496,19 @@ export function CreateDocumentPage() {
 
       setCreateItemOpen(false);
       setCreateItemTargetIndex(null);
-      setCreateItemForm({ name: '', unit: 'NONE', rate: '', hsnSac: '', taxPct: '18' });
+      setCreateItemForm({
+        name: '',
+        hsnSac: '',
+        unit: 'pcs',
+        rate: '0',
+        sellingPrice: '0',
+        purchaseCost: '0',
+        discount: '0',
+        cgst: '9',
+        sgst: '9',
+        igst: '0',
+        description: '',
+      });
       toast.success('Item created');
     } catch (e: any) {
       toast.error(e?.message || 'Failed to create item');
@@ -943,6 +1086,9 @@ export function CreateDocumentPage() {
       return;
     }
 
+    const openingBalance = Number(createCustomerForm.openingBalance || 0);
+    const openingBalanceType = (createCustomerForm.openingBalanceType || 'dr') as 'dr' | 'cr';
+
     setCreateCustomerSaving(true);
     try {
       const createUrl = partyKind === 'supplier' ? `${apiUrl}/suppliers` : `${apiUrl}/customers`;
@@ -956,9 +1102,24 @@ export function CreateDocumentPage() {
         },
         body: JSON.stringify({
           name,
+          email: String(createCustomerForm.email || '').trim() || undefined,
           phone: String(createCustomerForm.phone || '').trim() || undefined,
+          openingBalance: Number.isFinite(openingBalance) ? openingBalance : undefined,
+          openingBalanceType,
           gstin: String(createCustomerForm.gstin || '').trim() || undefined,
+          pan: String(createCustomerForm.pan || '').trim() || undefined,
           billingAddress: String(createCustomerForm.billingAddress || '').trim() || undefined,
+          billingCity: String(createCustomerForm.billingCity || '').trim() || undefined,
+          billingState: String(createCustomerForm.billingState || '').trim() || undefined,
+          billingPostalCode: String(createCustomerForm.billingPostalCode || '').trim() || undefined,
+          shippingAddress: String(createCustomerForm.shippingAddress || '').trim() || undefined,
+          shippingCity: String(createCustomerForm.shippingCity || '').trim() || undefined,
+          shippingState: String(createCustomerForm.shippingState || '').trim() || undefined,
+          shippingPostalCode: String(createCustomerForm.shippingPostalCode || '').trim() || undefined,
+          address: String(createCustomerForm.billingAddress || '').trim() || undefined,
+          city: String(createCustomerForm.billingCity || '').trim() || undefined,
+          state: String(createCustomerForm.billingState || '').trim() || undefined,
+          postalCode: String(createCustomerForm.billingPostalCode || '').trim() || undefined,
           logoUrl: String(createCustomerForm.logoUrl || '').trim() || undefined,
         }),
       });
@@ -980,8 +1141,16 @@ export function CreateDocumentPage() {
         email: data?.email || '',
         phone: data?.phone || '',
         gstin: data?.gstin || '',
+        pan: data?.pan || '',
+        openingBalance: data?.openingBalance ?? 0,
+        openingBalanceType: data?.openingBalanceType || 'dr',
         billingState: data?.billingState || data?.state || '',
         state: data?.state || data?.billingState || '',
+        billingCity: data?.billingCity || data?.city || '',
+        billingPostalCode: data?.billingPostalCode || data?.postalCode || '',
+        shippingCity: data?.shippingCity || '',
+        shippingState: data?.shippingState || '',
+        shippingPostalCode: data?.shippingPostalCode || '',
         logoUrl: data?.logoUrl || String(createCustomerForm.logoUrl || '').trim() || '',
         logoDataUrl: String(createCustomerForm.logoDataUrl || '').trim() || '',
       }, ...prev.filter((c) => String(c.id) !== createdId)]);
@@ -997,7 +1166,25 @@ export function CreateDocumentPage() {
 
       setCreateCustomerOpen(false);
       setPartyPopoverOpen(false);
-      setCreateCustomerForm({ name: '', phone: '', gstin: '', billingAddress: '', logoDataUrl: '', logoUrl: '' });
+      setCreateCustomerForm({
+        name: '',
+        email: '',
+        phone: '',
+        openingBalance: '',
+        openingBalanceType: 'dr',
+        gstin: '',
+        pan: '',
+        billingAddress: '',
+        billingCity: '',
+        billingState: '',
+        billingPostalCode: '',
+        shippingAddress: '',
+        shippingCity: '',
+        shippingState: '',
+        shippingPostalCode: '',
+        logoDataUrl: '',
+        logoUrl: '',
+      });
       toast.success(`${partyKind === 'supplier' ? 'Supplier' : 'Customer'} created`);
     } catch (e: any) {
       toast.error(e?.message || `Failed to create ${partyKind === 'supplier' ? 'supplier' : 'customer'}`);
@@ -1641,7 +1828,8 @@ export function CreateDocumentPage() {
                                           className="w-full"
                                           onClick={() => {
                                             setCreateItemTargetIndex(idx);
-                                            setCreateItemOpen(true);
+                                            setProformaItemPopoverOpen((prev) => ({ ...prev, [idx]: false }));
+                                            setTimeout(() => setCreateItemOpen(true), 0);
                                           }}
                                         >
                                           + Create Item
@@ -1653,7 +1841,8 @@ export function CreateDocumentPage() {
                                         value="__create_item__"
                                         onSelect={() => {
                                           setCreateItemTargetIndex(idx);
-                                          setCreateItemOpen(true);
+                                          setProformaItemPopoverOpen((prev) => ({ ...prev, [idx]: false }));
+                                          setTimeout(() => setCreateItemOpen(true), 0);
                                         }}
                                       >
                                         + Create Item
@@ -1925,17 +2114,27 @@ export function CreateDocumentPage() {
         <Sheet open={createCustomerOpen} onOpenChange={setCreateCustomerOpen}>
           <SheetContent side="right" className="w-full sm:max-w-[420px]">
             <SheetHeader>
-              <SheetTitle>Create Customer</SheetTitle>
-              <SheetDescription>Add a new customer without leaving this page.</SheetDescription>
+              <SheetTitle>{partyKind === 'supplier' ? 'Create Supplier' : 'Create Customer'}</SheetTitle>
+              <SheetDescription>
+                Add a new {partyKind === 'supplier' ? 'supplier' : 'customer'} without leaving this page.
+              </SheetDescription>
             </SheetHeader>
             <div className="mt-4 space-y-4">
               <div className="space-y-2">
-                <Label>Customer Name *</Label>
+                <Label>{partyKind === 'supplier' ? 'Supplier Name *' : 'Customer Name *'}</Label>
                 <Input
                   value={createCustomerForm.name}
                   onChange={(e) => setCreateCustomerForm((p) => ({ ...p, name: e.target.value }))}
                   placeholder="Enter name"
                   className="h-9"
+                />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  value={createCustomerForm.email}
+                  onChange={(e) => setCreateCustomerForm((p) => ({ ...p, email: e.target.value }))}
+                  placeholder="customer@email.com"
                 />
               </div>
               <div>
@@ -1946,12 +2145,52 @@ export function CreateDocumentPage() {
                   placeholder="+91 99999 99999"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Opening Balance</Label>
+                  <Input
+                    value={createCustomerForm.openingBalance}
+                    onChange={(e) => setCreateCustomerForm((p) => ({ ...p, openingBalance: e.target.value }))}
+                    placeholder="0"
+                    type="number"
+                  />
+                </div>
+                <div>
+                  <Label>Opening Type</Label>
+                  <Select
+                    value={createCustomerForm.openingBalanceType}
+                    onValueChange={(v) => setCreateCustomerForm((p) => ({ ...p, openingBalanceType: (v as any) || 'dr' }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dr">DR (Receivable)</SelectItem>
+                      <SelectItem value="cr">CR (Payable)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div>
                 <Label>GSTIN</Label>
                 <Input
                   value={createCustomerForm.gstin}
                   onChange={(e) => setCreateCustomerForm((p) => ({ ...p, gstin: e.target.value }))}
+                  onBlur={() => {
+                    void handleCreateCustomerGstinLookup();
+                  }}
                   placeholder="22AAAAA0000A1Z5"
+                />
+                {createCustomerGstinLookupLoading ? (
+                  <div className="text-xs text-muted-foreground mt-1">Fetching GST details...</div>
+                ) : null}
+              </div>
+              <div>
+                <Label>PAN</Label>
+                <Input
+                  value={createCustomerForm.pan}
+                  onChange={(e) => setCreateCustomerForm((p) => ({ ...p, pan: e.target.value }))}
+                  placeholder="AAAAA0000A"
                 />
               </div>
               <div>
@@ -1962,6 +2201,70 @@ export function CreateDocumentPage() {
                   rows={3}
                   placeholder="Enter billing address"
                 />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label>Billing City</Label>
+                  <Input
+                    value={createCustomerForm.billingCity}
+                    onChange={(e) => setCreateCustomerForm((p) => ({ ...p, billingCity: e.target.value }))}
+                    placeholder="City"
+                  />
+                </div>
+                <div>
+                  <Label>Billing State</Label>
+                  <Input
+                    value={createCustomerForm.billingState}
+                    onChange={(e) => setCreateCustomerForm((p) => ({ ...p, billingState: e.target.value }))}
+                    placeholder="State"
+                  />
+                </div>
+                <div>
+                  <Label>Billing Postal Code</Label>
+                  <Input
+                    value={createCustomerForm.billingPostalCode}
+                    onChange={(e) => setCreateCustomerForm((p) => ({ ...p, billingPostalCode: e.target.value }))}
+                    placeholder="560001"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Shipping Address</Label>
+                <Textarea
+                  value={createCustomerForm.shippingAddress}
+                  onChange={(e) => setCreateCustomerForm((p) => ({ ...p, shippingAddress: e.target.value }))}
+                  rows={3}
+                  placeholder="Enter shipping address"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label>Shipping City</Label>
+                  <Input
+                    value={createCustomerForm.shippingCity}
+                    onChange={(e) => setCreateCustomerForm((p) => ({ ...p, shippingCity: e.target.value }))}
+                    placeholder="City"
+                  />
+                </div>
+                <div>
+                  <Label>Shipping State</Label>
+                  <Input
+                    value={createCustomerForm.shippingState}
+                    onChange={(e) => setCreateCustomerForm((p) => ({ ...p, shippingState: e.target.value }))}
+                    placeholder="State"
+                  />
+                </div>
+                <div>
+                  <Label>Shipping Postal Code</Label>
+                  <Input
+                    value={createCustomerForm.shippingPostalCode}
+                    onChange={(e) => setCreateCustomerForm((p) => ({ ...p, shippingPostalCode: e.target.value }))}
+                    placeholder="560001"
+                  />
+                </div>
               </div>
 
               <div>
@@ -2012,6 +2315,143 @@ export function CreateDocumentPage() {
             </SheetFooter>
           </SheetContent>
         </Sheet>
+
+        <Dialog open={createItemOpen} onOpenChange={setCreateItemOpen}>
+          <DialogContent className="sm:max-w-[740px]">
+            <DialogHeader>
+              <DialogTitle>Add New Item</DialogTitle>
+            </DialogHeader>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleCreateItemInline();
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-2">
+                <Label>Item Name *</Label>
+                <Input
+                  value={createItemForm.name}
+                  onChange={(e) => setCreateItemForm((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="Product or service name"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>HSN/SAC Code</Label>
+                  <Input
+                    value={createItemForm.hsnSac}
+                    onChange={(e) => setCreateItemForm((p) => ({ ...p, hsnSac: e.target.value }))}
+                    placeholder="HSN or SAC code"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Unit</Label>
+                  <Input
+                    value={createItemForm.unit}
+                    onChange={(e) => setCreateItemForm((p) => ({ ...p, unit: e.target.value }))}
+                    placeholder="pcs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Rate (₹)</Label>
+                  <Input
+                    type="number"
+                    value={createItemForm.rate}
+                    onChange={(e) => setCreateItemForm((p) => ({ ...p, rate: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Selling Price (₹)</Label>
+                  <Input
+                    type="number"
+                    value={createItemForm.sellingPrice}
+                    onChange={(e) => setCreateItemForm((p) => ({ ...p, sellingPrice: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Purchase Cost (₹)</Label>
+                  <Input
+                    type="number"
+                    value={createItemForm.purchaseCost}
+                    onChange={(e) => setCreateItemForm((p) => ({ ...p, purchaseCost: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Disc %</Label>
+                  <Input
+                    type="number"
+                    value={createItemForm.discount}
+                    onChange={(e) => setCreateItemForm((p) => ({ ...p, discount: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>CGST %</Label>
+                  <Input
+                    type="number"
+                    value={createItemForm.cgst}
+                    onChange={(e) => setCreateItemForm((p) => ({ ...p, cgst: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>SGST %</Label>
+                  <Input
+                    type="number"
+                    value={createItemForm.sgst}
+                    onChange={(e) => setCreateItemForm((p) => ({ ...p, sgst: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>IGST %</Label>
+                  <Input
+                    type="number"
+                    value={createItemForm.igst}
+                    onChange={(e) => setCreateItemForm((p) => ({ ...p, igst: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
+                <div />
+                <div />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={createItemForm.description}
+                  onChange={(e) => setCreateItemForm((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="Item description (optional)"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button type="button" variant="outline" onClick={() => setCreateItemOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createItemSaving}>
+                  {createItemSaving ? 'Saving...' : 'Add Item'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
 
       </div>
       </div>

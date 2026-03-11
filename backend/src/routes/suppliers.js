@@ -117,6 +117,52 @@ suppliersRouter.delete('/:id', async (req, res, next) => {
   }
 });
 
+suppliersRouter.post('/gstin/lookup', async (req, res, next) => {
+  try {
+    const { gstin } = req.body || {};
+    if (!gstin) {
+      return res.status(400).json({ error: 'GSTIN is required' });
+    }
+
+    const cleaned = String(gstin || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/.test(cleaned)) {
+      return res.status(400).json({ error: 'Invalid GSTIN format' });
+    }
+
+    let gstData;
+    try {
+      gstData = await fetchGstinDetails(cleaned);
+    } catch (e) {
+      const message = e?.message ? String(e.message) : 'GSTIN lookup failed';
+      return res.status(400).json({ error: message });
+    }
+
+    const panFromGstin = cleaned.length >= 12 ? cleaned.slice(2, 12) : '';
+    const billingAddress = String(gstData.address || '').trim() || '';
+    const billingCity = String(gstData.addressParts?.loc || gstData.addressParts?.dst || '').trim() || '';
+    const billingState = String(gstData.addressParts?.stcd || '').trim() || '';
+    const billingPostalCode = String(gstData.addressParts?.pncd || '').trim() || '';
+
+    res.json({
+      gstin: String(gstData.gstin || cleaned),
+      name: String(gstData.tradeNam || gstData.legalName || '').trim(),
+      legalName: String(gstData.legalName || '').trim(),
+      tradeName: String(gstData.tradeNam || '').trim(),
+      pan: panFromGstin,
+      billingAddress,
+      billingCity,
+      billingState,
+      billingPostalCode,
+      shippingAddress: billingAddress,
+      shippingCity: billingCity,
+      shippingState: billingState,
+      shippingPostalCode: billingPostalCode,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 suppliersRouter.post('/gstin', async (req, res, next) => {
   try {
     const { gstin } = req.body || {};
