@@ -2,7 +2,7 @@ services:
   - type: web
     name: billvyapar
     env: node
-    buildCommand: rm -rf node_modules package-lock.json && npm install --legacy-peer-deps --include=optional && npm run build && npm ci --prefix backend --legacy-peer-deps
+    buildCommand: npm ci --legacy-peer-deps && npm run build && npm ci --prefix backend --legacy-peer-deps
     startCommand: cd backend && node src/index.js
     envVars:
       - key: NODE_VERSION
