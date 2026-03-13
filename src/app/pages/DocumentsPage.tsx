@@ -40,7 +40,7 @@ import { toast } from 'sonner';
 import { TraceLoader } from '../components/TraceLoader';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
-import { fetchDocumentById, PDF_TEMPLATES, PdfRenderer, exportElementToPdf, type PdfTemplateId, type DocumentDto } from '../pdf';
+import { fetchDocumentById, PDF_TEMPLATES, PdfRenderer, exportElementToPdf, exportElementToPdfBlobUrl, type PdfTemplateId, type DocumentDto } from '../pdf';
 import { useRef } from 'react';
 import QRCode from 'qrcode';
 
@@ -69,6 +69,36 @@ export function DocumentsPage() {
   }, [location.search]);
 
   const apiUrl = API_URL;
+
+  const pdfPreviewCacheRef = useRef(
+    new Map<string, { url: string; createdAt: number }>()
+  );
+
+  const pdfPreviewInflightRef = useRef(new Map<string, Promise<string>>());
+
+  const getPdfPreviewCacheKey = () => {
+    const id = String(pdfDoc?.id || pdfDocumentId || '').trim();
+    const v = String((pdfDoc as any)?.updatedAt || (pdfDoc as any)?.version || '').trim();
+    return `${id}::${v}::${pdfTemplateId}`;
+  };
+
+  const putPdfPreviewCache = (key: string, url: string) => {
+    const cache = pdfPreviewCacheRef.current;
+    cache.set(key, { url, createdAt: Date.now() });
+
+    // Keep cache small to avoid leaking object URLs.
+    if (cache.size <= 5) return;
+    const entries = Array.from(cache.entries()).sort((a, b) => a[1].createdAt - b[1].createdAt);
+    while (entries.length > 5) {
+      const [oldKey, oldVal] = entries.shift()!;
+      cache.delete(oldKey);
+      try {
+        URL.revokeObjectURL(oldVal.url);
+      } catch {
+        // ignore
+      }
+    }
+  };
   const readCurrentProfile = () => {
     const raw = localStorage.getItem('currentProfile');
     if (!raw) return {} as any;
@@ -84,6 +114,42 @@ export function DocumentsPage() {
       return parsed || ({} as any);
     } catch {
       return {} as any;
+    }
+  };
+
+  const handlePreviewPdf = async () => {
+    if (!pdfDoc) return;
+    if (!pdfRef.current) return;
+
+    if (!warmPreviewEnabled) {
+      setWarmPreviewEnabled(true);
+    }
+
+    const cacheKey = getPdfPreviewCacheKey();
+    const cached = pdfPreviewCacheRef.current.get(cacheKey);
+    if (cached?.url) {
+      window.open(cached.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    setPdfLoading(true);
+    try {
+      const docNo = safeFilename(pdfDoc.documentNumber || 'document');
+      const customer = safeFilename(pdfDoc.customerName || 'customer');
+      const filename = `${docNo}-${customer}.pdf`;
+      const url = await exportElementToPdfBlobUrl({
+        element: pdfRef.current,
+        filename,
+        scale: 1,
+        imageFormat: 'JPEG',
+        jpegQuality: 0.7,
+      });
+      putPdfPreviewCache(cacheKey, url);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to preview PDF');
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -236,9 +302,78 @@ export function DocumentsPage() {
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfTemplateId, setPdfTemplateId] = useState<PdfTemplateId>('classic');
   const [pdfDocumentId, setPdfDocumentId] = useState<string | null>(null);
+  const [pdfDialogMode, setPdfDialogMode] = useState<'download' | 'preview'>('download');
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfDoc, setPdfDoc] = useState<DocumentDto | null>(null);
   const pdfRef = useRef<HTMLDivElement | null>(null);
+  const [warmPreviewEnabled, setWarmPreviewEnabled] = useState(false);
+  const warmPreviewTimerRef = useRef<number | null>(null);
+
+  const warmPdfPreviewCache = async () => {
+    if (!pdfDialogOpen) return;
+    if (!pdfDoc) return;
+    if (!pdfRef.current) return;
+
+    const cacheKey = getPdfPreviewCacheKey();
+    if (pdfPreviewCacheRef.current.get(cacheKey)?.url) return;
+    if (pdfPreviewInflightRef.current.get(cacheKey)) return;
+
+    const task = exportElementToPdfBlobUrl({
+      element: pdfRef.current,
+      scale: 1,
+      imageFormat: 'JPEG',
+      jpegQuality: 0.7,
+    })
+      .then((url) => {
+        putPdfPreviewCache(cacheKey, url);
+        return url;
+      })
+      .finally(() => {
+        pdfPreviewInflightRef.current.delete(cacheKey);
+      });
+
+    pdfPreviewInflightRef.current.set(cacheKey, task);
+    await task;
+  };
+
+  useEffect(() => {
+    if (!pdfDialogOpen) {
+      setWarmPreviewEnabled(false);
+      return;
+    }
+    if (!warmPreviewEnabled) return;
+    if (!pdfDoc) return;
+
+    if (typeof warmPreviewTimerRef.current === 'number') {
+      window.clearTimeout(warmPreviewTimerRef.current);
+      warmPreviewTimerRef.current = null;
+    }
+
+    // Debounce to avoid re-render-triggered warmups while user is interacting.
+    warmPreviewTimerRef.current = window.setTimeout(() => {
+      // Prefer idle time so UI stays responsive.
+      const w = window as any;
+      const run = () => {
+        warmPdfPreviewCache().catch(() => {
+          // ignore
+        });
+      };
+
+      if (typeof w.requestIdleCallback === 'function') {
+        w.requestIdleCallback(run, { timeout: 2000 });
+      } else {
+        window.setTimeout(run, 0);
+      }
+    }, 900);
+
+    return () => {
+      if (typeof warmPreviewTimerRef.current === 'number') {
+        window.clearTimeout(warmPreviewTimerRef.current);
+        warmPreviewTimerRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfDialogOpen, warmPreviewEnabled, pdfDoc, pdfTemplateId]);
 
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentDoc, setPaymentDoc] = useState<any | null>(null);
@@ -440,9 +575,11 @@ export function DocumentsPage() {
       .trim();
   };
 
-  const openPdfDialog = (docId: string) => {
+  const openPdfDialog = (docId: string, mode: 'download' | 'preview' = 'download') => {
     setPdfDocumentId(docId);
     setPdfDoc(null);
+    setPdfDialogMode(mode);
+    setWarmPreviewEnabled(mode === 'preview');
     setPdfDialogOpen(true);
   };
 
@@ -488,6 +625,18 @@ export function DocumentsPage() {
             if (partyRes.ok && !partyData?.error) {
               (doc as any).partyLogoDataUrl =
                 String(partyData?.logoUrl || '').trim() || String(partyData?.logoDataUrl || '').trim() || null;
+
+              if (!String((doc as any)?.customerMobile || '').trim() && String(partyData?.phone || '').trim()) {
+                (doc as any).customerMobile = String(partyData.phone).trim();
+              }
+              if (!String((doc as any)?.customerEmail || '').trim() && String(partyData?.email || '').trim()) {
+                (doc as any).customerEmail = String(partyData.email).trim();
+              }
+              if (!String((doc as any)?.customerStateCode || '').trim()) {
+                const gstin = String(partyData?.gstin || '').trim();
+                const code = gstin ? gstin.slice(0, 2) : '';
+                if (code) (doc as any).customerStateCode = code;
+              }
             }
           } else {
             const partyName = String((doc as any)?.customerName || '').trim();
@@ -517,6 +666,18 @@ export function DocumentsPage() {
               if (match && !match?.error) {
                 (doc as any).partyLogoDataUrl =
                   String(match?.logoUrl || '').trim() || String(match?.logoDataUrl || '').trim() || null;
+
+                if (!String((doc as any)?.customerMobile || '').trim() && String(match?.phone || '').trim()) {
+                  (doc as any).customerMobile = String(match.phone).trim();
+                }
+                if (!String((doc as any)?.customerEmail || '').trim() && String(match?.email || '').trim()) {
+                  (doc as any).customerEmail = String(match.email).trim();
+                }
+                if (!String((doc as any)?.customerStateCode || '').trim()) {
+                  const gstin = String(match?.gstin || '').trim();
+                  const code = gstin ? gstin.slice(0, 2) : '';
+                  if (code) (doc as any).customerStateCode = code;
+                }
               }
             }
           }
@@ -864,7 +1025,7 @@ export function DocumentsPage() {
         <Dialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen}>
           <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Download PDF</DialogTitle>
+              <DialogTitle>{pdfDialogMode === 'preview' ? 'Preview PDF' : 'Download PDF'}</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4">
@@ -887,8 +1048,20 @@ export function DocumentsPage() {
                 <Button type="button" variant="outline" onClick={() => setPdfDialogOpen(false)} disabled={pdfLoading}>
                   Cancel
                 </Button>
-                <Button type="button" onClick={handleExportPdf} disabled={pdfLoading || !pdfDoc}>
-                  {pdfLoading ? 'Preparing…' : 'Download PDF'}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePreviewPdf}
+                  disabled={pdfLoading || !pdfDoc}
+                >
+                  {pdfLoading && pdfDialogMode === 'preview' ? 'Preparing…' : 'Preview PDF'}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleExportPdf}
+                  disabled={pdfLoading || !pdfDoc}
+                >
+                  {pdfLoading && pdfDialogMode === 'download' ? 'Preparing…' : 'Download PDF'}
                 </Button>
               </div>
 
@@ -1147,7 +1320,11 @@ export function DocumentsPage() {
                             <Repeat className="h-4 w-4 mr-2" />
                             Convert to Challan
                           </DropdownMenuItem>
-                          <DropdownMenuItem data-tour-id="doc-action-download-pdf" onClick={() => openPdfDialog(doc.id)}>
+                          <DropdownMenuItem onClick={() => openPdfDialog(doc.id, 'preview')}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Preview PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem data-tour-id="doc-action-download-pdf" onClick={() => openPdfDialog(doc.id, 'download')}>
                             <Download className="h-4 w-4 mr-2" />
                             Download PDF
                           </DropdownMenuItem>

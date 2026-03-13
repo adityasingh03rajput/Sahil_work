@@ -21,6 +21,23 @@ const businessProfileSchema = new mongoose.Schema(
     ifscCode: { type: String, default: null },
     upiId: { type: String, default: null },
 
+    bankAccounts: {
+      type: [
+        {
+          label: { type: String, default: null },
+          bankName: { type: String, default: null },
+          bankBranch: { type: String, default: null },
+          accountNumber: { type: String, default: null },
+          ifscCode: { type: String, default: null },
+          upiId: { type: String, default: null },
+          upiQrText: { type: String, default: null },
+          isDefault: { type: Boolean, default: false },
+        },
+      ],
+      default: [],
+    },
+    defaultBankAccountId: { type: mongoose.Schema.Types.ObjectId, default: null },
+
     smsReminderTemplate: { type: String, default: null },
     customFields: { type: mongoose.Schema.Types.Mixed, default: null },
   },

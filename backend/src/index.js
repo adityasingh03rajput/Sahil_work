@@ -21,11 +21,13 @@ import { itemsRouter } from './routes/items.js';
 import { subscriptionRouter } from './routes/subscription.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { paymentsRouter } from './routes/payments.js';
+import { bankTransactionsRouter } from './routes/bank-transactions.js';
 import { reportsRouter } from './routes/reports.js';
 import { ledgerRouter } from './routes/ledger.js';
 import { extraExpensesRouter } from './routes/extra-expenses.js';
 import { vyaparKhataRouter } from './routes/vyapar-khata.js';
 import { uploadsRouter } from './routes/uploads.js';
+import { masterAdminRouter } from './routes/masterAdmin/index.js';
 import twilio from 'twilio';
 import { Document } from './models/Document.js';
 import { BusinessProfile } from './models/BusinessProfile.js';
@@ -43,11 +45,20 @@ app.use(cors({
     // When running scripts from file:// (or certain embedded webviews), browsers send Origin: null
     if (origin === 'null') return cb(null, true);
 
+    // Allow Capacitor apps (capacitor://localhost, http://localhost without port)
+    if (origin === 'capacitor://localhost' || origin === 'http://localhost' || origin === 'https://localhost') {
+      return cb(null, true);
+    }
+
     if (allowedOrigins.includes(origin)) return cb(null, true);
 
     // Allow Vite/localhost dev ports by default
     if (/^https?:\/\/localhost:\d+$/.test(origin)) return cb(null, true);
     if (/^https?:\/\/127\.0\.0\.1:\d+$/.test(origin)) return cb(null, true);
+    
+    // Allow any local network IP for development
+    if (/^https?:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin)) return cb(null, true);
+    if (/^https?:\/\/10\.\d+\.\d+\.\d+:\d+$/.test(origin)) return cb(null, true);
 
     return cb(new Error('Not allowed by CORS'));
   },
@@ -68,11 +79,13 @@ app.use('/items', itemsRouter);
 app.use('/subscription', subscriptionRouter);
 app.use('/analytics', analyticsRouter);
 app.use('/payments', paymentsRouter);
+app.use('/bank-transactions', bankTransactionsRouter);
 app.use('/reports', reportsRouter);
 app.use('/ledger', ledgerRouter);
 app.use('/extra-expenses', extraExpensesRouter);
 app.use('/vyapar-khata', vyaparKhataRouter);
 app.use('/uploads', uploadsRouter);
+app.use('/master-admin', masterAdminRouter);
 
 const distPathCandidates = [
   path.resolve(__dirname, '../../dist'),

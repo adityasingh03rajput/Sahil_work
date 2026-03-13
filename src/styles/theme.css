@@ -41,6 +41,255 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+.theme-warm {
+  --background: #F5F1E9;
+  --foreground: oklch(0.22 0.02 60);
+  --card: #FBF7F0;
+  --card-foreground: oklch(0.22 0.02 60);
+  --popover: #FBF7F0;
+  --popover-foreground: oklch(0.22 0.02 60);
+  --primary: #8D5E32;
+  --primary-foreground: #ffffff;
+  --secondary: #A1896F;
+  --secondary-foreground: #ffffff;
+  --muted: #EFE7DB;
+  --muted-foreground: rgba(60, 50, 40, 0.68);
+  --accent: #E5D7C6;
+  --accent-foreground: oklch(0.22 0.02 60);
+  --destructive: #c2412d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(90, 70, 55, 0.20);
+  --input: transparent;
+  --input-background: #F1E9DD;
+  --switch-background: rgba(141, 94, 50, 0.35);
+  --ring: rgba(141, 94, 50, 0.55);
+  --chart-1: #8D5E32;
+  --chart-2: #A1896F;
+  --chart-3: #B78656;
+  --chart-4: #6E4B2B;
+  --chart-5: #D1AD86;
+  --sidebar: #EFE7DC;
+  --sidebar-foreground: oklch(0.22 0.02 60);
+  --sidebar-primary: #8D5E32;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #E9DED1;
+  --sidebar-accent-foreground: oklch(0.22 0.02 60);
+  --sidebar-border: rgba(90, 70, 55, 0.20);
+  --sidebar-ring: rgba(141, 94, 50, 0.55);
+}
+
+.theme-ocean {
+  --background: #eef7fb;
+  --foreground: oklch(0.2 0.03 220);
+  --card: #ffffff;
+  --card-foreground: oklch(0.2 0.03 220);
+  --popover: #ffffff;
+  --popover-foreground: oklch(0.2 0.03 220);
+  --primary: #0ea5e9;
+  --primary-foreground: #ffffff;
+  --secondary: #0f766e;
+  --secondary-foreground: #ffffff;
+  --muted: #e3f0f7;
+  --muted-foreground: rgba(15, 23, 42, 0.66);
+  --accent: #d7eef8;
+  --accent-foreground: oklch(0.2 0.03 220);
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: rgba(2, 132, 199, 0.18);
+  --input: transparent;
+  --input-background: #eaf4fb;
+  --switch-background: rgba(14, 165, 233, 0.30);
+  --ring: rgba(14, 165, 233, 0.55);
+  --chart-1: #0ea5e9;
+  --chart-2: #14b8a6;
+  --chart-3: #0284c7;
+  --chart-4: #0f766e;
+  --chart-5: #38bdf8;
+  --sidebar: #e8f4fa;
+  --sidebar-foreground: oklch(0.2 0.03 220);
+  --sidebar-primary: #0ea5e9;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #d7eef8;
+  --sidebar-accent-foreground: oklch(0.2 0.03 220);
+  --sidebar-border: rgba(2, 132, 199, 0.18);
+  --sidebar-ring: rgba(14, 165, 233, 0.55);
+}
+
+.theme-emerald {
+  --background: #eefaf3;
+  --foreground: oklch(0.2 0.03 160);
+  --card: #ffffff;
+  --card-foreground: oklch(0.2 0.03 160);
+  --popover: #ffffff;
+  --popover-foreground: oklch(0.2 0.03 160);
+  --primary: #16a34a;
+  --primary-foreground: #ffffff;
+  --secondary: #0f766e;
+  --secondary-foreground: #ffffff;
+  --muted: #ddf5e7;
+  --muted-foreground: rgba(15, 23, 42, 0.66);
+  --accent: #cdefdd;
+  --accent-foreground: oklch(0.2 0.03 160);
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: rgba(22, 163, 74, 0.18);
+  --input: transparent;
+  --input-background: #e8f7ef;
+  --switch-background: rgba(22, 163, 74, 0.30);
+  --ring: rgba(22, 163, 74, 0.55);
+  --chart-1: #16a34a;
+  --chart-2: #22c55e;
+  --chart-3: #0f766e;
+  --chart-4: #15803d;
+  --chart-5: #86efac;
+  --sidebar: #e5f7ee;
+  --sidebar-foreground: oklch(0.2 0.03 160);
+  --sidebar-primary: #16a34a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #cdefdd;
+  --sidebar-accent-foreground: oklch(0.2 0.03 160);
+  --sidebar-border: rgba(22, 163, 74, 0.18);
+  --sidebar-ring: rgba(22, 163, 74, 0.55);
+}
+
+.theme-rosewood {
+  --background: #fbf2f1;
+  --foreground: oklch(0.22 0.03 20);
+  --card: #ffffff;
+  --card-foreground: oklch(0.22 0.03 20);
+  --popover: #ffffff;
+  --popover-foreground: oklch(0.22 0.03 20);
+  --primary: #b91c1c;
+  --primary-foreground: #ffffff;
+  --secondary: #7c2d12;
+  --secondary-foreground: #ffffff;
+  --muted: #f5dedd;
+  --muted-foreground: rgba(60, 25, 20, 0.70);
+  --accent: #f0caca;
+  --accent-foreground: oklch(0.22 0.03 20);
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: rgba(185, 28, 28, 0.18);
+  --input: transparent;
+  --input-background: #f7e6e5;
+  --switch-background: rgba(185, 28, 28, 0.28);
+  --ring: rgba(185, 28, 28, 0.55);
+  --chart-1: #b91c1c;
+  --chart-2: #e11d48;
+  --chart-3: #7c2d12;
+  --chart-4: #ef4444;
+  --chart-5: #fb7185;
+  --sidebar: #f7e6e5;
+  --sidebar-foreground: oklch(0.22 0.03 20);
+  --sidebar-primary: #b91c1c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f0caca;
+  --sidebar-accent-foreground: oklch(0.22 0.03 20);
+  --sidebar-border: rgba(185, 28, 28, 0.18);
+  --sidebar-ring: rgba(185, 28, 28, 0.55);
+}
+
+.theme-warm body {
+  background-image: radial-gradient(circle at 20% 15%, rgba(180, 106, 60, 0.10), transparent 55%),
+    radial-gradient(circle at 80% 0%, rgba(120, 90, 70, 0.08), transparent 45%),
+    radial-gradient(circle at 10% 90%, rgba(210, 160, 122, 0.10), transparent 55%);
+  background-attachment: fixed;
+}
+
+.theme-ocean body {
+  background-image: radial-gradient(circle at 18% 18%, rgba(14, 165, 233, 0.16), transparent 55%),
+    radial-gradient(circle at 82% 10%, rgba(20, 184, 166, 0.14), transparent 52%),
+    radial-gradient(circle at 12% 88%, rgba(2, 132, 199, 0.12), transparent 55%);
+  background-attachment: fixed;
+}
+
+.theme-emerald body {
+  background-image: radial-gradient(circle at 18% 18%, rgba(22, 163, 74, 0.16), transparent 55%),
+    radial-gradient(circle at 82% 10%, rgba(34, 197, 94, 0.14), transparent 52%),
+    radial-gradient(circle at 12% 88%, rgba(15, 118, 110, 0.10), transparent 55%);
+  background-attachment: fixed;
+}
+
+.theme-rosewood body {
+  background-image: radial-gradient(circle at 18% 18%, rgba(185, 28, 28, 0.14), transparent 55%),
+    radial-gradient(circle at 82% 10%, rgba(225, 29, 72, 0.12), transparent 52%),
+    radial-gradient(circle at 12% 88%, rgba(124, 45, 18, 0.10), transparent 55%);
+  background-attachment: fixed;
+}
+
+.theme-warm [data-slot='card'],
+.theme-ocean [data-slot='card'],
+.theme-emerald [data-slot='card'],
+.theme-rosewood [data-slot='card'] {
+  border-color: rgba(90, 70, 55, 0.22);
+  box-shadow: 0 10px 24px rgba(60, 45, 32, 0.10);
+}
+
+.theme-warm [data-slot='card'] [data-slot='card-header'],
+.theme-ocean [data-slot='card'] [data-slot='card-header'],
+.theme-emerald [data-slot='card'] [data-slot='card-header'],
+.theme-rosewood [data-slot='card'] [data-slot='card-header'] {
+  background: linear-gradient(180deg, rgba(180, 106, 60, 0.10), transparent);
+}
+
+.theme-warm [data-slot='input'],
+.theme-warm textarea,
+.theme-warm [data-slot='select-trigger'],
+.theme-warm [data-slot='button'][data-variant='outline'],
+.theme-ocean [data-slot='input'],
+.theme-ocean textarea,
+.theme-ocean [data-slot='select-trigger'],
+.theme-ocean [data-slot='button'][data-variant='outline'],
+.theme-emerald [data-slot='input'],
+.theme-emerald textarea,
+.theme-emerald [data-slot='select-trigger'],
+.theme-emerald [data-slot='button'][data-variant='outline'],
+.theme-rosewood [data-slot='input'],
+.theme-rosewood textarea,
+.theme-rosewood [data-slot='select-trigger'],
+.theme-rosewood [data-slot='button'][data-variant='outline'] {
+  border-color: rgba(90, 70, 55, 0.22);
+}
+
+.theme-warm [data-slot='input'],
+.theme-warm textarea,
+.theme-ocean [data-slot='input'],
+.theme-ocean textarea,
+.theme-emerald [data-slot='input'],
+.theme-emerald textarea,
+.theme-rosewood [data-slot='input'],
+.theme-rosewood textarea {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 0 rgba(60, 45, 32, 0.04);
+}
+
+.theme-warm [data-slot='button'],
+.theme-ocean [data-slot='button'],
+.theme-emerald [data-slot='button'],
+.theme-rosewood [data-slot='button'] {
+  box-shadow: 0 6px 14px rgba(60, 45, 32, 0.10);
+}
+
+.theme-warm [data-slot='button'][data-variant='outline'],
+.theme-ocean [data-slot='button'][data-variant='outline'],
+.theme-emerald [data-slot='button'][data-variant='outline'],
+.theme-rosewood [data-slot='button'][data-variant='outline'] {
+  background: rgba(251, 248, 241, 0.85);
+}
+
+.theme-warm [data-slot='button'][data-variant='outline']:hover,
+.theme-ocean [data-slot='button'][data-variant='outline']:hover,
+.theme-emerald [data-slot='button'][data-variant='outline']:hover,
+.theme-rosewood [data-slot='button'][data-variant='outline']:hover {
+  background: rgba(230, 214, 199, 0.70);
+}
+
+.theme-warm [data-slot='sidebar'],
+.theme-ocean [data-slot='sidebar'],
+.theme-emerald [data-slot='sidebar'],
+.theme-rosewood [data-slot='sidebar'] {
+  box-shadow: inset -1px 0 0 rgba(90, 70, 55, 0.18), 10px 0 30px rgba(60, 45, 32, 0.08);
+}
+
 .dark {
   --background: #050505;
   --foreground: oklch(0.985 0 0);

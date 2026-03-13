@@ -29,6 +29,79 @@ export function safeText(value: any) {
   return String(value);
 }
 
+const STATE_CODE_TO_NAME: Record<string, string> = {
+  '01': 'Jammu & Kashmir',
+  '02': 'Himachal Pradesh',
+  '03': 'Punjab',
+  '04': 'Chandigarh',
+  '05': 'Uttarakhand',
+  '06': 'Haryana',
+  '07': 'Delhi',
+  '08': 'Rajasthan',
+  '09': 'Uttar Pradesh',
+  '10': 'Bihar',
+  '11': 'Sikkim',
+  '12': 'Arunachal Pradesh',
+  '13': 'Nagaland',
+  '14': 'Manipur',
+  '15': 'Mizoram',
+  '16': 'Tripura',
+  '17': 'Meghalaya',
+  '18': 'Assam',
+  '19': 'West Bengal',
+  '20': 'Jharkhand',
+  '21': 'Odisha',
+  '22': 'Chhattisgarh',
+  '23': 'Madhya Pradesh',
+  '24': 'Gujarat',
+  '25': 'Daman & Diu',
+  '26': 'Dadra & Nagar Haveli',
+  '27': 'Maharashtra',
+  '28': 'Andhra Pradesh',
+  '29': 'Karnataka',
+  '30': 'Goa',
+  '31': 'Lakshadweep',
+  '32': 'Kerala',
+  '33': 'Tamil Nadu',
+  '34': 'Puducherry',
+  '35': 'Andaman & Nicobar Islands',
+  '36': 'Telangana',
+  '37': 'Andhra Pradesh (New)',
+};
+
+export function formatStateDisplay(stateCode?: string | null, stateName?: string | null) {
+  const code = String(stateCode || '').trim();
+  const normCode = code.length === 1 ? `0${code}` : code;
+  const name = String(stateName || '').trim() || (normCode ? STATE_CODE_TO_NAME[normCode] : '');
+  if (normCode && name) return `${normCode} - ${name}`;
+  if (normCode) return normCode;
+  return name;
+}
+
+export function formatInlineAddress(value?: string | null) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const parts = raw
+    .replace(/\r/g, '')
+    .split(/\n|,/g)
+    .map((x) => String(x || '').trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) return '';
+
+  const last = parts[parts.length - 1];
+  const prev = parts.length >= 2 ? parts[parts.length - 2] : '';
+  const isPin = /^\d{6}$/.test(last);
+  if (isPin && prev && !prev.includes('-')) {
+    const head = parts.slice(0, -2);
+    const tail = `${prev} - ${last}`;
+    return [...head, tail].join(', ').replace(/\s+,/g, ',').replace(/,\s+/g, ', ').trim();
+  }
+
+  return parts.join(', ').replace(/\s+,/g, ',').replace(/,\s+/g, ', ').trim();
+}
+
 function wordsBelow20(n: number) {
   const a = [
     'Zero',

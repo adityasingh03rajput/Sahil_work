@@ -11,6 +11,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Search, Building2, Mail, Phone, MapPin, Edit, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
+import {
+  hasContactErrors,
+  normalizeEmail,
+  normalizeGstin,
+  normalizePhone,
+  validateContactFields,
+} from '../utils/contactValidation';
 import { toast } from 'sonner';
 import { TraceLoader } from '../components/TraceLoader';
 
@@ -39,9 +46,11 @@ export function SuppliersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [formData, setFormData] = useState<Partial<Supplier>>({});
+  const [formErrors, setFormErrors] = useState<{ gstin?: string; phone?: string; email?: string }>({});
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Supplier>>({});
+  const [editFormErrors, setEditFormErrors] = useState<{ gstin?: string; phone?: string; email?: string }>({});
   const [loading, setLoading] = useState(true);
   const [gstinLoading, setGstinLoading] = useState(false);
   const [gstinLookupLoading, setGstinLookupLoading] = useState(false);
@@ -298,8 +307,22 @@ export function SuppliersPage() {
       return;
     }
 
+    const errs = validateContactFields({
+      gstin: String(editFormData.gstin || ''),
+      phone: String(editFormData.phone || ''),
+      email: String(editFormData.email || ''),
+    });
+    setEditFormErrors(errs);
+    if (hasContactErrors(errs)) {
+      toast.error('Please fix invalid contact details');
+      return;
+    }
+
     try {
       const payload: any = { ...editFormData };
+      if (typeof payload.email === 'string') payload.email = normalizeEmail(payload.email) || undefined;
+      if (typeof payload.phone === 'string') payload.phone = normalizePhone(payload.phone) || undefined;
+      if (typeof payload.gstin === 'string') payload.gstin = normalizeGstin(payload.gstin) || undefined;
       if (payload.logoUrl && !String(payload.logoUrl).trim()) payload.logoUrl = null;
       delete payload.logoDataUrl;
       const response = await fetch(`${apiUrl}/suppliers/${editingSupplierId}`, {
@@ -336,8 +359,22 @@ export function SuppliersPage() {
       return;
     }
 
+    const errs = validateContactFields({
+      gstin: String(formData.gstin || ''),
+      phone: String(formData.phone || ''),
+      email: String(formData.email || ''),
+    });
+    setFormErrors(errs);
+    if (hasContactErrors(errs)) {
+      toast.error('Please fix invalid contact details');
+      return;
+    }
+
     try {
       const payload: any = { ...formData };
+      if (typeof payload.email === 'string') payload.email = normalizeEmail(payload.email) || undefined;
+      if (typeof payload.phone === 'string') payload.phone = normalizePhone(payload.phone) || undefined;
+      if (typeof payload.gstin === 'string') payload.gstin = normalizeGstin(payload.gstin) || undefined;
       if (payload.logoUrl && !String(payload.logoUrl).trim()) payload.logoUrl = null;
       delete payload.logoDataUrl;
       const response = await fetch(`${apiUrl}/suppliers`, {
@@ -501,9 +538,24 @@ export function SuppliersPage() {
                     <Input
                       type="email"
                       value={formData.email || ''}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setFormData({ ...formData, email: next });
+                        if (formErrors.email) setFormErrors((p) => ({ ...p, email: undefined }));
+                      }}
+                      onBlur={() => {
+                        const normalized = normalizeEmail(String(formData.email || ''));
+                        if (normalized !== String(formData.email || '')) setFormData((p) => ({ ...p, email: normalized }));
+                        const errs = validateContactFields({
+                          gstin: String(formData.gstin || ''),
+                          phone: String(formData.phone || ''),
+                          email: normalized,
+                        });
+                        setFormErrors((p) => ({ ...p, email: errs.email }));
+                      }}
                       placeholder="supplier@email.com"
                     />
+                    {formErrors.email ? <div className="text-xs text-destructive mt-1">{formErrors.email}</div> : null}
                   </div>
                 </div>
 
@@ -537,20 +589,48 @@ export function SuppliersPage() {
                     <Label>Phone</Label>
                     <Input
                       value={formData.phone || ''}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setFormData({ ...formData, phone: next });
+                        if (formErrors.phone) setFormErrors((p) => ({ ...p, phone: undefined }));
+                      }}
+                      onBlur={() => {
+                        const normalized = normalizePhone(String(formData.phone || ''));
+                        if (normalized !== String(formData.phone || '')) setFormData((p) => ({ ...p, phone: normalized }));
+                        const errs = validateContactFields({
+                          gstin: String(formData.gstin || ''),
+                          phone: normalized,
+                          email: String(formData.email || ''),
+                        });
+                        setFormErrors((p) => ({ ...p, phone: errs.phone }));
+                      }}
                       placeholder="+91 99999 99999"
                     />
+                    {formErrors.phone ? <div className="text-xs text-destructive mt-1">{formErrors.phone}</div> : null}
                   </div>
                   <div>
                     <Label>GSTIN</Label>
                     <Input
                       value={formData.gstin || ''}
-                      onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setFormData({ ...formData, gstin: next });
+                        if (formErrors.gstin) setFormErrors((p) => ({ ...p, gstin: undefined }));
+                      }}
                       onBlur={() => {
+                        const normalized = normalizeGstin(String(formData.gstin || ''));
+                        if (normalized !== String(formData.gstin || '')) setFormData((p) => ({ ...p, gstin: normalized }));
+                        const errs = validateContactFields({
+                          gstin: normalized,
+                          phone: String(formData.phone || ''),
+                          email: String(formData.email || ''),
+                        });
+                        setFormErrors((p) => ({ ...p, gstin: errs.gstin }));
                         void handleGstinLookupAutofill('create');
                       }}
                       placeholder="22AAAAA0000A1Z5"
                     />
+                    {formErrors.gstin ? <div className="text-xs text-destructive mt-1">{formErrors.gstin}</div> : null}
                     {gstinLookupLoading ? (
                       <div className="text-xs text-muted-foreground mt-1">Fetching GST details...</div>
                     ) : null}
@@ -798,9 +878,24 @@ export function SuppliersPage() {
                   <Input
                     type="email"
                     value={editFormData.email || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setEditFormData({ ...editFormData, email: next });
+                      if (editFormErrors.email) setEditFormErrors((p) => ({ ...p, email: undefined }));
+                    }}
+                    onBlur={() => {
+                      const normalized = normalizeEmail(String(editFormData.email || ''));
+                      if (normalized !== String(editFormData.email || '')) setEditFormData((p) => ({ ...p, email: normalized }));
+                      const errs = validateContactFields({
+                        gstin: String(editFormData.gstin || ''),
+                        phone: String(editFormData.phone || ''),
+                        email: normalized,
+                      });
+                      setEditFormErrors((p) => ({ ...p, email: errs.email }));
+                    }}
                     placeholder="supplier@email.com"
                   />
+                  {editFormErrors.email ? <div className="text-xs text-destructive mt-1">{editFormErrors.email}</div> : null}
                 </div>
               </div>
 
@@ -834,20 +929,48 @@ export function SuppliersPage() {
                   <Label>Phone</Label>
                   <Input
                     value={editFormData.phone || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setEditFormData({ ...editFormData, phone: next });
+                      if (editFormErrors.phone) setEditFormErrors((p) => ({ ...p, phone: undefined }));
+                    }}
+                    onBlur={() => {
+                      const normalized = normalizePhone(String(editFormData.phone || ''));
+                      if (normalized !== String(editFormData.phone || '')) setEditFormData((p) => ({ ...p, phone: normalized }));
+                      const errs = validateContactFields({
+                        gstin: String(editFormData.gstin || ''),
+                        phone: normalized,
+                        email: String(editFormData.email || ''),
+                      });
+                      setEditFormErrors((p) => ({ ...p, phone: errs.phone }));
+                    }}
                     placeholder="+91 99999 99999"
                   />
+                  {editFormErrors.phone ? <div className="text-xs text-destructive mt-1">{editFormErrors.phone}</div> : null}
                 </div>
                 <div>
                   <Label>GSTIN</Label>
                   <Input
                     value={editFormData.gstin || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, gstin: e.target.value })}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setEditFormData({ ...editFormData, gstin: next });
+                      if (editFormErrors.gstin) setEditFormErrors((p) => ({ ...p, gstin: undefined }));
+                    }}
                     onBlur={() => {
+                      const normalized = normalizeGstin(String(editFormData.gstin || ''));
+                      if (normalized !== String(editFormData.gstin || '')) setEditFormData((p) => ({ ...p, gstin: normalized }));
+                      const errs = validateContactFields({
+                        gstin: normalized,
+                        phone: String(editFormData.phone || ''),
+                        email: String(editFormData.email || ''),
+                      });
+                      setEditFormErrors((p) => ({ ...p, gstin: errs.gstin }));
                       void handleGstinLookupAutofill('edit');
                     }}
                     placeholder="22AAAAA0000A1Z5"
                   />
+                  {editFormErrors.gstin ? <div className="text-xs text-destructive mt-1">{editFormErrors.gstin}</div> : null}
                   {gstinLookupLoading ? (
                     <div className="text-xs text-muted-foreground mt-1">Fetching GST details...</div>
                   ) : null}

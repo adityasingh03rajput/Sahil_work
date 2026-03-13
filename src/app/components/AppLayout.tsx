@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Receipt,
   CreditCard,
+  Landmark,
   LogOut,
   Settings,
   Crown,
@@ -22,6 +23,9 @@ import {
   Sun,
   Moon,
   Monitor,
+  Droplet,
+  Leaf,
+  Flame,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
@@ -84,11 +88,24 @@ export function AppLayout({ children }: AppLayoutProps) {
   const currentProfile = readCurrentProfile();
 
   const ThemeSwitcher = ({ compact }: { compact?: boolean }) => {
-    const icon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
+    const icon =
+      theme === 'dark'
+        ? Moon
+        : theme === 'warm'
+          ? Crown
+          : theme === 'ocean'
+            ? Droplet
+            : theme === 'emerald'
+              ? Leaf
+              : theme === 'rosewood'
+                ? Flame
+                : theme === 'light'
+                  ? Sun
+                  : Monitor;
     const Icon = icon;
 
     const set = (v: string) => {
-      if (v === 'light' || v === 'dark' || v === 'system') setTheme(v as ThemeMode);
+      if (v === 'light' || v === 'dark' || v === 'system' || v === 'warm' || v === 'ocean' || v === 'emerald' || v === 'rosewood') setTheme(v as ThemeMode);
     };
 
     return (
@@ -112,6 +129,22 @@ export function AppLayout({ children }: AppLayoutProps) {
             <DropdownMenuRadioItem value="light">
               <Sun className="h-4 w-4" />
               Light
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="warm">
+              <Crown className="h-4 w-4" />
+              Warm
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="ocean">
+              <Droplet className="h-4 w-4" />
+              Ocean
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="emerald">
+              <Leaf className="h-4 w-4" />
+              Emerald
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="rosewood">
+              <Flame className="h-4 w-4" />
+              Rosewood
             </DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="dark">
               <Moon className="h-4 w-4" />
@@ -307,6 +340,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     { icon: BarChart3, label: 'Analytics', path: '/analytics' },
     { icon: Receipt, label: 'GST Reports', path: '/reports/gst' },
     { icon: CreditCard, label: 'Ledger', path: '/ledger' },
+    { icon: Landmark, label: 'Bank Accounts', path: '/bank-accounts' },
     { icon: CreditCard, label: 'Subscription', path: '/subscription' },
   ];
 
@@ -318,6 +352,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (path === '/analytics') return 'nav-analytics';
     if (path === '/reports/gst') return 'nav-gst';
     if (path === '/ledger') return 'nav-ledger';
+    if (path === '/bank-accounts') return 'nav-bank-accounts';
     if (path === '/subscription') return 'nav-subscription';
     return undefined;
   };

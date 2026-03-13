@@ -1,14 +1,15 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
-import { requireActiveSubscriptionOrAllowReadonlyGet } from '../middleware/subscription.js';
+import { requireActiveSubscription } from '../middleware/subscription.js';
 import { requireProfile } from '../middleware/profile.js';
-import { Counter } from '../models/Counter.js';
 import { Document } from '../models/Document.js';
+import { Payment } from '../models/Payment.js';
+import { Counter } from '../models/Counter.js';
+import { upsertLedgerForDocument, createLedgerForPayment } from '../lib/ledger.js';
 import { BusinessProfile } from '../models/BusinessProfile.js';
 import twilio from 'twilio';
-import { upsertLedgerForDocument } from '../lib/ledger.js';
 import { LedgerEntry } from '../models/LedgerEntry.js';
-import { Payment } from '../models/Payment.js';
 
 export const documentsRouter = Router();
 
@@ -74,9 +75,37 @@ async function validateOrderReferenceQuotation({ userId, profileId, docData }) {
 documentsRouter.use(
   requireAuth,
   requireValidDeviceSession,
-  requireActiveSubscriptionOrAllowReadonlyGet(['/documents']),
+  requireActiveSubscription,
   requireProfile
 );
+
+async function computeDocumentPaidAmount({ userId, profileId, documentId }) {
+  const rows = await Payment.find({ userId, profileId, documentId });
+  return rows.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+}
+
+async function refreshDocumentPaymentStatus({ userId, profileId, documentId }) {
+  const doc = await Document.findOne({ _id: documentId, userId, profileId });
+  if (!doc) return null;
+
+  const paidAmount = await computeDocumentPaidAmount({ userId, profileId, documentId });
+  const total = Number(doc.grandTotal || 0);
+  const remaining = Math.max(0, total - paidAmount);
+
+  let status = 'unpaid';
+  if (paidAmount > 0 && remaining > 0) status = 'partial';
+  if (remaining <= 0 && total > 0) status = 'paid';
+  if (total <= 0) status = 'paid';
+
+  doc.paymentStatus = status;
+  await doc.save();
+
+  return {
+    paymentStatus: doc.paymentStatus,
+    paidAmount,
+    remaining,
+  };
+}
 
 documentsRouter.post('/:id/remind', async (req, res, next) => {
   try {
@@ -247,6 +276,33 @@ documentsRouter.post('/', async (req, res, next) => {
     });
 
     await upsertLedgerForDocument({ userId: req.userId, profileId: req.profileId, documentId: doc._id });
+
+    const receivedAmountRaw = Number(docData.receivedAmount);
+    if (Number.isFinite(receivedAmountRaw) && receivedAmountRaw > 0) {
+      const total = Number(doc.grandTotal || 0);
+      const receivedAmount = total > 0 ? Math.min(receivedAmountRaw, total) : receivedAmountRaw;
+
+      const payment = await Payment.create({
+        userId: req.userId,
+        profileId: req.profileId,
+        documentId: doc._id,
+        customerId: doc.customerId || null,
+        supplierId: doc.supplierId || null,
+        bankAccountId: doc.bankAccountId || (docData.bankAccountId || null),
+        amount: receivedAmount,
+        currency: doc.currency || 'INR',
+        date: String(doc.date || new Date().toISOString().slice(0, 10)),
+        method: docData.paymentMode || null,
+        reference: null,
+        notes: 'Payment recorded during document creation',
+      });
+
+      await createLedgerForPayment({ userId: req.userId, profileId: req.profileId, payment });
+      const refreshed = await refreshDocumentPaymentStatus({ userId: req.userId, profileId: req.profileId, documentId: doc._id });
+      if (refreshed?.paymentStatus) {
+        doc.paymentStatus = refreshed.paymentStatus;
+      }
+    }
 
     res.json({
       id: String(doc._id),

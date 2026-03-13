@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -33,6 +33,13 @@ import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 import { TraceLoader } from '../components/TraceLoader';
 import { INDIAN_STATES } from '../utils/indianStates';
+import {
+  hasContactErrors,
+  normalizeEmail,
+  normalizeGstin,
+  normalizePhone,
+  validateContactFields,
+} from '../utils/contactValidation';
 
 type CurrencyCode = 'INR' | 'USD' | 'EUR' | 'GBP';
 
@@ -134,9 +141,10 @@ export function CreateDocumentPage() {
   const [autoRoundOff, setAutoRoundOff] = useState(false);
   const [notes, setNotes] = useState('');
   const [termsConditions, setTermsConditions] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState<'unpaid' | 'paid'>('unpaid');
+  const [paymentStatus, setPaymentStatus] = useState<'unpaid' | 'partial' | 'paid'>('unpaid');
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('cash');
   const [status, setStatus] = useState<'draft' | 'final'>('draft');
+  const [receivedAmount, setReceivedAmount] = useState<number>(0);
 
   useEffect(() => {
     if (isEdit) return;
@@ -172,6 +180,8 @@ export function CreateDocumentPage() {
   const [customerStateCode, setCustomerStateCode] = useState('');
   const [placeOfSupply, setPlaceOfSupply] = useState('');
 
+  const [partyContactErrors, setPartyContactErrors] = useState<{ gstin?: string; phone?: string; email?: string }>({});
+
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
@@ -200,6 +210,8 @@ export function CreateDocumentPage() {
   const [bankIfsc, setBankIfsc] = useState('');
   const [upiId, setUpiId] = useState('');
   const [upiQrText, setUpiQrText] = useState('');
+
+  const [bankAccountId, setBankAccountId] = useState<string>('');
 
   const [referenceDocumentId, setReferenceDocumentId] = useState<string | null>(null);
   const [referenceDocumentNumber, setReferenceDocumentNumber] = useState<string>('');
@@ -262,6 +274,8 @@ export function CreateDocumentPage() {
       logoUrl: '',
     }
   );
+
+  const [createPartyContactErrors, setCreatePartyContactErrors] = useState<{ gstin?: string; phone?: string; email?: string }>({});
 
   const [proformaItemPopoverOpen, setProformaItemPopoverOpen] = useState<Record<number, boolean>>({});
   const [createItemOpen, setCreateItemOpen] = useState(false);
@@ -571,17 +585,35 @@ export function CreateDocumentPage() {
   useEffect(() => {
     if (isEdit) return;
 
+    const accounts = Array.isArray(currentProfile?.bankAccounts) ? currentProfile.bankAccounts : [];
+    const defaultId = String(currentProfile?.defaultBankAccountId || '').trim();
+    const fallbackDefault = accounts.find((a: any) => a?.isDefault && a?._id) || null;
+    const resolvedDefaultId = defaultId || String(fallbackDefault?._id || '').trim();
+    if (!bankAccountId && resolvedDefaultId) setBankAccountId(resolvedDefaultId);
+
+    const selected = resolvedDefaultId
+      ? accounts.find((a: any) => String(a?._id || '') === String(resolvedDefaultId))
+      : null;
+
     const nextBankName = String(currentProfile?.bankName || '').trim();
     const nextBranch = String(currentProfile?.bankBranch || '').trim();
     const nextAcc = String(currentProfile?.accountNumber || '').trim();
     const nextIfsc = String(currentProfile?.ifscCode || '').trim();
     const nextUpi = String(currentProfile?.upiId || '').trim();
 
-    if (!bankName && nextBankName) setBankName(nextBankName);
-    if (!bankBranch && nextBranch) setBankBranch(nextBranch);
-    if (!bankAccountNumber && nextAcc) setBankAccountNumber(nextAcc);
-    if (!bankIfsc && nextIfsc) setBankIfsc(nextIfsc);
-    if (!upiId && nextUpi) setUpiId(nextUpi);
+    const nextSelBankName = String(selected?.bankName || '').trim();
+    const nextSelBranch = String(selected?.bankBranch || '').trim();
+    const nextSelAcc = String(selected?.accountNumber || '').trim();
+    const nextSelIfsc = String(selected?.ifscCode || '').trim();
+    const nextSelUpi = String(selected?.upiId || '').trim();
+    const nextSelUpiQr = String(selected?.upiQrText || '').trim();
+
+    if (!bankName && (nextSelBankName || nextBankName)) setBankName(nextSelBankName || nextBankName);
+    if (!bankBranch && (nextSelBranch || nextBranch)) setBankBranch(nextSelBranch || nextBranch);
+    if (!bankAccountNumber && (nextSelAcc || nextAcc)) setBankAccountNumber(nextSelAcc || nextAcc);
+    if (!bankIfsc && (nextSelIfsc || nextIfsc)) setBankIfsc(nextSelIfsc || nextIfsc);
+    if (!upiId && (nextSelUpi || nextUpi)) setUpiId(nextSelUpi || nextUpi);
+    if (!upiQrText && nextSelUpiQr) setUpiQrText(nextSelUpiQr);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, profileId]);
 
@@ -940,6 +972,7 @@ export function CreateDocumentPage() {
         setDepartureToState(doc.departureToState || '');
         setDepartureToPostalCode(doc.departureToPostalCode || '');
 
+        setBankAccountId(String(doc.bankAccountId || ''));
         setBankName(doc.bankName || '');
         setBankBranch(doc.bankBranch || '');
         setBankAccountNumber(doc.bankAccountNumber || '');
@@ -1086,6 +1119,17 @@ export function CreateDocumentPage() {
       return;
     }
 
+    const errs = validateContactFields({
+      gstin: String(createCustomerForm.gstin || ''),
+      phone: String(createCustomerForm.phone || ''),
+      email: String(createCustomerForm.email || ''),
+    });
+    setCreatePartyContactErrors(errs);
+    if (hasContactErrors(errs)) {
+      toast.error('Please fix invalid contact details');
+      return;
+    }
+
     const openingBalance = Number(createCustomerForm.openingBalance || 0);
     const openingBalanceType = (createCustomerForm.openingBalanceType || 'dr') as 'dr' | 'cr';
 
@@ -1102,11 +1146,11 @@ export function CreateDocumentPage() {
         },
         body: JSON.stringify({
           name,
-          email: String(createCustomerForm.email || '').trim() || undefined,
-          phone: String(createCustomerForm.phone || '').trim() || undefined,
+          email: normalizeEmail(String(createCustomerForm.email || '')) || undefined,
+          phone: normalizePhone(String(createCustomerForm.phone || '')) || undefined,
           openingBalance: Number.isFinite(openingBalance) ? openingBalance : undefined,
           openingBalanceType,
-          gstin: String(createCustomerForm.gstin || '').trim() || undefined,
+          gstin: normalizeGstin(String(createCustomerForm.gstin || '')) || undefined,
           pan: String(createCustomerForm.pan || '').trim() || undefined,
           billingAddress: String(createCustomerForm.billingAddress || '').trim() || undefined,
           billingCity: String(createCustomerForm.billingCity || '').trim() || undefined,
@@ -1364,11 +1408,11 @@ export function CreateDocumentPage() {
     ]);
   };
 
-  const calculateTotals = () => {
+  function calculateTotals() {
     if (type === 'proforma') {
       const rows = items.map(proformaRowComputed);
       const itemsTotal = rows.reduce((s, r) => s + r.amount, 0);
-      const subtotal = itemsTotal;
+      const subtotal = itemsTotal + transportCharges + additionalCharges + packingHandlingCharges + tcs;
       const grandTotal = subtotal + Number(roundOff || 0);
 
       const taxBreakup = items.reduce(
@@ -1417,7 +1461,7 @@ export function CreateDocumentPage() {
     }, 0);
 
     return { itemsTotal, subtotal, grandTotal, totalCgst, totalSgst, totalIgst };
-  };
+  }
 
   useEffect(() => {
     if (!autoRoundOff) return;
@@ -1426,12 +1470,26 @@ export function CreateDocumentPage() {
     const next = parseFloat((rounded - subtotal).toFixed(2));
     setRoundOff(next);
   }, [autoRoundOff, items, transportCharges, additionalCharges, packingHandlingCharges, tcs]);
-  const shouldShowPaymentMode =
-    type === 'proforma' || type === 'order' || type === 'billing' || type === 'challan';
+  const shouldShowPaymentMode = true;
 
   const partyLabel = partyKind === 'supplier' ? 'Supplier' : 'Customer';
 
   const handleSave = async () => {
+    const normalizedCustomerGstin = normalizeGstin(String(customerGstin || ''));
+    const normalizedCustomerMobile = normalizePhone(String(customerMobile || ''));
+    const normalizedCustomerEmail = normalizeEmail(String(customerEmail || ''));
+
+    const contactErrs = validateContactFields({
+      gstin: normalizedCustomerGstin,
+      phone: normalizedCustomerMobile,
+      email: normalizedCustomerEmail,
+    });
+    setPartyContactErrors(contactErrs);
+    if (hasContactErrors(contactErrs)) {
+      toast.error('Please fix invalid contact details');
+      return;
+    }
+
     if (type === 'invoice_cancellation') {
       if (!referenceDocumentId) {
         toast.error('Reference invoice is required');
@@ -1460,11 +1518,23 @@ export function CreateDocumentPage() {
             totalIgst: 0,
           }
         : calculateTotals();
-      const documentData = {
+
+      const nextReceivedAmount = Math.max(0, Number(receivedAmount || 0));
+      const normalizedReceivedAmount = Number.isFinite(nextReceivedAmount) ? nextReceivedAmount : 0;
+      const totalForPayment = Number(totals.grandTotal || 0);
+      const remainingForPayment = Math.max(0, totalForPayment - normalizedReceivedAmount);
+      const derivedPaymentStatus: 'unpaid' | 'partial' | 'paid' =
+        normalizedReceivedAmount <= 0
+          ? 'unpaid'
+          : remainingForPayment > 0 && totalForPayment > 0
+            ? 'partial'
+            : 'paid';
+
+      const documentData: any = {
         type,
         customerName,
         customerAddress,
-        customerGstin,
+        customerGstin: normalizedCustomerGstin || undefined,
         date,
         dueDate,
 
@@ -1475,14 +1545,14 @@ export function CreateDocumentPage() {
         referenceDocumentNumber,
 
         orderNumber,
-        revisionNumber: type === 'order' ? revisionNumber : null,
-        referenceNo: type === 'order' || type === 'proforma' ? referenceNo : null,
-        purchaseOrderNo: type === 'order' ? purchaseOrderNo : null,
-        poDate: type === 'order' ? poDate : null,
+        revisionNumber,
+        referenceNo,
+        purchaseOrderNo,
+        poDate,
 
         customerContactPerson,
-        customerMobile,
-        customerEmail,
+        customerMobile: normalizedCustomerMobile || undefined,
+        customerEmail: normalizedCustomerEmail || undefined,
         customerStateCode,
 
         deliveryAddress,
@@ -1511,6 +1581,7 @@ export function CreateDocumentPage() {
         transport,
         transportId,
 
+        bankAccountId: bankAccountId && bankAccountId !== '__null__' ? bankAccountId : null,
         bankName,
         bankBranch,
         bankAccountNumber,
@@ -1532,8 +1603,9 @@ export function CreateDocumentPage() {
         creditPeriod,
         lateFeeTerms,
 
-        paymentStatus,
+        paymentStatus: derivedPaymentStatus,
         paymentMode: shouldShowPaymentMode ? paymentMode : null,
+        receivedAmount: normalizedReceivedAmount,
         status,
         warrantyReturnCancellationPolicies,
         placeOfSupply: placeOfSupply || null,
@@ -1636,34 +1708,10 @@ export function CreateDocumentPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    <div className="grid grid-cols-2 gap-2 items-center">
-                      <div className="text-xs text-muted-foreground text-right">Ref No.</div>
-                      <Input
-                        readOnly={type === 'proforma'}
-                        value={(type === 'proforma' ? (referenceNo || 'Auto') : referenceNo) || ''}
-                        onChange={(e) => {
-                          if (type !== 'proforma') setReferenceNo(e.target.value);
-                        }}
-                        className="h-9"
-                      />
-                      <div className="text-xs text-muted-foreground text-right">Invoice Date</div>
-                      <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9" />
-                      <div className="text-xs text-muted-foreground text-right">State of supply</div>
-                      <Select value={placeOfSupply} onValueChange={setPlaceOfSupply}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {INDIAN_STATES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
+                  <div className="flex items-center gap-2">
+                    <Button type="button" variant="outline" onClick={() => navigate('/documents')} className="h-9">
+                      Cancel
+                    </Button>
                     <Button onClick={handleSave} disabled={saving} className="h-9 px-5">
                       <Save className="h-4 w-4 mr-2" />
                       {saving ? 'Saving...' : 'Save'}
@@ -1673,88 +1721,298 @@ export function CreateDocumentPage() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm">
-              <CardContent className="p-4">
-                <div className="max-w-[360px]">
-                  <Label>{partyKind === 'supplier' ? 'Supplier' : 'Customer'} *</Label>
-                  <Popover open={partyPopoverOpen} onOpenChange={setPartyPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button type="button" variant="outline" role="combobox" className="w-full justify-between h-9">
-                        <span className="truncate">
-                          {partyId
-                            ? (presetCustomers.find((c) => String(c.id) === String(partyId))?.name || 'Select')
-                            : 'Select'}
-                        </span>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                      <Command>
-                        <CommandInput placeholder={`Search ${partyKind === 'supplier' ? 'supplier' : 'customer'}...`} />
-                        <CommandList>
-                          <CommandEmpty>
-                            <div className="p-2 text-sm text-muted-foreground">
-                              No {partyKind === 'supplier' ? 'supplier' : 'customer'} found.
-                            </div>
-                            <div className="p-2">
-                              <Button type="button" variant="outline" className="w-full" onClick={() => setCreateCustomerOpen(true)}>
-                                + Create {partyKind === 'supplier' ? 'Supplier' : 'Customer'}
-                              </Button>
-                            </div>
-                          </CommandEmpty>
-                          <CommandGroup>
-                            <CommandItem
-                              value="__create_customer__"
-                              onSelect={() => setCreateCustomerOpen(true)}
-                            >
-                              + Create {partyKind === 'supplier' ? 'Supplier' : 'Customer'}
-                            </CommandItem>
-                            {presetCustomers.map((c) => (
-                              <CommandItem
-                                key={c.id}
-                                value={c.name}
-                                onSelect={() => {
-                                  const nextId = String(c.id);
-                                  setPartyId(nextId);
-                                  setCustomerName(String(c.name || ''));
-                                  setCustomerAddress(String(c.address || c.billingAddress || '').trim());
-                                  setCustomerGstin(String(c.gstin || '').trim());
-                                  if (!deliveryAddress.trim()) {
-                                    const nextShip = String((c as any)?.shippingAddress || (c as any)?.shipping_address || '').trim();
-                                    const fallback = String((c as any)?.billingAddress || (c as any)?.address || '').trim();
-                                    const resolved = nextShip || fallback;
-                                    if (resolved) setDeliveryAddress(resolved);
-                                  }
-                                  if (!String(placeOfSupply || '').trim()) {
-                                    const pos = String((c as any)?.billingState || (c as any)?.state || '').trim();
-                                    if (pos) setPlaceOfSupply(pos);
-                                  }
-                                  setPartyPopoverOpen(false);
-                                }}
-                              >
-                                <Check className={partyId === c.id ? 'mr-2 h-4 w-4 opacity-100' : 'mr-2 h-4 w-4 opacity-0'} />
-                                <span className="truncate">{c.name}</span>
-                              </CommandItem>
+            <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start">
+              <div className="space-y-4">
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-0">
+                    <CardTitle className="text-base">Customer & Billing Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-4">
+                    <div className="max-w-[420px]">
+                      <Label>{partyKind === 'supplier' ? 'Supplier' : 'Customer'} *</Label>
+                      <Popover open={partyPopoverOpen} onOpenChange={setPartyPopoverOpen}>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" role="combobox" className="w-full justify-between h-9">
+                            <span className="truncate">
+                              {partyId
+                                ? (presetCustomers.find((c) => String(c.id) === String(partyId))?.name || 'Select')
+                                : 'Select'}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                          <Command>
+                            <CommandInput placeholder={`Search ${partyKind === 'supplier' ? 'supplier' : 'customer'}...`} />
+                            <CommandList>
+                              <CommandEmpty>
+                                <div className="p-2 text-sm text-muted-foreground">
+                                  No {partyKind === 'supplier' ? 'supplier' : 'customer'} found.
+                                </div>
+                                <div className="p-2">
+                                  <Button type="button" variant="outline" className="w-full" onClick={() => setCreateCustomerOpen(true)}>
+                                    + Create {partyKind === 'supplier' ? 'Supplier' : 'Customer'}
+                                  </Button>
+                                </div>
+                              </CommandEmpty>
+                              <CommandGroup>
+                                <CommandItem value="__create_customer__" onSelect={() => setCreateCustomerOpen(true)}>
+                                  + Create {partyKind === 'supplier' ? 'Supplier' : 'Customer'}
+                                </CommandItem>
+                                {presetCustomers.map((c) => (
+                                  <CommandItem
+                                    key={c.id}
+                                    value={c.name}
+                                    onSelect={() => {
+                                      const nextId = String(c.id);
+                                      setPartyId(nextId);
+                                      setCustomerName(String(c.name || ''));
+                                      setCustomerAddress(String(c.address || c.billingAddress || '').trim());
+                                      setCustomerGstin(String(c.gstin || '').trim());
+                                      if (!deliveryAddress.trim()) {
+                                        const nextShip = String((c as any)?.shippingAddress || (c as any)?.shipping_address || '').trim();
+                                        const fallback = String((c as any)?.billingAddress || (c as any)?.address || '').trim();
+                                        const resolved = nextShip || fallback;
+                                        if (resolved) setDeliveryAddress(resolved);
+                                      }
+                                      if (!String(placeOfSupply || '').trim()) {
+                                        const pos = String((c as any)?.billingState || (c as any)?.state || '').trim();
+                                        if (pos) setPlaceOfSupply(pos);
+                                      }
+                                      setPartyPopoverOpen(false);
+                                    }}
+                                  >
+                                    <Check className={partyId === c.id ? 'mr-2 h-4 w-4 opacity-100' : 'mr-2 h-4 w-4 opacity-0'} />
+                                    <span className="truncate">{c.name}</span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>{partyLabel} Name</Label>
+                        <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>GSTIN</Label>
+                        <Input
+                          value={customerGstin}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            setCustomerGstin(next);
+                            if (partyContactErrors.gstin) setPartyContactErrors((p) => ({ ...p, gstin: undefined }));
+                          }}
+                          onBlur={() => {
+                            const normalized = normalizeGstin(String(customerGstin || ''));
+                            if (normalized !== String(customerGstin || '')) setCustomerGstin(normalized);
+                            const errs = validateContactFields({
+                              gstin: normalized,
+                              phone: String(customerMobile || ''),
+                              email: String(customerEmail || ''),
+                            });
+                            setPartyContactErrors((p) => ({ ...p, gstin: errs.gstin }));
+                          }}
+                          className="h-9"
+                        />
+                        {partyContactErrors.gstin ? <div className="text-xs text-destructive">{partyContactErrors.gstin}</div> : null}
+                      </div>
+
+                      <div className="md:col-span-2 space-y-2">
+                        <Label>Billing Address</Label>
+                        <Textarea value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} rows={2} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Contact Person</Label>
+                        <Input value={customerContactPerson} onChange={(e) => setCustomerContactPerson(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Mobile</Label>
+                        <Input
+                          value={customerMobile}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            setCustomerMobile(next);
+                            if (partyContactErrors.phone) setPartyContactErrors((p) => ({ ...p, phone: undefined }));
+                          }}
+                          onBlur={() => {
+                            const normalized = normalizePhone(String(customerMobile || ''));
+                            if (normalized !== String(customerMobile || '')) setCustomerMobile(normalized);
+                            const errs = validateContactFields({
+                              gstin: String(customerGstin || ''),
+                              phone: normalized,
+                              email: String(customerEmail || ''),
+                            });
+                            setPartyContactErrors((p) => ({ ...p, phone: errs.phone }));
+                          }}
+                          className="h-9"
+                        />
+                        {partyContactErrors.phone ? <div className="text-xs text-destructive">{partyContactErrors.phone}</div> : null}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Email</Label>
+                        <Input
+                          value={customerEmail}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            setCustomerEmail(next);
+                            if (partyContactErrors.email) setPartyContactErrors((p) => ({ ...p, email: undefined }));
+                          }}
+                          onBlur={() => {
+                            const normalized = normalizeEmail(String(customerEmail || ''));
+                            if (normalized !== String(customerEmail || '')) setCustomerEmail(normalized);
+                            const errs = validateContactFields({
+                              gstin: String(customerGstin || ''),
+                              phone: String(customerMobile || ''),
+                              email: normalized,
+                            });
+                            setPartyContactErrors((p) => ({ ...p, email: errs.email }));
+                          }}
+                          className="h-9"
+                        />
+                        {partyContactErrors.email ? <div className="text-xs text-destructive">{partyContactErrors.email}</div> : null}
+                      </div>
+                      <div className="space-y-2">
+                        <Label>State Code</Label>
+                        <Input value={customerStateCode} onChange={(e) => setCustomerStateCode(e.target.value)} className="h-9" />
+                      </div>
+
+                      <div className="md:col-span-2 space-y-2">
+                        <Label>Ship To</Label>
+                        <Textarea
+                          value={deliveryAddress}
+                          onChange={(e) => setDeliveryAddress(e.target.value)}
+                          rows={2}
+                          placeholder="Enter shipping address"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-4">
+                <Card className="shadow-sm">
+                  <CardHeader className="pb-0">
+                    <CardTitle className="text-base">Invoice Metadata</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Ref No.</Label>
+                        <Input
+                          readOnly={type === 'proforma'}
+                          value={(type === 'proforma' ? (referenceNo || 'Auto') : referenceNo) || ''}
+                          onChange={(e) => {
+                            if (type !== 'proforma') setReferenceNo(e.target.value);
+                          }}
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Invoice Date</Label>
+                        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Due Date</Label>
+                        <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>State of Supply</Label>
+                        <Select value={placeOfSupply} onValueChange={setPlaceOfSupply}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {INDIAN_STATES.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
                             ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </CardContent>
-            </Card>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Invoice No</Label>
+                        <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Challan No</Label>
+                        <Input value={challanNo} onChange={(e) => setChallanNo(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Order No</Label>
+                        <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Revision No</Label>
+                        <Input value={revisionNumber} onChange={(e) => setRevisionNumber(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>PO No</Label>
+                        <Input value={purchaseOrderNo} onChange={(e) => setPurchaseOrderNo(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>PO Date</Label>
+                        <Input type="date" value={poDate} onChange={(e) => setPoDate(e.target.value)} className="h-9" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
 
             <Card className="shadow-sm">
+              <CardHeader className="pb-0">
+                <CardTitle className="text-base">Shipping & Logistics</CardTitle>
+              </CardHeader>
               <CardContent className="p-4">
-                <div className="max-w-[520px]">
-                  <Label>Ship To</Label>
-                  <Textarea
-                    value={deliveryAddress}
-                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                    rows={3}
-                    placeholder="Enter shipping address"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="space-y-2">
+                    <Label>E-Way Bill No</Label>
+                    <Input value={ewayBillNo} onChange={(e) => setEwayBillNo(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>E-Way Bill Date</Label>
+                    <Input type="date" value={ewayBillDate} onChange={(e) => setEwayBillDate(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Valid Upto</Label>
+                    <Input type="date" value={ewayBillValidUpto} onChange={(e) => setEwayBillValidUpto(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Transporter Name</Label>
+                    <Input value={ewayBillTransporterName} onChange={(e) => setEwayBillTransporterName(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Vehicle No</Label>
+                    <Input value={ewayBillVehicleNo} onChange={(e) => setEwayBillVehicleNo(e.target.value)} className="h-9" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                  <div className="space-y-2">
+                    <Label>Transporter Doc No</Label>
+                    <Input value={ewayBillTransporterDocNo} onChange={(e) => setEwayBillTransporterDocNo(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Distance (Km)</Label>
+                    <Input value={ewayBillDistanceKm} onChange={(e) => setEwayBillDistanceKm(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Transport</Label>
+                    <Input value={transport} onChange={(e) => setTransport(e.target.value)} className="h-9" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Transport ID</Label>
+                    <Input value={transportId} onChange={(e) => setTransportId(e.target.value)} className="h-9" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1974,61 +2232,155 @@ export function CreateDocumentPage() {
               </CardContent>
             </Card>
 
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-              <div className="flex flex-col gap-2">
-                {shouldShowPaymentMode && (
-                  <div className="max-w-[320px]">
-                    <Label className="text-xs text-muted-foreground">Payment Type</Label>
-                    <div className="mt-1 grid grid-cols-2 gap-2">
-                      <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as PaymentMode)}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="online">Online</SelectItem>
-                          <SelectItem value="cheque">Cheque</SelectItem>
-                        </SelectContent>
-                      </Select>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 items-start">
+              <div className="flex flex-col gap-4">
+                <Card className="shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2 space-y-2">
+                        <Label>Bank Account</Label>
+                        <Select
+                          value={bankAccountId || '__custom__'}
+                          onValueChange={(v) => {
+                            const next = String(v || '');
+                            if (next === '__custom__') {
+                              setBankAccountId('');
+                              return;
+                            }
+                            if (next === '__null__') {
+                              setBankAccountId('__null__');
+                              setBankName(String((currentProfile as any)?.bankName || ''));
+                              setBankBranch(String((currentProfile as any)?.bankBranch || ''));
+                              setBankAccountNumber(String((currentProfile as any)?.accountNumber || ''));
+                              setBankIfsc(String((currentProfile as any)?.ifscCode || ''));
+                              setUpiId(String((currentProfile as any)?.upiId || ''));
+                              setUpiQrText('');
+                              return;
+                            }
+                            setBankAccountId(next);
 
-                      <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as 'unpaid' | 'paid')}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unpaid">Unpaid</SelectItem>
-                          <SelectItem value="paid">Paid</SelectItem>
-                        </SelectContent>
-                      </Select>
+                            const accounts = Array.isArray(currentProfile?.bankAccounts) ? currentProfile.bankAccounts : [];
+                            const selected = accounts.find((a: any) => String(a?._id || '') === String(next));
+                            if (!selected) return;
+
+                            setBankName(String(selected?.bankName || ''));
+                            setBankBranch(String(selected?.bankBranch || ''));
+                            setBankAccountNumber(String(selected?.accountNumber || ''));
+                            setBankIfsc(String(selected?.ifscCode || ''));
+                            setUpiId(String(selected?.upiId || ''));
+                            setUpiQrText(String(selected?.upiQrText || ''));
+                          }}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__custom__">Custom</SelectItem>
+                            {(() => {
+                              const legacyBankName = String((currentProfile as any)?.bankName || '').trim();
+                              const legacyAcc = String((currentProfile as any)?.accountNumber || '').trim();
+                              const legacyIfsc = String((currentProfile as any)?.ifscCode || '').trim();
+                              const legacyUpi = String((currentProfile as any)?.upiId || '').trim();
+                              const hasLegacy = !!(legacyBankName || legacyAcc || legacyIfsc || legacyUpi);
+                              if (!hasLegacy) return null;
+                              return (
+                                <SelectItem value="__null__">{legacyBankName || 'Primary Bank'}</SelectItem>
+                              );
+                            })()}
+                            {(Array.isArray((currentProfile as any)?.bankAccounts) ? (currentProfile as any).bankAccounts : []).map((a: any) => (
+                              <SelectItem key={String(a?._id || a?.label || Math.random())} value={String(a?._id || '')}>
+                                {String(a?.label || a?.bankName || 'Bank Account')}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Bank Name</Label>
+                        <Input value={bankName} onChange={(e) => setBankName(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Branch</Label>
+                        <Input value={bankBranch} onChange={(e) => setBankBranch(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Account Number</Label>
+                        <Input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>IFSC</Label>
+                        <Input value={bankIfsc} onChange={(e) => setBankIfsc(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>UPI ID</Label>
+                        <Input value={upiId} onChange={(e) => setUpiId(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>UPI QR Text</Label>
+                        <Input value={upiQrText} onChange={(e) => setUpiQrText(e.target.value)} className="h-9" />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  </CardContent>
+                </Card>
 
-                <Button type="button" variant="outline" size="sm" onClick={() => setProformaShowDescription(true)}>
-                  Add Description
-                </Button>
-                <div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    id="proforma-attachment-input"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0] || null;
-                      setProformaAttachment(f);
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const el = document.getElementById('proforma-attachment-input') as HTMLInputElement | null;
-                      el?.click();
-                    }}
-                  >
-                  Add Image
-                </Button>
+                <Card className="shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Payment Terms</Label>
+                        <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Credit Period</Label>
+                        <Input value={creditPeriod} onChange={(e) => setCreditPeriod(e.target.value)} className="h-9" />
+                      </div>
+                      <div className="md:col-span-2 space-y-2">
+                        <Label>Late Fee Terms</Label>
+                        <Textarea value={lateFeeTerms} onChange={(e) => setLateFeeTerms(e.target.value)} rows={2} />
+                      </div>
+                      <div className="md:col-span-2 space-y-2">
+                        <Label>Warranty/Return/Cancellation</Label>
+                        <Textarea
+                          value={warrantyReturnCancellationPolicies}
+                          onChange={(e) => setWarrantyReturnCancellationPolicies(e.target.value)}
+                          rows={2}
+                        />
+                      </div>
+                      <div className="md:col-span-2 space-y-2">
+                        <Label>Internal Notes</Label>
+                        <Textarea value={internalNotes} onChange={(e) => setInternalNotes(e.target.value)} rows={2} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setProformaShowDescription(true)}>
+                    Add Description
+                  </Button>
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="proforma-attachment-input"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] || null;
+                        setProformaAttachment(f);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const el = document.getElementById('proforma-attachment-input') as HTMLInputElement | null;
+                        el?.click();
+                      }}
+                    >
+                    Add Image
+                  </Button>
+                  </div>
                 </div>
 
                 {proformaShowDescription && (
@@ -2072,54 +2424,138 @@ export function CreateDocumentPage() {
                 )}
               </div>
 
-              <Card className="shadow-sm w-full lg:w-[360px] bg-background/80">
-                <CardContent className="p-4 space-y-3">
-                  {(() => {
-                    const t = proformaTotals();
-                    return (
-                      <>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="text-muted-foreground">Subtotal</div>
-                          <div className="font-medium">{formatInr(t.subtotal)}</div>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="text-muted-foreground">Discount Total</div>
-                          <div className="font-medium">{formatInr(t.discountTotal)}</div>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="text-muted-foreground">Tax Total</div>
-                          <div className="font-medium">{formatInr(t.taxTotal)}</div>
-                        </div>
+              <div className="lg:sticky lg:top-20 space-y-4">
+                <Card className="shadow-sm bg-background/80">
+                  <CardContent className="p-4 space-y-3">
+                    {shouldShowPaymentMode && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Payment Type</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as PaymentMode)}>
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cash">Cash</SelectItem>
+                              <SelectItem value="online">Online</SelectItem>
+                              <SelectItem value="cheque">Cheque</SelectItem>
+                            </SelectContent>
+                          </Select>
 
-                        <div className="flex items-center justify-between text-sm gap-3">
-                          <label className="flex items-center gap-2">
-                            <input type="checkbox" checked={autoRoundOff} onChange={(e) => setAutoRoundOff(e.target.checked)} />
-                            <span className="text-muted-foreground">Round Off</span>
-                          </label>
-                          <Input className="h-9 w-[110px]" value={roundOff} onChange={(e) => setRoundOff(parseFloat(e.target.value) || 0)} />
+                          <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as 'unpaid' | 'partial' | 'paid')}>
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unpaid">Unpaid</SelectItem>
+                              <SelectItem value="partial">Partial</SelectItem>
+                              <SelectItem value="paid">Paid</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
+                      </div>
+                    )}
 
-                        <div className="pt-2 border-t flex items-center justify-between">
-                          <div className="text-sm font-semibold">Grand Total</div>
-                          <div className="text-base font-bold text-primary">{formatInr(t.grandTotal)}</div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Received Amount</Label>
+                      <Input
+                        className="h-9 mt-1"
+                        type="number"
+                        min={0}
+                        value={receivedAmount}
+                        onChange={(e) => {
+                          const next = Number(e.target.value || 0);
+                          if (!Number.isFinite(next) || next < 0) return;
+                          setReceivedAmount(next);
+                        }}
+                        placeholder={`0 (${primarySymbol})`}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm">
+                  <CardContent className="p-4 space-y-4">
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <Label>Transport Charges</Label>
+                        <Input type="number" value={transportCharges} onChange={(e) => setTransportCharges(Number(e.target.value || 0))} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Additional Charges</Label>
+                        <Input type="number" value={additionalCharges} onChange={(e) => setAdditionalCharges(Number(e.target.value || 0))} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Packing/Handling</Label>
+                        <Input type="number" value={packingHandlingCharges} onChange={(e) => setPackingHandlingCharges(Number(e.target.value || 0))} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>TCS</Label>
+                        <Input type="number" value={tcs} onChange={(e) => setTcs(Number(e.target.value || 0))} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Round Off</Label>
+                        <Input type="number" value={roundOff} onChange={(e) => setRoundOff(Number(e.target.value || 0))} className="h-9" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Auto Round Off</Label>
+                        <div className="h-9 flex items-center">
+                          <Switch checked={autoRoundOff} onCheckedChange={setAutoRoundOff} />
                         </div>
-                      </>
-                    );
-                  })()}
-                </CardContent>
-              </Card>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-sm bg-background/80">
+                  <CardContent className="p-4 space-y-3">
+                    {(() => {
+                      const t = proformaTotals();
+                      const received = Math.max(0, Number(receivedAmount || 0));
+                      const balance = Math.max(0, Number(t.grandTotal || 0) - received);
+                      return (
+                        <>
+                          <div className="rounded-md overflow-hidden border bg-background">
+                            <div className="px-3 py-2 text-sm font-semibold bg-primary/40 text-foreground">Amounts</div>
+
+                            <div className="px-3 py-2 border-t flex items-center justify-between text-sm">
+                              <div className="text-muted-foreground">Sub total</div>
+                              <div className="font-medium">{formatInr(t.subtotal)}</div>
+                            </div>
+
+                            <div className="px-3 py-2 border-t flex items-center justify-between text-sm font-semibold">
+                              <div>Total</div>
+                              <div>{formatInr(t.grandTotal)}</div>
+                            </div>
+
+                            <div className="px-3 py-2 border-t flex items-center justify-between text-sm">
+                              <div className="text-muted-foreground">Received</div>
+                              <div className="font-medium">{formatInr(received)}</div>
+                            </div>
+
+                            <div className="px-3 py-2 border-t flex items-center justify-between text-sm">
+                              <div className="text-muted-foreground">Balance</div>
+                              <div className="font-medium">{formatInr(balance)}</div>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
 
         <Sheet open={createCustomerOpen} onOpenChange={setCreateCustomerOpen}>
-          <SheetContent side="right" className="w-full sm:max-w-[420px]">
+          <SheetContent side="right" className="w-full sm:max-w-[520px] md:max-w-[600px]">
             <SheetHeader>
               <SheetTitle>{partyKind === 'supplier' ? 'Create Supplier' : 'Create Customer'}</SheetTitle>
               <SheetDescription>
                 Add a new {partyKind === 'supplier' ? 'supplier' : 'customer'} without leaving this page.
               </SheetDescription>
             </SheetHeader>
-            <div className="mt-4 space-y-4">
+            <div className="mt-4 space-y-4 flex-1 overflow-y-auto px-4 pb-4">
               <div className="space-y-2">
                 <Label>{partyKind === 'supplier' ? 'Supplier Name *' : 'Customer Name *'}</Label>
                 <Input
@@ -2133,17 +2569,47 @@ export function CreateDocumentPage() {
                 <Label>Email</Label>
                 <Input
                   value={createCustomerForm.email}
-                  onChange={(e) => setCreateCustomerForm((p) => ({ ...p, email: e.target.value }))}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setCreateCustomerForm((p) => ({ ...p, email: next }));
+                    if (createPartyContactErrors.email) setCreatePartyContactErrors((p) => ({ ...p, email: undefined }));
+                  }}
+                  onBlur={() => {
+                    const normalized = normalizeEmail(String(createCustomerForm.email || ''));
+                    if (normalized !== String(createCustomerForm.email || '')) setCreateCustomerForm((p) => ({ ...p, email: normalized }));
+                    const errs = validateContactFields({
+                      gstin: String(createCustomerForm.gstin || ''),
+                      phone: String(createCustomerForm.phone || ''),
+                      email: normalized,
+                    });
+                    setCreatePartyContactErrors((p) => ({ ...p, email: errs.email }));
+                  }}
                   placeholder="customer@email.com"
                 />
+                {createPartyContactErrors.email ? <div className="text-xs text-destructive mt-1">{createPartyContactErrors.email}</div> : null}
               </div>
               <div>
                 <Label>Phone</Label>
                 <Input
                   value={createCustomerForm.phone}
-                  onChange={(e) => setCreateCustomerForm((p) => ({ ...p, phone: e.target.value }))}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setCreateCustomerForm((p) => ({ ...p, phone: next }));
+                    if (createPartyContactErrors.phone) setCreatePartyContactErrors((p) => ({ ...p, phone: undefined }));
+                  }}
+                  onBlur={() => {
+                    const normalized = normalizePhone(String(createCustomerForm.phone || ''));
+                    if (normalized !== String(createCustomerForm.phone || '')) setCreateCustomerForm((p) => ({ ...p, phone: normalized }));
+                    const errs = validateContactFields({
+                      gstin: String(createCustomerForm.gstin || ''),
+                      phone: normalized,
+                      email: String(createCustomerForm.email || ''),
+                    });
+                    setCreatePartyContactErrors((p) => ({ ...p, phone: errs.phone }));
+                  }}
                   placeholder="+91 99999 99999"
                 />
+                {createPartyContactErrors.phone ? <div className="text-xs text-destructive mt-1">{createPartyContactErrors.phone}</div> : null}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -2175,12 +2641,25 @@ export function CreateDocumentPage() {
                 <Label>GSTIN</Label>
                 <Input
                   value={createCustomerForm.gstin}
-                  onChange={(e) => setCreateCustomerForm((p) => ({ ...p, gstin: e.target.value }))}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setCreateCustomerForm((p) => ({ ...p, gstin: next }));
+                    if (createPartyContactErrors.gstin) setCreatePartyContactErrors((p) => ({ ...p, gstin: undefined }));
+                  }}
                   onBlur={() => {
+                    const normalized = normalizeGstin(String(createCustomerForm.gstin || ''));
+                    if (normalized !== String(createCustomerForm.gstin || '')) setCreateCustomerForm((p) => ({ ...p, gstin: normalized }));
+                    const errs = validateContactFields({
+                      gstin: normalized,
+                      phone: String(createCustomerForm.phone || ''),
+                      email: String(createCustomerForm.email || ''),
+                    });
+                    setCreatePartyContactErrors((p) => ({ ...p, gstin: errs.gstin }));
                     void handleCreateCustomerGstinLookup();
                   }}
                   placeholder="22AAAAA0000A1Z5"
                 />
+                {createPartyContactErrors.gstin ? <div className="text-xs text-destructive mt-1">{createPartyContactErrors.gstin}</div> : null}
                 {createCustomerGstinLookupLoading ? (
                   <div className="text-xs text-muted-foreground mt-1">Fetching GST details...</div>
                 ) : null}

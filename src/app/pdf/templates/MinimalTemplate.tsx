@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PdfTemplateProps } from '../types';
-import { Hr, KeyValue, KeyValueOptional, Label, Money, Muted, safeText, SmallText, TemplateFrame, docTitleFromType, amountInWordsINR } from './TemplateFrame';
+import { Hr, KeyValue, KeyValueOptional, Label, Money, Muted, safeText, SmallText, TemplateFrame, docTitleFromType, amountInWordsINR, formatInlineAddress, formatStateDisplay } from './TemplateFrame';
 
 export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
   const taxes = Number(doc.totalCgst || 0) + Number(doc.totalSgst || 0) + Number(doc.totalIgst || 0);
@@ -21,10 +21,24 @@ export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 18, fontWeight: 900, color: '#111827' }}>{profile.businessName}</div>
           {!!profile.billingAddress && (
-            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 8, whiteSpace: 'pre-line' }}>{profile.billingAddress}</div>
+            <div
+              style={{
+                fontSize: 11,
+                color: '#6B7280',
+                marginTop: 8,
+                maxWidth: 360,
+                whiteSpace: 'normal',
+                overflowWrap: 'anywhere',
+                wordBreak: 'break-word',
+              }}
+            >
+              {formatInlineAddress(profile.billingAddress)}
+            </div>
           )}
           {!!profile.gstin && <div style={{ fontSize: 11, color: '#6B7280', marginTop: 6 }}>GSTIN: {profile.gstin}</div>}
-          {!!profile.gstin && businessStateCode && <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>State Code: {businessStateCode}</div>}
+          {!!profile.gstin && businessStateCode && (
+            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>State: {formatStateDisplay(businessStateCode, null)}</div>
+          )}
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1.2, color: '#111827' }}>{docTitleFromType(doc.type)}</div>
@@ -42,15 +56,20 @@ export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
           <Label>Customer</Label>
           <div style={{ marginTop: 8, fontSize: 14, fontWeight: 800, color: '#111827' }}>{safeText(doc.customerName)}</div>
           {!!doc.customerAddress && (
-            <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280', whiteSpace: 'pre-line' }}>{doc.customerAddress}</div>
+            <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>{formatInlineAddress(doc.customerAddress)}</div>
           )}
+          {!!doc.customerMobile && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>Phone: {doc.customerMobile}</div>}
           {!!doc.customerGstin && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>GSTIN: {doc.customerGstin}</div>}
-          {!!doc.customerStateCode && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>State Code: {doc.customerStateCode}</div>}
+          {(!!doc.customerStateCode || !!doc.placeOfSupply) && (
+            <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>
+              State: {formatStateDisplay(doc.customerStateCode || null, doc.placeOfSupply || null)}
+            </div>
+          )}
 
           {!!doc.deliveryAddress && (
             <div style={{ marginTop: 10 }}>
               <Label>Ship To</Label>
-              <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280', whiteSpace: 'pre-line' }}>{doc.deliveryAddress}</div>
+              <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>{formatInlineAddress(doc.deliveryAddress)}</div>
             </div>
           )}
         </div>

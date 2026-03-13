@@ -10,6 +10,8 @@ const paymentSchema = new mongoose.Schema(
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: false, index: true, default: null },
     supplierId: { type: mongoose.Schema.Types.ObjectId, ref: 'Supplier', required: false, index: true, default: null },
 
+    bankAccountId: { type: mongoose.Schema.Types.ObjectId, required: false, index: true, default: null },
+
     amount: { type: Number, required: true },
     currency: { type: String, default: 'INR' },
     date: { type: String, required: true },

@@ -14,6 +14,8 @@ import {
   TwoCol,
   docTitleFromType,
   amountInWordsINR,
+  formatInlineAddress,
+  formatStateDisplay,
 } from './TemplateFrame';
 
 export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
@@ -96,14 +98,27 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 14, fontWeight: 800 }}>{profile.businessName}</div>
               {!!profile.billingAddress && (
-                <div style={{ fontSize: 11, opacity: 0.9, marginTop: 8, whiteSpace: 'pre-line' }}>
-                  {profile.billingAddress}
+                <div
+                  style={{
+                    fontSize: 11,
+                    opacity: 0.9,
+                    marginTop: 8,
+                    maxWidth: 260,
+                    marginLeft: 'auto',
+                    whiteSpace: 'normal',
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {formatInlineAddress(profile.billingAddress)}
                 </div>
               )}
               {!!profile.phone && <div style={{ fontSize: 11, opacity: 0.9, marginTop: 8 }}>{profile.phone}</div>}
               {!!profile.email && <div style={{ fontSize: 11, opacity: 0.9 }}>{profile.email}</div>}
               {!!profile.gstin && <div style={{ fontSize: 11, opacity: 0.9 }}>GSTIN: {profile.gstin}</div>}
-              {!!profile.gstin && businessStateCode && <div style={{ fontSize: 11, opacity: 0.9 }}>State Code: {businessStateCode}</div>}
+              {!!profile.gstin && businessStateCode && (
+                <div style={{ fontSize: 11, opacity: 0.9 }}>State: {formatStateDisplay(businessStateCode, null)}</div>
+              )}
             </div>
           </div>
         </div>
@@ -117,19 +132,22 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
                   {safeText(doc.customerName)}
                 </div>
                 {!!doc.customerAddress && (
-                  <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280', whiteSpace: 'pre-line' }}>
-                    {doc.customerAddress}
+                  <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>{formatInlineAddress(doc.customerAddress)}</div>
+                )}
+                {!!doc.customerMobile && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>Phone: {doc.customerMobile}</div>}
+                {!!doc.customerGstin && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>GSTIN: {doc.customerGstin}</div>}
+                {(!!doc.customerStateCode || !!doc.placeOfSupply) && (
+                  <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>
+                    State: {formatStateDisplay(doc.customerStateCode || null, doc.placeOfSupply || null)}
                   </div>
                 )}
-                {!!doc.customerGstin && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>GSTIN: {doc.customerGstin}</div>}
-                {!!doc.customerStateCode && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>State Code: {doc.customerStateCode}</div>}
               </Box>
 
               {!!doc.deliveryAddress && (
                 <div style={{ marginTop: 12 }}>
                   <Box>
                     <Label>Ship To</Label>
-                    <div style={{ marginTop: 8, fontSize: 11, color: '#6B7280', whiteSpace: 'pre-line' }}>{doc.deliveryAddress}</div>
+                    <div style={{ marginTop: 8, fontSize: 11, color: '#6B7280' }}>{formatInlineAddress(doc.deliveryAddress)}</div>
                   </Box>
                 </div>
               )}

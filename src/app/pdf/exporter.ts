@@ -63,15 +63,23 @@ export async function exportElementToPdf(params: {
   element: HTMLElement;
   filename: string;
   title?: string;
+  scale?: number;
+  imageFormat?: 'PNG' | 'JPEG';
+  jpegQuality?: number;
+  marginPt?: number;
 }) {
   const { element, filename } = params;
+  const scale = Number.isFinite(params.scale) ? Math.max(0.5, Number(params.scale)) : Math.max(2, window.devicePixelRatio || 1);
+  const imageFormat = params.imageFormat || 'PNG';
+  const jpegQuality = Number.isFinite(params.jpegQuality) ? Math.min(1, Math.max(0.1, Number(params.jpegQuality))) : 0.8;
+  const marginPt = Number.isFinite(params.marginPt) ? Math.max(0, Number(params.marginPt)) : 0;
 
   await new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   });
 
   const canvas = await html2canvas(element, {
-    scale: Math.max(2, window.devicePixelRatio || 1),
+    scale,
     backgroundColor: '#ffffff',
     useCORS: true,
     logging: false,
@@ -99,7 +107,9 @@ export async function exportElementToPdf(params: {
     },
   });
 
-  const imgData = canvas.toDataURL('image/png');
+  const imgData = imageFormat === 'JPEG'
+    ? canvas.toDataURL('image/jpeg', jpegQuality)
+    : canvas.toDataURL('image/png');
 
   const pdf = new jsPDF({
     orientation: 'p',
@@ -110,23 +120,115 @@ export async function exportElementToPdf(params: {
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
-  const imgWidth = pageWidth;
+  const innerWidth = Math.max(0, pageWidth - marginPt * 2);
+  const innerHeight = Math.max(0, pageHeight - marginPt * 2);
+  const imgWidth = innerWidth || pageWidth;
   const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
   let heightLeft = imgHeight;
-  let position = 0;
+  let position = marginPt;
 
-  pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-  heightLeft -= pageHeight;
+  pdf.addImage(imgData, imageFormat, marginPt, position, imgWidth, imgHeight, undefined, 'FAST');
+  heightLeft -= innerHeight || pageHeight;
 
   while (heightLeft > 0) {
-    position -= pageHeight;
+    position -= innerHeight || pageHeight;
     pdf.addPage();
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
-    heightLeft -= pageHeight;
+    pdf.addImage(imgData, imageFormat, marginPt, position, imgWidth, imgHeight, undefined, 'FAST');
+    heightLeft -= innerHeight || pageHeight;
   }
 
   pdf.save(filename);
+}
+
+export async function exportElementToPdfBlobUrl(params: {
+  element: HTMLElement;
+  filename?: string;
+  title?: string;
+  scale?: number;
+  imageFormat?: 'PNG' | 'JPEG';
+  jpegQuality?: number;
+  marginPt?: number;
+}) {
+  const { element, filename } = params;
+
+  const scale = Number.isFinite(params.scale) ? Math.max(0.5, Number(params.scale)) : Math.max(2, window.devicePixelRatio || 1);
+  const imageFormat = params.imageFormat || 'PNG';
+  const jpegQuality = Number.isFinite(params.jpegQuality) ? Math.min(1, Math.max(0.1, Number(params.jpegQuality))) : 0.8;
+  const marginPt = Number.isFinite(params.marginPt) ? Math.max(0, Number(params.marginPt)) : 0;
+
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+
+  const canvas = await html2canvas(element, {
+    scale,
+    backgroundColor: '#ffffff',
+    useCORS: true,
+    logging: false,
+    onclone: (clonedDoc) => {
+      try {
+        clonedDoc.querySelectorAll('style, link[rel="stylesheet"]').forEach((n) => n.remove());
+
+        const root = clonedDoc.body.querySelector('[data-slot="card"], body') as HTMLElement | null;
+        const target = root || (clonedDoc.body as any);
+        if (!target) return;
+
+        if (target instanceof HTMLElement) {
+          normalizeElementColors(clonedDoc, target);
+        }
+
+        const nodes = clonedDoc.body.querySelectorAll<HTMLElement>('*');
+        nodes.forEach((n) => {
+          normalizeElementColors(clonedDoc, n);
+        });
+      } catch {
+        // ignore
+      }
+    },
+  });
+
+  const imgData = imageFormat === 'JPEG'
+    ? canvas.toDataURL('image/jpeg', jpegQuality)
+    : canvas.toDataURL('image/png');
+
+  const pdf = new jsPDF({
+    orientation: 'p',
+    unit: 'pt',
+    format: 'a4',
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const innerWidth = Math.max(0, pageWidth - marginPt * 2);
+  const innerHeight = Math.max(0, pageHeight - marginPt * 2);
+  const imgWidth = innerWidth || pageWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+  let heightLeft = imgHeight;
+  let position = marginPt;
+
+  pdf.addImage(imgData, imageFormat, marginPt, position, imgWidth, imgHeight, undefined, 'FAST');
+  heightLeft -= innerHeight || pageHeight;
+
+  while (heightLeft > 0) {
+    position -= innerHeight || pageHeight;
+    pdf.addPage();
+    pdf.addImage(imgData, imageFormat, marginPt, position, imgWidth, imgHeight, undefined, 'FAST');
+    heightLeft -= innerHeight || pageHeight;
+  }
+
+  const blob = pdf.output('blob');
+  const url = URL.createObjectURL(blob);
+  try {
+    if (filename) {
+      (window as any).__billvyapar_last_pdf_filename = filename;
+    }
+  } catch {
+    // ignore
+  }
+  return url;
 }
 
 export async function exportHtmlPagesToPdf(params: {

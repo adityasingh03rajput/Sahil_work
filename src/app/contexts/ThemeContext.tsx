@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'system' | 'warm' | 'ocean' | 'emerald' | 'rosewood';
 
 type ThemeContextValue = {
   theme: ThemeMode;
@@ -17,10 +17,14 @@ const getSystemTheme = (): 'light' | 'dark' => {
   return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
-const applyResolvedTheme = (resolvedTheme: 'light' | 'dark') => {
+const THEME_CLASSES = ['theme-warm', 'theme-ocean', 'theme-emerald', 'theme-rosewood'] as const;
+
+const applyResolvedTheme = (resolvedTheme: 'light' | 'dark', themeClass: (typeof THEME_CLASSES)[number] | null) => {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   root.classList.toggle('dark', resolvedTheme === 'dark');
+  THEME_CLASSES.forEach((c) => root.classList.remove(c));
+  if (themeClass) root.classList.add(themeClass);
 };
 
 type LegacyMediaQueryList = MediaQueryList & {
@@ -32,18 +36,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') return 'light';
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw === 'light' || raw === 'dark' || raw === 'system') return raw;
-    return 'light';
+    if (raw === 'light' || raw === 'dark' || raw === 'system' || raw === 'warm' || raw === 'ocean' || raw === 'emerald' || raw === 'rosewood') return raw;
+    return 'warm';
   });
 
   const resolvedTheme = useMemo(() => {
     if (theme === 'system') return getSystemTheme();
+    if (theme === 'warm' || theme === 'ocean' || theme === 'emerald' || theme === 'rosewood') return 'light';
     return theme;
   }, [theme]);
 
+  const themeClass = useMemo<(typeof THEME_CLASSES)[number] | null>(() => {
+    if (theme === 'warm') return 'theme-warm';
+    if (theme === 'ocean') return 'theme-ocean';
+    if (theme === 'emerald') return 'theme-emerald';
+    if (theme === 'rosewood') return 'theme-rosewood';
+    return null;
+  }, [theme]);
+
   useEffect(() => {
-    applyResolvedTheme(resolvedTheme);
-  }, [resolvedTheme]);
+    applyResolvedTheme(resolvedTheme, themeClass);
+  }, [resolvedTheme, theme]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -52,7 +65,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
-      applyResolvedTheme(getSystemTheme());
+      applyResolvedTheme(getSystemTheme(), null);
     };
 
     if (typeof mql.addEventListener === 'function') {

@@ -1,0 +1,30 @@
+Icon Files Needed for Electron Build
+=====================================
+
+Place the following icon files in this folder:
+
+1. icon.ico - Windows icon (256x256 pixels)
+   - Required for Windows builds
+   - Can be created from PNG using: https://convertio.co/png-ico/
+
+2. icon.png - Linux icon (512x512 pixels)
+   - Required for Linux builds
+   - Standard PNG format
+
+3. icon.icns - macOS icon
+   - Required for macOS builds
+   - Can be created from PNG using: https://cloudconvert.com/png-to-icns
+
+Temporary Solution:
+------------------
+If you don't have icons yet, the build will use default Electron icons.
+You can add custom icons later and rebuild.
+
+Creating Icons:
+--------------
+1. Design a 512x512 PNG logo
+2. Use online converters to create .ico and .icns versions
+3. Place all three files in this folder
+4. Rebuild the app
+
+The icon should represent the MasterAdmin application.

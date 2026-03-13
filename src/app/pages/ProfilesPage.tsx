@@ -8,12 +8,25 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Checkbox } from '../components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Building2, LogOut, Edit } from 'lucide-react';
+import { Plus, Building2, LogOut, Edit, Trash2 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { INDIAN_STATES } from '../utils/indianStates';
 import QRCode from 'qrcode';
 import { TraceLoader } from '../components/TraceLoader';
+
+interface BankAccount {
+  _id?: string;
+  label?: string;
+  bankName?: string;
+  bankBranch?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  upiId?: string;
+  upiQrText?: string;
+  isDefault?: boolean;
+}
 
 interface BusinessProfile {
   id: string;
@@ -33,6 +46,8 @@ interface BusinessProfile {
   accountNumber?: string;
   ifscCode?: string;
   upiId?: string;
+  bankAccounts?: BankAccount[];
+  defaultBankAccountId?: string;
   smsReminderTemplate?: string;
   customFields?: Record<string, any>;
 }
@@ -51,6 +66,76 @@ export function ProfilesPage() {
   const navigate = useNavigate();
 
   const apiUrl = API_URL;
+
+  const sanitizeBankAccounts = (accounts: any) => {
+    const arr = Array.isArray(accounts) ? accounts : [];
+    return arr
+      .map((a: any) => ({
+        _id: a?._id,
+        label: String(a?.label || '').trim() || undefined,
+        bankName: String(a?.bankName || '').trim() || undefined,
+        bankBranch: String(a?.bankBranch || '').trim() || undefined,
+        accountNumber: String(a?.accountNumber || '').trim() || undefined,
+        ifscCode: String(a?.ifscCode || '').trim() || undefined,
+        upiId: String(a?.upiId || '').trim() || undefined,
+        upiQrText: String(a?.upiQrText || '').trim() || undefined,
+        isDefault: !!a?.isDefault,
+      }))
+      .filter((a: any) => a.label || a.bankName || a.accountNumber || a.ifscCode || a.upiId || a.upiQrText);
+  };
+
+  const addEmptyBankAccount = (target: 'create' | 'edit') => {
+    if (target === 'create') {
+      setFormData((p) => ({
+        ...p,
+        bankAccounts: [...(Array.isArray(p.bankAccounts) ? p.bankAccounts : []), { label: '' }],
+      }));
+      return;
+    }
+    setEditFormData((p) => ({
+      ...p,
+      bankAccounts: [...(Array.isArray(p.bankAccounts) ? p.bankAccounts : []), { label: '' }],
+    }));
+  };
+
+  const updateBankAccount = (target: 'create' | 'edit', index: number, patch: Partial<BankAccount>) => {
+    const set = target === 'create' ? setFormData : setEditFormData;
+    set((prev: any) => {
+      const next = { ...(prev || {}) };
+      const list = Array.isArray(next.bankAccounts) ? [...next.bankAccounts] : [];
+      const row = { ...(list[index] || {}) };
+      list[index] = { ...row, ...patch };
+      next.bankAccounts = list;
+      return next;
+    });
+  };
+
+  const removeBankAccount = (target: 'create' | 'edit', index: number) => {
+    const set = target === 'create' ? setFormData : setEditFormData;
+    set((prev: any) => {
+      const next = { ...(prev || {}) };
+      const list = Array.isArray(next.bankAccounts) ? [...next.bankAccounts] : [];
+      list.splice(index, 1);
+      next.bankAccounts = list;
+      return next;
+    });
+  };
+
+  const handleSelectProfile = async (profile: BusinessProfile) => {
+    try {
+      localStorage.setItem('currentProfile', JSON.stringify(profile));
+    } catch {
+      // ignore
+    }
+    navigate('/dashboard');
+  };
+
+  const handleEditClick = (profile: BusinessProfile, e?: any) => {
+    if (e?.stopPropagation) e.stopPropagation();
+    setEditingProfileId(profile.id);
+    setEditFormData({ ...profile });
+    setShowEditDialog(true);
+  };
 
   useEffect(() => {
     loadProfiles();
@@ -77,82 +162,17 @@ export function ProfilesPage() {
     }
   };
 
-  const buildUpiUri = (upiId?: string) => {
-    const pa = String(upiId || '').trim();
-    if (!pa) return '';
-    const pn = String(editFormData.businessName || formData.businessName || '').trim();
-    const params = new URLSearchParams();
-    params.set('pa', pa);
-    if (pn) params.set('pn', pn);
-    params.set('cu', 'INR');
-    params.set('tn', 'Payment via BillVyapar');
-    return `upi://pay?${params.toString()}`;
-  };
-
-  const buildUpiUriForProfile = (profile: BusinessProfile) => {
-    const pa = String(profile.upiId || '').trim();
-    if (!pa) return '';
-    const pn = String(profile.businessName || '').trim();
-    const params = new URLSearchParams();
-    params.set('pa', pa);
-    if (pn) params.set('pn', pn);
-    params.set('cu', 'INR');
-    params.set('tn', 'Payment via BillVyapar');
-    return `upi://pay?${params.toString()}`;
-  };
-
-  useEffect(() => {
-    const run = async () => {
-      const uri = buildUpiUri(editFormData.upiId);
-      if (!uri) {
-        setUpiQrDataUrl('');
-        return;
-      }
-      try {
-        const url = await QRCode.toDataURL(uri, { margin: 1, width: 220 });
-        setUpiQrDataUrl(url);
-      } catch {
-        setUpiQrDataUrl('');
-      }
-    };
-    run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editFormData.upiId, editFormData.businessName]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const run = async () => {
-      const next: Record<string, string> = {};
-      await Promise.all(
-        profiles.map(async (p) => {
-          const uri = buildUpiUriForProfile(p);
-          if (!uri) return;
-          try {
-            const url = await QRCode.toDataURL(uri, { margin: 1, width: 300 });
-            next[p.id] = url;
-          } catch {
-            // ignore
-          }
-        })
-      );
-
-      if (cancelled) return;
-      setProfileUpiQrMap(next);
-    };
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [profiles]);
-
   const handleCreateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
       const addressValue = String(formData.billingAddress || '').trim();
-      const payload = { ...formData, billingAddress: addressValue || null, shippingAddress: addressValue || null };
+      const payload = {
+        ...formData,
+        billingAddress: addressValue || null,
+        shippingAddress: addressValue || null,
+        bankAccounts: sanitizeBankAccounts((formData as any)?.bankAccounts),
+      };
       const response = await fetch(`${apiUrl}/profiles`, {
         method: 'POST',
         headers: {
@@ -178,39 +198,6 @@ export function ProfilesPage() {
     }
   };
 
-  const handleSelectProfile = (profile: BusinessProfile) => {
-    const migrate = async () => {
-      try {
-        const key = `profileDataMigrated:${profile.id}`;
-        if (!localStorage.getItem(key)) {
-          const res = await fetch(`${apiUrl}/profiles/${profile.id}/migrate-data`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'X-Device-ID': deviceId,
-            },
-          });
-          const data = await res.json();
-          if (!data?.error) {
-            localStorage.setItem(key, '1');
-          }
-        }
-      } catch {
-        // ignore
-      }
-    };
-
-    localStorage.setItem('currentProfile', JSON.stringify(profile));
-    migrate().finally(() => navigate('/dashboard'));
-  };
-
-  const handleEditClick = (profile: BusinessProfile, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingProfileId(profile.id);
-    setEditFormData({ ...profile });
-    setShowEditDialog(true);
-  };
-
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -218,7 +205,12 @@ export function ProfilesPage() {
 
     try {
       const addressValue = String(editFormData.billingAddress || '').trim();
-      const payload = { ...editFormData, billingAddress: addressValue || null, shippingAddress: addressValue || null };
+      const payload = {
+        ...editFormData,
+        billingAddress: addressValue || null,
+        shippingAddress: addressValue || null,
+        bankAccounts: sanitizeBankAccounts((editFormData as any)?.bankAccounts),
+      };
       const response = await fetch(`${apiUrl}/profiles/${editingProfileId}`, {
         method: 'PUT',
         headers: {
@@ -564,6 +556,85 @@ export function ProfilesPage() {
                   </div>
                 </div>
 
+                <div className="rounded-lg border p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold">Bank Accounts</div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => addEmptyBankAccount('edit')}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Bank Account
+                    </Button>
+                  </div>
+
+                  {(Array.isArray(editFormData.bankAccounts) ? editFormData.bankAccounts : []).length === 0 ? (
+                    <div className="text-sm text-muted-foreground">No bank accounts added.</div>
+                  ) : null}
+
+                  <div className="space-y-3">
+                    {(Array.isArray(editFormData.bankAccounts) ? editFormData.bankAccounts : []).map((a, idx) => (
+                      <div key={String(a?._id || idx)} className="rounded-md border p-3 space-y-3 bg-background/60">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={!!a?.isDefault}
+                              onCheckedChange={(v) => {
+                                const nextChecked = !!v;
+                                const list = Array.isArray(editFormData.bankAccounts) ? [...editFormData.bankAccounts] : [];
+                                const next = list.map((row, i) => ({ ...(row || {}), isDefault: i === idx ? nextChecked : false }));
+                                setEditFormData((p) => ({ ...(p || {}), bankAccounts: next }));
+                              }}
+                            />
+                            <div className="text-sm">Default</div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeBankAccount('edit', idx)}
+                            aria-label="Remove bank account"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label>Label</Label>
+                            <Input value={a?.label || ''} onChange={(e) => updateBankAccount('edit', idx, { label: e.target.value })} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Bank Name</Label>
+                            <Input value={a?.bankName || ''} onChange={(e) => updateBankAccount('edit', idx, { bankName: e.target.value })} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Branch</Label>
+                            <Input value={a?.bankBranch || ''} onChange={(e) => updateBankAccount('edit', idx, { bankBranch: e.target.value })} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Account Number</Label>
+                            <Input value={a?.accountNumber || ''} onChange={(e) => updateBankAccount('edit', idx, { accountNumber: e.target.value })} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>IFSC</Label>
+                            <Input value={a?.ifscCode || ''} onChange={(e) => updateBankAccount('edit', idx, { ifscCode: e.target.value })} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>UPI ID</Label>
+                            <Input value={a?.upiId || ''} onChange={(e) => updateBankAccount('edit', idx, { upiId: e.target.value })} className="h-9" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label>UPI QR Text</Label>
+                            <Input value={a?.upiQrText || ''} onChange={(e) => updateBankAccount('edit', idx, { upiQrText: e.target.value })} className="h-9" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
                     Cancel
@@ -757,6 +828,85 @@ export function ProfilesPage() {
                     onChange={(e) => setFormData({...formData, upiId: e.target.value})}
                     placeholder="business@upi"
                   />
+                </div>
+
+                <div className="rounded-lg border p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold">Bank Accounts</div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => addEmptyBankAccount('create')}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Bank Account
+                    </Button>
+                  </div>
+
+                  {(Array.isArray(formData.bankAccounts) ? formData.bankAccounts : []).length === 0 ? (
+                    <div className="text-sm text-muted-foreground">No bank accounts added.</div>
+                  ) : null}
+
+                  <div className="space-y-3">
+                    {(Array.isArray(formData.bankAccounts) ? formData.bankAccounts : []).map((a, idx) => (
+                      <div key={String(a?._id || idx)} className="rounded-md border p-3 space-y-3 bg-background/60">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={!!a?.isDefault}
+                              onCheckedChange={(v) => {
+                                const nextChecked = !!v;
+                                const list = Array.isArray(formData.bankAccounts) ? [...formData.bankAccounts] : [];
+                                const next = list.map((row, i) => ({ ...(row || {}), isDefault: i === idx ? nextChecked : false }));
+                                setFormData((p) => ({ ...(p || {}), bankAccounts: next }));
+                              }}
+                            />
+                            <div className="text-sm">Default</div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeBankAccount('create', idx)}
+                            aria-label="Remove bank account"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label>Label</Label>
+                            <Input value={a?.label || ''} onChange={(e) => updateBankAccount('create', idx, { label: e.target.value })} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Bank Name</Label>
+                            <Input value={a?.bankName || ''} onChange={(e) => updateBankAccount('create', idx, { bankName: e.target.value })} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Branch</Label>
+                            <Input value={a?.bankBranch || ''} onChange={(e) => updateBankAccount('create', idx, { bankBranch: e.target.value })} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Account Number</Label>
+                            <Input value={a?.accountNumber || ''} onChange={(e) => updateBankAccount('create', idx, { accountNumber: e.target.value })} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>IFSC</Label>
+                            <Input value={a?.ifscCode || ''} onChange={(e) => updateBankAccount('create', idx, { ifscCode: e.target.value })} className="h-9" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>UPI ID</Label>
+                            <Input value={a?.upiId || ''} onChange={(e) => updateBankAccount('create', idx, { upiId: e.target.value })} className="h-9" />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label>UPI QR Text</Label>
+                            <Input value={a?.upiQrText || ''} onChange={(e) => updateBankAccount('create', idx, { upiQrText: e.target.value })} className="h-9" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">

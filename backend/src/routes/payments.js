@@ -56,6 +56,7 @@ paymentsRouter.post('/', async (req, res, next) => {
     const documentId = body.documentId ? String(body.documentId) : null;
     const customerId = body.customerId ? String(body.customerId) : null;
     const supplierId = body.supplierId ? String(body.supplierId) : null;
+    const bankAccountId = body.bankAccountId ? String(body.bankAccountId) : null;
 
     if (documentId && !mongoose.Types.ObjectId.isValid(documentId)) {
       return res.status(400).json({ error: 'Invalid documentId' });
@@ -65,6 +66,9 @@ paymentsRouter.post('/', async (req, res, next) => {
     }
     if (supplierId && !mongoose.Types.ObjectId.isValid(supplierId)) {
       return res.status(400).json({ error: 'Invalid supplierId' });
+    }
+    if (bankAccountId && !mongoose.Types.ObjectId.isValid(bankAccountId)) {
+      return res.status(400).json({ error: 'Invalid bankAccountId' });
     }
 
     // Validate document belongs to current user/profile when provided
@@ -81,6 +85,7 @@ paymentsRouter.post('/', async (req, res, next) => {
       documentId,
       customerId,
       supplierId,
+      bankAccountId,
       amount,
       currency: body.currency || 'INR',
       date,
@@ -116,7 +121,7 @@ paymentsRouter.post('/', async (req, res, next) => {
 
 paymentsRouter.get('/', async (req, res, next) => {
   try {
-    const { documentId, customerId } = req.query || {};
+    const { documentId, customerId, bankAccountId } = req.query || {};
 
     const filter = { userId: req.userId, profileId: req.profileId };
 
@@ -134,6 +139,18 @@ paymentsRouter.get('/', async (req, res, next) => {
         return res.status(400).json({ error: 'Invalid customerId' });
       }
       filter.customerId = id;
+    }
+
+    if (bankAccountId) {
+      const id = String(bankAccountId);
+      if (id === '__null__') {
+        filter.bankAccountId = null;
+      } else {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+          return res.status(400).json({ error: 'Invalid bankAccountId' });
+        }
+        filter.bankAccountId = id;
+      }
     }
 
     const payments = await Payment.find(filter).sort({ date: -1, createdAt: -1 });

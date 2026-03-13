@@ -6,6 +6,18 @@ backend/node_modules/
 dist/
 backend/dist/
 
+# Electron build output
+release/
+out/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+
+# Android / APK artifacts
+*.apk
+*.idsig
+
 # local env files
 .env
 .env.*

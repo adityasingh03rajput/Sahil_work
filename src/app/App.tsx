@@ -15,10 +15,19 @@ import { AnalyticsPageWrapper } from './pages/AnalyticsPageWrapper';
 import { SubscriptionPageWrapper } from './pages/SubscriptionPageWrapper';
 import { GstReportsPage } from './pages/GstReportsPage';
 import { PartyLedgerPageWrapper } from './pages/PartyLedgerPageWrapper';
+import { BankAccountsPageWrapper } from './pages/BankAccountsPageWrapper';
 import { PosPageWrapper } from './pages/PosPageWrapper';
 import { ExtraExpensesPageWrapper } from './pages/ExtraExpensesPageWrapper';
 import { VyaparKhataPageWrapper } from './pages/VyaparKhataPageWrapper';
 import { VyaparKhataPageNewWrapper } from './pages/VyaparKhataPageNewWrapper';
+import { MasterAdminLoginPage } from './pages/MasterAdmin/LoginPage';
+import { MasterAdminDashboardPage } from './pages/MasterAdmin/DashboardPage';
+import { MasterAdminTenantsPage } from './pages/MasterAdmin/TenantsPage';
+import { MasterAdminTenantDetailsPage } from './pages/MasterAdmin/TenantDetailsPage';
+import { MasterAdminPlansPage } from './pages/MasterAdmin/PlansPage';
+import { MasterAdminAuditPage } from './pages/MasterAdmin/AuditPage';
+import { MasterAdminUsersPage } from './pages/MasterAdmin/UsersPage';
+import { MasterAdminDataPage } from './pages/MasterAdmin/DataPage';
 
 const router = createBrowserRouter([
   {
@@ -78,6 +87,10 @@ const router = createBrowserRouter([
     Component: SubscriptionPageWrapper,
   },
   {
+    path: "/bank-accounts",
+    Component: BankAccountsPageWrapper,
+  },
+  {
     path: "/pos",
     Component: PosPageWrapper,
   },
@@ -92,6 +105,38 @@ const router = createBrowserRouter([
   {
     path: "/vyapar-khata-new",
     Component: VyaparKhataPageNewWrapper,
+  },
+  {
+    path: "/master-admin/login",
+    Component: MasterAdminLoginPage,
+  },
+  {
+    path: "/master-admin/dashboard",
+    Component: MasterAdminDashboardPage,
+  },
+  {
+    path: "/master-admin/tenants",
+    Component: MasterAdminTenantsPage,
+  },
+  {
+    path: "/master-admin/tenants/:id",
+    Component: MasterAdminTenantDetailsPage,
+  },
+  {
+    path: "/master-admin/plans",
+    Component: MasterAdminPlansPage,
+  },
+  {
+    path: "/master-admin/audit",
+    Component: MasterAdminAuditPage,
+  },
+  {
+    path: "/master-admin/users",
+    Component: MasterAdminUsersPage,
+  },
+  {
+    path: "/master-admin/data",
+    Component: MasterAdminDataPage,
   },
 ]);
 

@@ -103,6 +103,7 @@ const documentSchema = new mongoose.Schema(
     departureToState: { type: String, default: null },
     departureToPostalCode: { type: String, default: null },
 
+    bankAccountId: { type: mongoose.Schema.Types.ObjectId, default: null },
     bankName: { type: String, default: null },
     bankBranch: { type: String, default: null },
     bankAccountNumber: { type: String, default: null },

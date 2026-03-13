@@ -7,12 +7,13 @@ import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';
 import { FileText, Shield, Cloud, Zap } from 'lucide-react';
-import { API_URL } from '../config/api';
+import { API_URL, clearApiUrlOverride, getApiUrlOverride, setApiUrlOverride } from '../config/api';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 
 export function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [mode, setMode] = useState<'auth' | 'forgot' | 'reset'>('auth');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -21,6 +22,10 @@ export function AuthPage() {
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpChannel, setOtpChannel] = useState<'sms' | 'email' | 'both'>('sms');
+
+  const [apiEditOpen, setApiEditOpen] = useState(false);
+  const [apiDraft, setApiDraft] = useState('');
+  const apiOverrideActive = !!getApiUrlOverride();
 
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const [checkingBackend, setCheckingBackend] = useState(false);
@@ -60,6 +65,10 @@ export function AuthPage() {
       clearInterval(id);
     };
   }, []);
+
+  useEffect(() => {
+    if (apiEditOpen) setApiDraft(API_URL);
+  }, [apiEditOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,11 +156,67 @@ export function AuthPage() {
       <div className="container mx-auto px-4 py-8 sm:py-12">
         <div className="max-w-md mx-auto mb-3">
           <div className="flex items-center justify-between text-xs">
-            <div className="text-muted-foreground truncate">API: {API_URL}</div>
+            <div className="text-muted-foreground truncate">
+              API: {API_URL}
+              {apiOverrideActive ? ' (custom)' : ''}
+              {!apiEditOpen ? (
+                <button
+                  type="button"
+                  className="ml-2 underline"
+                  onClick={() => setApiEditOpen(true)}
+                >
+                  Change
+                </button>
+              ) : null}
+            </div>
             <div className={`font-medium ${backendOnline ? 'text-green-700' : backendOnline === false ? 'text-red-700' : 'text-muted-foreground'}`}>
               {checkingBackend && backendOnline === null ? 'Checking…' : backendOnline ? 'Backend: Connected' : backendOnline === false ? 'Backend: Disconnected' : 'Backend: Unknown'}
             </div>
           </div>
+
+          {apiEditOpen ? (
+            <div className="mt-2 flex items-center gap-2">
+              <Input
+                value={apiDraft}
+                onChange={(e) => setApiDraft(e.target.value)}
+                placeholder="https://your-backend.com"
+                className="h-8 text-xs"
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  const next = setApiUrlOverride(apiDraft);
+                  toast.success(`API set to ${next}`);
+                  window.location.reload();
+                }}
+              >
+                Save
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setApiEditOpen(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  clearApiUrlOverride();
+                  toast.success('API reset to default');
+                  window.location.reload();
+                }}
+              >
+                Reset
+              </Button>
+            </div>
+          ) : null}
         </div>
 
         {/* Header */}

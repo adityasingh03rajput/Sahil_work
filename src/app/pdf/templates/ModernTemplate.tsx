@@ -1,9 +1,11 @@
 import React from 'react';
 import type { PdfTemplateProps } from '../types';
-import { Box, Hr, KeyValue, KeyValueOptional, Label, Money, Muted, safeText, SmallText, TemplateFrame, docTitleFromType, amountInWordsINR } from './TemplateFrame';
+import { Box, Hr, KeyValue, KeyValueOptional, Label, Money, Muted, safeText, SmallText, TemplateFrame, docTitleFromType, amountInWordsINR, formatInlineAddress, formatStateDisplay } from './TemplateFrame';
 
 export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
   const taxes = Number(doc.totalCgst || 0) + Number(doc.totalSgst || 0) + Number(doc.totalIgst || 0);
+  const receivedAmount = Math.max(0, Number((doc as any)?.receivedAmount || 0));
+  const balanceAmount = Math.max(0, Number(doc.grandTotal || 0) - receivedAmount);
   const typeLower = String(doc.type || '').toLowerCase();
   const isQuotation = typeLower === 'quotation';
   const isOrder = typeLower === 'order';
@@ -102,14 +104,32 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 14, fontWeight: 900 }}>{profile.businessName}</div>
               {!!profile.billingAddress && (
-                <div style={{ fontSize: 11, opacity: 0.85, marginTop: 10, whiteSpace: 'pre-line' }}>{profile.billingAddress}</div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    opacity: 0.85,
+                    marginTop: 10,
+                    maxWidth: 260,
+                    marginLeft: 'auto',
+                    whiteSpace: 'normal',
+                    overflowWrap: 'anywhere',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {formatInlineAddress(profile.billingAddress)}
+                </div>
               )}
               {!!profile.phone && <div style={{ fontSize: 11, opacity: 0.85, marginTop: 8 }}>{profile.phone}</div>}
               {!!profile.email && <div style={{ fontSize: 11, opacity: 0.85 }}>{profile.email}</div>}
               {!!profile.gstin && <div style={{ fontSize: 11, opacity: 0.85 }}>GSTIN: {profile.gstin}</div>}
-              {!!profile.gstin && businessStateCode && <div style={{ fontSize: 11, opacity: 0.85 }}>State Code: {businessStateCode}</div>}
-              <div style={{ fontSize: 11, opacity: 0.85, marginTop: 10 }}>{doc.documentNumber}</div>
-              {!!doc.date && <div style={{ fontSize: 11, opacity: 0.85 }}>{doc.date}</div>}
+              {!!profile.gstin && businessStateCode && (
+                <div style={{ fontSize: 11, opacity: 0.85 }}>State: {formatStateDisplay(businessStateCode, null)}</div>
+              )}
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                <div style={{ fontSize: 11, opacity: 0.9, fontWeight: 800 }}>Doc No: {doc.documentNumber}</div>
+                {!!doc.date && <div style={{ fontSize: 11, opacity: 0.85 }}>Date: {doc.date}</div>}
+                {!!doc.dueDate && <div style={{ fontSize: 11, opacity: 0.85 }}>Due: {doc.dueDate}</div>}
+              </div>
             </div>
           </div>
         </div>
@@ -123,19 +143,22 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
                   {safeText(doc.customerName) || '—'}
                 </div>
                 {!!doc.customerAddress && (
-                  <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280', whiteSpace: 'pre-line' }}>
-                    {doc.customerAddress}
+                  <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>{formatInlineAddress(doc.customerAddress)}</div>
+                )}
+                {!!doc.customerMobile && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>Phone: {doc.customerMobile}</div>}
+                {!!doc.customerGstin && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>GSTIN: {doc.customerGstin}</div>}
+                {(!!doc.customerStateCode || !!doc.placeOfSupply) && (
+                  <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>
+                    State: {formatStateDisplay(doc.customerStateCode || null, doc.placeOfSupply || null)}
                   </div>
                 )}
-                {!!doc.customerGstin && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>GSTIN: {doc.customerGstin}</div>}
-                {!!doc.customerStateCode && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>State Code: {doc.customerStateCode}</div>}
               </Box>
 
               {!!doc.deliveryAddress && (
                 <div style={{ marginTop: 12 }}>
                   <Box>
                     <Label>Ship To</Label>
-                    <div style={{ marginTop: 8, fontSize: 11, color: '#6B7280', whiteSpace: 'pre-line' }}>{doc.deliveryAddress}</div>
+                    <div style={{ marginTop: 8, fontSize: 11, color: '#6B7280' }}>{formatInlineAddress(doc.deliveryAddress)}</div>
                   </Box>
                 </div>
               )}
@@ -191,8 +214,8 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
           )}
 
           <div style={{ marginTop: 16, border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden' }}>
-            <div style={{ background: '#F3F4F6', padding: '10px 12px' }}>
-              <div style={{ display: 'flex', fontSize: 12, fontWeight: 900, color: '#111827' }}>
+            <div style={{ background: '#F3F4F6', padding: '9px 12px' }}>
+              <div style={{ display: 'flex', fontSize: 11, fontWeight: 900, color: '#111827', letterSpacing: 0.2 }}>
                 <div style={{ width: 34, textAlign: 'center' }}>S.N.</div>
                 <div style={{ flex: 1 }}>Item</div>
                 <div style={{ width: 72, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8 }}>HSN/SAC</div>
@@ -209,9 +232,9 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
               const rowBg = idx % 2 ? '#FFFFFF' : '#FAFAFA';
               const c = lineComputed(it);
               return (
-                <div key={idx} style={{ padding: '10px 12px', background: rowBg, borderTop: '1px solid #E5E7EB' }}>
-                  <div style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
-                    <div style={{ width: 34, textAlign: 'center', fontSize: 11, color: '#111827', fontWeight: 800 }}>{idx + 1}</div>
+                <div key={idx} style={{ padding: '9px 12px', background: rowBg, borderTop: '1px solid #E5E7EB' }}>
+                  <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start' }}>
+                    <div style={{ width: 34, textAlign: 'center', fontSize: 11, color: '#111827', fontWeight: 800, paddingTop: 1 }}>{idx + 1}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 800, color: '#111827' }}>{it.name}</div>
                       {!!it.sku && <div style={{ marginTop: 2, fontSize: 10, color: '#6B7280' }}>SKU: {it.sku}</div>}
@@ -264,7 +287,7 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
                   </Box>
                 </div>
               )}
-              {(profile.upiId || doc.upiId) && (
+              {!isOrder && (profile.upiId || doc.upiId) && (
                 <div style={{ marginTop: doc.notes ? 12 : 0 }}>
                   <Box>
                     <Label>Payment</Label>
@@ -311,7 +334,7 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
                 </div>
               )}
 
-              {(profile.bankName || (profile as any).accountNumber || (profile as any).ifscCode || doc.bankName || doc.bankAccountNumber || doc.bankIfsc) && (
+              {!isOrder && (profile.bankName || (profile as any).accountNumber || (profile as any).ifscCode || doc.bankName || doc.bankAccountNumber || doc.bankIfsc) && (
                 <div style={{ marginTop: 12 }}>
                   <Box>
                     <Label>Bank Details</Label>
@@ -344,6 +367,8 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
                     label="Charges"
                     value={<Money value={Number(doc.transportCharges || 0) + Number(doc.additionalCharges || 0) + Number(doc.packingHandlingCharges || 0) + Number(doc.tcs || 0)} />}
                   />
+                  <KeyValue label="Received" value={<Money value={receivedAmount} />} />
+                  <KeyValue label="Balance" value={<Money value={balanceAmount} />} />
                   {isQuoteLike && !!Number(doc.packingHandlingCharges || 0) && (
                     <KeyValue label="Packing" value={<Money value={Number(doc.packingHandlingCharges || 0)} />} />
                   )}

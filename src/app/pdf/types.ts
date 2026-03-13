@@ -1,4 +1,4 @@
-export type PdfTemplateId = 'classic' | 'modern' | 'minimal';
+export type PdfTemplateId = 'classic' | 'modern' | 'minimal' | 'professional';
 
 export type DocumentItem = {
   name: string;
@@ -72,6 +72,7 @@ export type DocumentDto = {
   departureToState?: string | null;
   departureToPostalCode?: string | null;
 
+  bankAccountId?: string | null;
   bankName?: string | null;
   bankBranch?: string | null;
   bankAccountNumber?: string | null;
@@ -128,6 +129,18 @@ export type BusinessProfileDto = {
   accountNumber?: string | null;
   ifscCode?: string | null;
   upiId?: string | null;
+  bankAccounts?: Array<{
+    _id?: string;
+    label?: string | null;
+    bankName?: string | null;
+    bankBranch?: string | null;
+    accountNumber?: string | null;
+    ifscCode?: string | null;
+    upiId?: string | null;
+    upiQrText?: string | null;
+    isDefault?: boolean;
+  }>;
+  defaultBankAccountId?: string | null;
 };
 
 export type PdfTemplateProps = {
