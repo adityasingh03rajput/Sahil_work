@@ -5,7 +5,7 @@ import { User } from '../models/User.js';
 import { Subscription } from '../models/Subscription.js';
 import { Session } from '../models/Session.js';
 import { PasswordResetOtp } from '../models/PasswordResetOtp.js';
-import { signAccessToken } from '../lib/jwt.js';
+import { signAccessToken, decodeAccessToken } from '../lib/jwt.js';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { canSendSms, sendSms } from '../lib/twilio.js';
 import { canSendEmail, sendEmail } from '../lib/email.js';
@@ -160,9 +160,16 @@ authRouter.post('/verify-session', requireAuth, requireValidDeviceSession, async
   res.json({ valid: true, userId: req.userId });
 });
 
-authRouter.post('/signout', requireAuth, async (req, res, next) => {
+authRouter.post('/signout', async (req, res, next) => {
   try {
-    await Session.deleteOne({ userId: req.userId });
+    const header = req.header('Authorization') || '';
+    const token = header.startsWith('Bearer ') ? header.slice('Bearer '.length) : null;
+    if (token) {
+      const payload = decodeAccessToken(token);
+      if (payload?.sub) {
+        await Session.deleteOne({ userId: payload.sub });
+      }
+    }
     res.json({ ok: true });
   } catch (err) {
     next(err);

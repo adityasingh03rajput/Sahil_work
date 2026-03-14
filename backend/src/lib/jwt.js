@@ -9,6 +9,11 @@ export function verifyAccessToken(token) {
   return jwt.verify(token, process.env.JWT_SECRET);
 }
 
+export function decodeAccessToken(token) {
+  // Decode without verifying expiry — used for signout so expired tokens can still clear sessions
+  return jwt.decode(token);
+}
+
 export function signSubscriptionToken({ userId, profileId, plan, endDate }) {
   const serverNowSec = Math.floor(Date.now() / 1000);
   const endDateSec = Math.floor(new Date(endDate).getTime() / 1000);
