@@ -51,7 +51,7 @@ import {
 } from '../utils/subscriptionValidation';
 
 interface AppLayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
@@ -752,7 +752,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   </div>
                 </div>
               )}
-              <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 max-w-screen-2xl">
+              <div className="app-container">
                 {children}
               </div>
             </>

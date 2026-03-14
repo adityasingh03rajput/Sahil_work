@@ -14,7 +14,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string, phone: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -119,24 +119,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signIn(email, password);
   };
 
-  const signOut = () => {
+  const signOut = async () => {
     const token = localStorage.getItem('accessToken');
     if (token) {
-      fetch(`${apiUrl}/auth/signout`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'X-Device-ID': deviceId,
-        },
-      }).catch(() => {
-        // ignore
-      });
+      try {
+        await fetch(`${apiUrl}/auth/signout`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'X-Device-ID': deviceId,
+          },
+        });
+      } catch {
+        // ignore network errors — session will expire naturally
+      }
     }
     setUser(null);
     setAccessToken(null);
     localStorage.removeItem('accessToken');
     localStorage.removeItem('user');
     localStorage.removeItem('currentProfile');
+    localStorage.removeItem('deviceId'); // clear device binding so next login on any device works
     window.location.href = '/';
   };
 

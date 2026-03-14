@@ -1677,8 +1677,8 @@ export function CreateDocumentPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-[calc(100vh-64px)] bg-muted/30">
-      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      <div className="bg-muted/30">
+      <div>
         <div className="space-y-4">
             <Card className="shadow-sm">
               <CardContent className="p-4">
@@ -1709,10 +1709,10 @@ export function CreateDocumentPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" onClick={() => navigate('/documents')} className="h-9">
+                    <Button type="button" variant="outline" onClick={() => navigate('/documents')}>
                       Cancel
                     </Button>
-                    <Button onClick={handleSave} disabled={saving} className="h-9 px-5">
+                    <Button onClick={handleSave} disabled={saving} className="px-5">
                       <Save className="h-4 w-4 mr-2" />
                       {saving ? 'Saving...' : 'Save'}
                     </Button>
@@ -1732,7 +1732,7 @@ export function CreateDocumentPage() {
                       <Label>{partyKind === 'supplier' ? 'Supplier' : 'Customer'} *</Label>
                       <Popover open={partyPopoverOpen} onOpenChange={setPartyPopoverOpen}>
                         <PopoverTrigger asChild>
-                          <Button type="button" variant="outline" role="combobox" className="w-full justify-between h-9">
+                          <Button type="button" variant="outline" role="combobox" className="w-full justify-between">
                             <span className="truncate">
                               {partyId
                                 ? (presetCustomers.find((c) => String(c.id) === String(partyId))?.name || 'Select')
@@ -1796,7 +1796,7 @@ export function CreateDocumentPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>{partyLabel} Name</Label>
-                        <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="h-9" />
+                        <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>GSTIN</Label>
@@ -1817,7 +1817,6 @@ export function CreateDocumentPage() {
                             });
                             setPartyContactErrors((p) => ({ ...p, gstin: errs.gstin }));
                           }}
-                          className="h-9"
                         />
                         {partyContactErrors.gstin ? <div className="text-xs text-destructive">{partyContactErrors.gstin}</div> : null}
                       </div>
@@ -1829,7 +1828,7 @@ export function CreateDocumentPage() {
 
                       <div className="space-y-2">
                         <Label>Contact Person</Label>
-                        <Input value={customerContactPerson} onChange={(e) => setCustomerContactPerson(e.target.value)} className="h-9" />
+                        <Input value={customerContactPerson} onChange={(e) => setCustomerContactPerson(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>Mobile</Label>
@@ -1850,7 +1849,6 @@ export function CreateDocumentPage() {
                             });
                             setPartyContactErrors((p) => ({ ...p, phone: errs.phone }));
                           }}
-                          className="h-9"
                         />
                         {partyContactErrors.phone ? <div className="text-xs text-destructive">{partyContactErrors.phone}</div> : null}
                       </div>
@@ -1873,13 +1871,12 @@ export function CreateDocumentPage() {
                             });
                             setPartyContactErrors((p) => ({ ...p, email: errs.email }));
                           }}
-                          className="h-9"
                         />
                         {partyContactErrors.email ? <div className="text-xs text-destructive">{partyContactErrors.email}</div> : null}
                       </div>
                       <div className="space-y-2">
                         <Label>State Code</Label>
-                        <Input value={customerStateCode} onChange={(e) => setCustomerStateCode(e.target.value)} className="h-9" />
+                        <Input value={customerStateCode} onChange={(e) => setCustomerStateCode(e.target.value)} />
                       </div>
 
                       <div className="md:col-span-2 space-y-2">
@@ -1911,21 +1908,20 @@ export function CreateDocumentPage() {
                           onChange={(e) => {
                             if (type !== 'proforma') setReferenceNo(e.target.value);
                           }}
-                          className="h-9"
                         />
                       </div>
                       <div className="space-y-2">
                         <Label>Invoice Date</Label>
-                        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-9" />
+                        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>Due Date</Label>
-                        <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-9" />
+                        <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>State of Supply</Label>
                         <Select value={placeOfSupply} onValueChange={setPlaceOfSupply}>
-                          <SelectTrigger className="h-9">
+                          <SelectTrigger>
                             <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1940,27 +1936,27 @@ export function CreateDocumentPage() {
 
                       <div className="space-y-2">
                         <Label>Invoice No</Label>
-                        <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} className="h-9" />
+                        <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>Challan No</Label>
-                        <Input value={challanNo} onChange={(e) => setChallanNo(e.target.value)} className="h-9" />
+                        <Input value={challanNo} onChange={(e) => setChallanNo(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>Order No</Label>
-                        <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} className="h-9" />
+                        <Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>Revision No</Label>
-                        <Input value={revisionNumber} onChange={(e) => setRevisionNumber(e.target.value)} className="h-9" />
+                        <Input value={revisionNumber} onChange={(e) => setRevisionNumber(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>PO No</Label>
-                        <Input value={purchaseOrderNo} onChange={(e) => setPurchaseOrderNo(e.target.value)} className="h-9" />
+                        <Input value={purchaseOrderNo} onChange={(e) => setPurchaseOrderNo(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>PO Date</Label>
-                        <Input type="date" value={poDate} onChange={(e) => setPoDate(e.target.value)} className="h-9" />
+                        <Input type="date" value={poDate} onChange={(e) => setPoDate(e.target.value)} />
                       </div>
                     </div>
                   </CardContent>
@@ -1976,42 +1972,42 @@ export function CreateDocumentPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                   <div className="space-y-2">
                     <Label>E-Way Bill No</Label>
-                    <Input value={ewayBillNo} onChange={(e) => setEwayBillNo(e.target.value)} className="h-9" />
+                    <Input value={ewayBillNo} onChange={(e) => setEwayBillNo(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>E-Way Bill Date</Label>
-                    <Input type="date" value={ewayBillDate} onChange={(e) => setEwayBillDate(e.target.value)} className="h-9" />
+                    <Input type="date" value={ewayBillDate} onChange={(e) => setEwayBillDate(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Valid Upto</Label>
-                    <Input type="date" value={ewayBillValidUpto} onChange={(e) => setEwayBillValidUpto(e.target.value)} className="h-9" />
+                    <Input type="date" value={ewayBillValidUpto} onChange={(e) => setEwayBillValidUpto(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Transporter Name</Label>
-                    <Input value={ewayBillTransporterName} onChange={(e) => setEwayBillTransporterName(e.target.value)} className="h-9" />
+                    <Input value={ewayBillTransporterName} onChange={(e) => setEwayBillTransporterName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Vehicle No</Label>
-                    <Input value={ewayBillVehicleNo} onChange={(e) => setEwayBillVehicleNo(e.target.value)} className="h-9" />
+                    <Input value={ewayBillVehicleNo} onChange={(e) => setEwayBillVehicleNo(e.target.value)} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
                   <div className="space-y-2">
                     <Label>Transporter Doc No</Label>
-                    <Input value={ewayBillTransporterDocNo} onChange={(e) => setEwayBillTransporterDocNo(e.target.value)} className="h-9" />
+                    <Input value={ewayBillTransporterDocNo} onChange={(e) => setEwayBillTransporterDocNo(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Distance (Km)</Label>
-                    <Input value={ewayBillDistanceKm} onChange={(e) => setEwayBillDistanceKm(e.target.value)} className="h-9" />
+                    <Input value={ewayBillDistanceKm} onChange={(e) => setEwayBillDistanceKm(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Transport</Label>
-                    <Input value={transport} onChange={(e) => setTransport(e.target.value)} className="h-9" />
+                    <Input value={transport} onChange={(e) => setTransport(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Transport ID</Label>
-                    <Input value={transportId} onChange={(e) => setTransportId(e.target.value)} className="h-9" />
+                    <Input value={transportId} onChange={(e) => setTransportId(e.target.value)} />
                   </div>
                 </div>
               </CardContent>
@@ -2029,7 +2025,7 @@ export function CreateDocumentPage() {
                       <div className="px-2 py-2">
                         <div>PRICE/UNIT</div>
                         <Select value={proformaPriceMode} onValueChange={(v) => setProformaPriceMode(v as any)}>
-                          <SelectTrigger className="h-7 mt-1">
+                          <SelectTrigger size="sm" className="mt-1">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -2068,7 +2064,7 @@ export function CreateDocumentPage() {
                               onOpenChange={(open) => setProformaItemPopoverOpen((prev) => ({ ...prev, [idx]: open }))}
                             >
                               <PopoverTrigger asChild>
-                                <Button type="button" variant="outline" role="combobox" className="w-full justify-between h-9">
+                                <Button type="button" variant="outline" role="combobox" className="w-full justify-between">
                                   <span className="truncate">{it.name?.trim() ? it.name : 'Select item'}</span>
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
@@ -2132,11 +2128,11 @@ export function CreateDocumentPage() {
                             </Popover>
                           </div>
                           <div className="px-2 py-2">
-                            <Input type="number" value={it.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value || 0))} className="h-9" />
+                            <Input type="number" value={it.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value || 0))} />
                           </div>
                           <div className="px-2 py-2">
                             <Select value={String(it.unit || 'NONE')} onValueChange={(v) => updateItem(idx, 'unit', v)}>
-                              <SelectTrigger className="h-9">
+                              <SelectTrigger>
                                 <SelectValue placeholder="NONE" />
                               </SelectTrigger>
                               <SelectContent>
@@ -2151,10 +2147,10 @@ export function CreateDocumentPage() {
                             </Select>
                           </div>
                           <div className="px-2 py-2">
-                            <Input type="number" value={it.rate} onChange={(e) => updateItem(idx, 'rate', Number(e.target.value || 0))} className="h-9" />
+                            <Input type="number" value={it.rate} onChange={(e) => updateItem(idx, 'rate', Number(e.target.value || 0))} />
                           </div>
                           <div className="px-2 py-2">
-                            <Input type="number" value={it.discount} onChange={(e) => updateItem(idx, 'discount', Number(e.target.value || 0))} className="h-9" />
+                            <Input type="number" value={it.discount} onChange={(e) => updateItem(idx, 'discount', Number(e.target.value || 0))} />
                           </div>
                           <div className="px-2 py-2">
                             <Input
@@ -2166,7 +2162,6 @@ export function CreateDocumentPage() {
                                 const pct = row.subtotal > 0 ? parseFloat(((nextAmount / row.subtotal) * 100).toFixed(2)) : 0;
                                 updateItem(idx, 'discount', pct);
                               }}
-                              className="h-9"
                             />
                           </div>
                           <div className="px-2 py-2">
@@ -2180,7 +2175,7 @@ export function CreateDocumentPage() {
                                 updateItem(idx, 'sgst', half);
                               }}
                             >
-                              <SelectTrigger className="h-9">
+                              <SelectTrigger>
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                               <SelectContent>
@@ -2193,7 +2188,7 @@ export function CreateDocumentPage() {
                             </Select>
                           </div>
                           <div className="px-2 py-2">
-                            <Input readOnly value={Number(row.taxAmount || 0).toFixed(2)} className="h-9" />
+                            <Input readOnly value={Number(row.taxAmount || 0).toFixed(2)} />
                           </div>
                           <div className="px-2 py-2 text-right font-semibold">
                             {formatInr(row.amount)}
@@ -2271,7 +2266,7 @@ export function CreateDocumentPage() {
                             setUpiQrText(String(selected?.upiQrText || ''));
                           }}
                         >
-                          <SelectTrigger className="h-9">
+                          <SelectTrigger>
                             <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2297,27 +2292,27 @@ export function CreateDocumentPage() {
                       </div>
                       <div className="space-y-2">
                         <Label>Bank Name</Label>
-                        <Input value={bankName} onChange={(e) => setBankName(e.target.value)} className="h-9" />
+                        <Input value={bankName} onChange={(e) => setBankName(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>Branch</Label>
-                        <Input value={bankBranch} onChange={(e) => setBankBranch(e.target.value)} className="h-9" />
+                        <Input value={bankBranch} onChange={(e) => setBankBranch(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>Account Number</Label>
-                        <Input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} className="h-9" />
+                        <Input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>IFSC</Label>
-                        <Input value={bankIfsc} onChange={(e) => setBankIfsc(e.target.value)} className="h-9" />
+                        <Input value={bankIfsc} onChange={(e) => setBankIfsc(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>UPI ID</Label>
-                        <Input value={upiId} onChange={(e) => setUpiId(e.target.value)} className="h-9" />
+                        <Input value={upiId} onChange={(e) => setUpiId(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>UPI QR Text</Label>
-                        <Input value={upiQrText} onChange={(e) => setUpiQrText(e.target.value)} className="h-9" />
+                        <Input value={upiQrText} onChange={(e) => setUpiQrText(e.target.value)} />
                       </div>
                     </div>
                   </CardContent>
@@ -2328,11 +2323,11 @@ export function CreateDocumentPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Payment Terms</Label>
-                        <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} className="h-9" />
+                        <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label>Credit Period</Label>
-                        <Input value={creditPeriod} onChange={(e) => setCreditPeriod(e.target.value)} className="h-9" />
+                        <Input value={creditPeriod} onChange={(e) => setCreditPeriod(e.target.value)} />
                       </div>
                       <div className="md:col-span-2 space-y-2">
                         <Label>Late Fee Terms</Label>
@@ -2378,8 +2373,8 @@ export function CreateDocumentPage() {
                         el?.click();
                       }}
                     >
-                    Add Image
-                  </Button>
+                      Add Image
+                    </Button>
                   </div>
                 </div>
 
@@ -2432,7 +2427,7 @@ export function CreateDocumentPage() {
                         <Label className="text-xs text-muted-foreground">Payment Type</Label>
                         <div className="flex items-center gap-2 mt-1">
                           <Select value={paymentMode} onValueChange={(v) => setPaymentMode(v as PaymentMode)}>
-                            <SelectTrigger className="h-9">
+                            <SelectTrigger>
                               <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>
@@ -2443,7 +2438,7 @@ export function CreateDocumentPage() {
                           </Select>
 
                           <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as 'unpaid' | 'partial' | 'paid')}>
-                            <SelectTrigger className="h-9">
+                            <SelectTrigger>
                               <SelectValue placeholder="Status" />
                             </SelectTrigger>
                             <SelectContent>
@@ -2459,7 +2454,6 @@ export function CreateDocumentPage() {
                     <div>
                       <Label className="text-xs text-muted-foreground">Received Amount</Label>
                       <Input
-                        className="h-9 mt-1"
                         type="number"
                         min={0}
                         value={receivedAmount}
@@ -2479,27 +2473,27 @@ export function CreateDocumentPage() {
                     <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-2">
                         <Label>Transport Charges</Label>
-                        <Input type="number" value={transportCharges} onChange={(e) => setTransportCharges(Number(e.target.value || 0))} className="h-9" />
+                        <Input type="number" value={transportCharges} onChange={(e) => setTransportCharges(Number(e.target.value || 0))} />
                       </div>
                       <div className="space-y-2">
                         <Label>Additional Charges</Label>
-                        <Input type="number" value={additionalCharges} onChange={(e) => setAdditionalCharges(Number(e.target.value || 0))} className="h-9" />
+                        <Input type="number" value={additionalCharges} onChange={(e) => setAdditionalCharges(Number(e.target.value || 0))} />
                       </div>
                       <div className="space-y-2">
                         <Label>Packing/Handling</Label>
-                        <Input type="number" value={packingHandlingCharges} onChange={(e) => setPackingHandlingCharges(Number(e.target.value || 0))} className="h-9" />
+                        <Input type="number" value={packingHandlingCharges} onChange={(e) => setPackingHandlingCharges(Number(e.target.value || 0))} />
                       </div>
                       <div className="space-y-2">
                         <Label>TCS</Label>
-                        <Input type="number" value={tcs} onChange={(e) => setTcs(Number(e.target.value || 0))} className="h-9" />
+                        <Input type="number" value={tcs} onChange={(e) => setTcs(Number(e.target.value || 0))} />
                       </div>
                       <div className="space-y-2">
                         <Label>Round Off</Label>
-                        <Input type="number" value={roundOff} onChange={(e) => setRoundOff(Number(e.target.value || 0))} className="h-9" />
+                        <Input type="number" value={roundOff} onChange={(e) => setRoundOff(Number(e.target.value || 0))} />
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Auto Round Off</Label>
-                        <div className="h-9 flex items-center">
+                        <div className="flex items-center">
                           <Switch checked={autoRoundOff} onCheckedChange={setAutoRoundOff} />
                         </div>
                       </div>
@@ -2562,7 +2556,6 @@ export function CreateDocumentPage() {
                   value={createCustomerForm.name}
                   onChange={(e) => setCreateCustomerForm((p) => ({ ...p, name: e.target.value }))}
                   placeholder="Enter name"
-                  className="h-9"
                 />
               </div>
               <div>

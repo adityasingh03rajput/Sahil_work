@@ -48,12 +48,18 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-// Override Capacitor's Java 21 requirement to use Java 17
+// CRITICAL: Override Capacitor's Java 21 requirement to use Java 17
+// This must come AFTER capacitor.build.gradle to take precedence
 android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    sourceCompatibility = '17'
+    targetCompatibility = '17'
 }
 
 try {

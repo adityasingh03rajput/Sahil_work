@@ -1,51 +1,42 @@
 @echo off
-echo ========================================
-echo BillBuddy Complete Build Process
-echo ========================================
-echo.
+setlocal
 
-REM Step 1: Build the web app
-echo [1/4] Building web application...
+echo ==========================================
+echo    BILL VYAPAR - BUILD ^& INSTALL APK
+echo ==========================================
+
+echo [1/3] Building web assets...
 call npm run build
-if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Web build failed!
-    pause
-    exit /b 1
-)
+if %errorlevel% neq 0 goto :error
 
 echo.
-echo [2/4] Syncing Capacitor with Android...
+echo [2/3] Syncing Capacitor...
 call npx cap sync android
-if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Capacitor sync failed!
-    pause
-    exit /b 1
-)
+if %errorlevel% neq 0 goto :error
 
 echo.
-echo [3/4] Building Android release APK...
+echo [3/3] Building Android APK...
 cd android
-call gradlew assembleRelease --build-cache --parallel
-if %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Android build failed!
-    cd ..
-    pause
-    exit /b 1
-)
+call gradlew.bat assembleDebug
 cd ..
+if %errorlevel% neq 0 goto :error
 
 echo.
-echo [4/4] Copying APK to main folder...
-copy "android\app\build\outputs\apk\release\app-release.apk" "BillBuddy-Release.apk" /Y
+echo [4/4] Installing APK to device...
+adb install -r android\app\build\outputs\apk\debug\app-debug.apk
+if %errorlevel% neq 0 goto :error
 
 echo.
-echo ========================================
-echo BUILD COMPLETE!
-echo ========================================
-echo.
-echo APK Location: BillBuddy-Release.apk
-echo.
-echo To install on device:
-echo adb install -r BillBuddy-Release.apk
-echo.
+echo ==========================================
+echo    BUILD ^& INSTALL SUCCESSFUL!
+echo ==========================================
 pause
+exit /b 0
+
+:error
+echo.
+echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+echo    BUILD FAILED - CHECK LOGS ABOVE
+echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+pause
+exit /b 1

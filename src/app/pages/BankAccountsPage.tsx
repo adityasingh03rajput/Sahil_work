@@ -230,7 +230,7 @@ export function BankAccountsPage() {
 
   return (
     <AppLayout>
-      <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-4">
+      <div className="space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-xl font-semibold">Bank Accounts</div>
@@ -320,7 +320,7 @@ export function BankAccountsPage() {
                 <div className="space-y-2">
                   <Label>Bank Account</Label>
                   <Select value={selectedBankAccountId || ''} onValueChange={setSelectedBankAccountId}>
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger>
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
@@ -358,15 +358,15 @@ export function BankAccountsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="space-y-2">
                     <Label>Date</Label>
-                    <Input type="date" value={manualDate} onChange={(e) => setManualDate(e.target.value)} className="h-9" />
+                    <Input type="date" value={manualDate} onChange={(e) => setManualDate(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Amount</Label>
-                    <Input value={manualAmount} onChange={(e) => setManualAmount(e.target.value)} className="h-9" placeholder="0.00" />
+                    <Input value={manualAmount} onChange={(e) => setManualAmount(e.target.value)} placeholder="0.00" />
                   </div>
                   <div className="space-y-2">
                     <Label>Description</Label>
-                    <Input value={manualDescription} onChange={(e) => setManualDescription(e.target.value)} className="h-9" placeholder="Optional" />
+                    <Input value={manualDescription} onChange={(e) => setManualDescription(e.target.value)} placeholder="Optional" />
                   </div>
                 </div>
                 <div className="flex justify-end">
@@ -383,21 +383,23 @@ export function BankAccountsPage() {
               ) : unified.length === 0 ? (
                 <div className="text-sm text-muted-foreground">No transactions found for this bank account.</div>
               ) : (
-                <div className="rounded-lg border overflow-hidden">
-                  <div className="grid grid-cols-[110px_130px_1fr_110px] gap-0 bg-muted/50 text-xs font-semibold text-muted-foreground">
-                    <div className="px-3 py-2">Date</div>
-                    <div className="px-3 py-2">Type</div>
-                    <div className="px-3 py-2">Details</div>
-                    <div className="px-3 py-2 text-right">Amount</div>
-                  </div>
-                  {(unified || []).map((r: any) => (
-                    <div key={String(r?.id)} className="grid grid-cols-[110px_130px_1fr_110px] gap-0 border-t text-sm">
-                      <div className="px-3 py-2">{String(r?.date || '').trim() || '—'}</div>
-                      <div className="px-3 py-2">{String(r?.method || '').trim() || '—'}</div>
-                      <div className="px-3 py-2 text-muted-foreground break-words">{String(r?.details || '').trim() || '—'}</div>
-                      <div className="px-3 py-2 text-right font-medium">{formatInr(Number(r?.amount || 0))}</div>
+                <div className="rounded-lg border overflow-x-auto">
+                  <div className="min-w-[560px]">
+                    <div className="grid grid-cols-[110px_130px_1fr_110px] gap-0 bg-muted/50 text-xs font-semibold text-muted-foreground">
+                      <div className="px-3 py-2">Date</div>
+                      <div className="px-3 py-2">Type</div>
+                      <div className="px-3 py-2">Details</div>
+                      <div className="px-3 py-2 text-right">Amount</div>
                     </div>
-                  ))}
+                    {(unified || []).map((r: any) => (
+                      <div key={String(r?.id)} className="grid grid-cols-[110px_130px_1fr_110px] gap-0 border-t text-sm">
+                        <div className="px-3 py-2">{String(r?.date || '').trim() || '—'}</div>
+                        <div className="px-3 py-2">{String(r?.method || '').trim() || '—'}</div>
+                        <div className="px-3 py-2 text-muted-foreground break-words">{String(r?.details || '').trim() || '—'}</div>
+                        <div className="px-3 py-2 text-right font-medium">{formatInr(Number(r?.amount || 0))}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
