@@ -2,16 +2,14 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ADMIN_API_URL as API_URL } from '../../config/api';
 import { toast } from 'sonner';
-import { ArrowLeft, FileText, Users, Package, Building2, TrendingUp, BarChart3 } from 'lucide-react';
+import { FileText, Users, Package, Building2, TrendingUp, BarChart3 } from 'lucide-react';
 
 export function MasterAdminDataPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadStats();
-  }, []);
+  useEffect(() => { loadStats(); }, []);
 
   const loadStats = async () => {
     try {
@@ -19,162 +17,136 @@ export function MasterAdminDataPage() {
       const response = await fetch(`${API_URL}/master-admin/data/statistics`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
       const data = await response.json();
-      if (data.error) {
-        toast.error(data.error);
-      } else {
-        setStats(data);
-      }
-    } catch (error) {
-      toast.error('Failed to load statistics');
-    } finally {
-      setLoading(false);
-    }
+      if (data.error) toast.error(data.error);
+      else setStats(data);
+    } catch { toast.error('Failed to load statistics'); }
+    finally { setLoading(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading statistics...</p>
-        </div>
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 rounded-full border-sky-200 border-t-sky-500 animate-spin" style={{ borderWidth: 3 }} />
+        <p className="text-xs font-semibold" style={{ color: '#94a3b8' }}>Loading statistics...</p>
       </div>
-    );
-  }
+    </div>
+  );
+
+  const topCards = [
+    { icon: FileText,  value: stats?.totals?.documents || 0, label: 'Total Documents',   bg: '#eef2ff', color: '#6366f1', border: '#c7d2fe', shadow: 'rgba(99,102,241,0.15)' },
+    { icon: Users,     value: stats?.totals?.customers || 0, label: 'Total Customers',   bg: '#d1fae5', color: '#059669', border: '#a7f3d0', shadow: 'rgba(16,185,129,0.15)' },
+    { icon: Package,   value: stats?.totals?.items || 0,     label: 'Total Items',       bg: '#ede9fe', color: '#7c3aed', border: '#ddd6fe', shadow: 'rgba(139,92,246,0.15)' },
+    { icon: Building2, value: stats?.totals?.profiles || 0,  label: 'Business Profiles', bg: '#fef3c7', color: '#d97706', border: '#fde68a', shadow: 'rgba(245,158,11,0.15)' },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16 gap-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
-            </button>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
-              </div>
-              <h1 className="text-xl font-bold text-gray-900">Platform Data</h1>
-            </div>
-          </div>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="flex items-center gap-3">
+        <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
+          style={{ background: '#e0f2fe', border: '1.5px solid #bae6fd', boxShadow: '0 4px 12px rgba(14,165,233,0.15)' }}>
+          <BarChart3 className="h-5 w-5" style={{ color: '#0ea5e9' }} />
         </div>
-      </nav>
+        <div>
+          <h1 className="text-2xl font-black" style={{ color: '#1e1b4b' }}>Platform Data</h1>
+          <p className="text-sm font-medium" style={{ color: '#94a3b8' }}>Aggregate statistics across all subscribers</p>
+        </div>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-sm p-6 text-white">
+      {/* Top KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {topCards.map(({ icon: Icon, value, label, bg, color, border, shadow }) => (
+          <div key={label} className="p-5 rounded-3xl"
+            style={{ background: bg, border: `1.5px solid ${border}`, boxShadow: `0 8px 32px ${shadow}, inset 0 1px 0 rgba(255,255,255,0.8)` }}>
             <div className="flex items-center justify-between mb-4">
-              <FileText className="h-8 w-8 opacity-80" />
-              <TrendingUp className="h-5 w-5 opacity-60" />
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
+                style={{ background: 'rgba(255,255,255,0.7)', border: `1.5px solid ${border}` }}>
+                <Icon style={{ width: 18, height: 18, color }} />
+              </div>
+              <TrendingUp style={{ width: 16, height: 16, color, opacity: 0.4 }} />
             </div>
-            <p className="text-3xl font-bold mb-1">{stats?.totals.documents || 0}</p>
-            <p className="text-sm opacity-90">Total Documents</p>
+            <p className="text-3xl font-black tracking-tight" style={{ color }}>{value}</p>
+            <p className="text-xs mt-1 font-bold" style={{ color: `${color}99` }}>{label}</p>
           </div>
+        ))}
+      </div>
 
-          <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-sm p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <Users className="h-8 w-8 opacity-80" />
-              <TrendingUp className="h-5 w-5 opacity-60" />
+      {/* Documents by type + Recent */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-6 rounded-3xl"
+          style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(255,255,255,0.9)', boxShadow: '0 8px 32px rgba(99,102,241,0.08)' }}>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-9 h-9 rounded-2xl flex items-center justify-center"
+              style={{ background: '#eef2ff', border: '1.5px solid #c7d2fe' }}>
+              <FileText className="h-4 w-4" style={{ color: '#6366f1' }} />
             </div>
-            <p className="text-3xl font-bold mb-1">{stats?.totals.customers || 0}</p>
-            <p className="text-sm opacity-90">Total Customers</p>
+            <h2 className="text-base font-black" style={{ color: '#1e1b4b' }}>Documents by Type</h2>
           </div>
-
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-sm p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <Package className="h-8 w-8 opacity-80" />
-              <TrendingUp className="h-5 w-5 opacity-60" />
-            </div>
-            <p className="text-3xl font-bold mb-1">{stats?.totals.items || 0}</p>
-            <p className="text-sm opacity-90">Total Items</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-sm p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <Building2 className="h-8 w-8 opacity-80" />
-              <TrendingUp className="h-5 w-5 opacity-60" />
-            </div>
-            <p className="text-3xl font-bold mb-1">{stats?.totals.profiles || 0}</p>
-            <p className="text-sm opacity-90">Business Profiles</p>
+          <div className="space-y-2">
+            {Object.entries(stats?.documentsByType || {}).map(([type, count]: [string, any]) => (
+              <div key={type} className="flex justify-between items-center p-3 rounded-2xl"
+                style={{ background: '#f8fafc', border: '1.5px solid #f1f5f9' }}>
+                <span className="capitalize text-sm font-bold" style={{ color: '#374151' }}>{type}</span>
+                <span className="text-sm font-black px-3 py-1 rounded-xl"
+                  style={{ background: '#eef2ff', color: '#6366f1', border: '1.5px solid #c7d2fe' }}>{count}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-600" />
-              </div>
-              <h2 className="text-lg font-semibold text-gray-900">Documents by Type</h2>
+        <div className="p-6 rounded-3xl"
+          style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(255,255,255,0.9)', boxShadow: '0 8px 32px rgba(16,185,129,0.08)' }}>
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-9 h-9 rounded-2xl flex items-center justify-center"
+              style={{ background: '#d1fae5', border: '1.5px solid #a7f3d0' }}>
+              <TrendingUp className="h-4 w-4" style={{ color: '#059669' }} />
             </div>
-            <div className="space-y-3">
-              {Object.entries(stats?.documentsByType || {}).map(([type, count]: [string, any]) => (
-                <div key={type} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <span className="capitalize text-sm font-medium text-gray-700">{type}</span>
-                  <span className="text-lg font-bold text-gray-900">{count}</span>
-                </div>
-              ))}
-            </div>
+            <h2 className="text-base font-black" style={{ color: '#1e1b4b' }}>Recent Documents</h2>
           </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-              </div>
-              <h2 className="text-lg font-semibold text-gray-900">Recent Documents</h2>
-            </div>
-            <div className="space-y-3">
-              {stats?.recentDocuments?.length > 0 ? (
-                stats.recentDocuments.map((doc: any) => (
-                  <div key={doc._id} className="p-3 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-medium text-sm text-gray-900">{doc.documentNumber}</span>
-                      <span className="text-sm font-semibold text-green-600">₹{doc.grandTotal?.toLocaleString()}</span>
-                    </div>
-                    <p className="text-xs text-gray-600">{doc.customerName}</p>
+          <div className="space-y-2">
+            {stats?.recentDocuments?.length > 0 ? (
+              stats.recentDocuments.map((doc: any) => (
+                <div key={doc._id} className="p-3 rounded-2xl"
+                  style={{ background: '#f8fafc', border: '1.5px solid #f1f5f9' }}>
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="font-bold text-sm" style={{ color: '#1e1b4b' }}>{doc.documentNumber}</span>
+                    <span className="text-sm font-black" style={{ color: '#059669' }}>₹{doc.grandTotal?.toLocaleString()}</span>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-gray-500 text-center py-4">No recent documents</p>
-              )}
-            </div>
+                  <p className="text-xs font-medium" style={{ color: '#94a3b8' }}>{doc.customerName}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm font-medium text-center py-4" style={{ color: '#94a3b8' }}>No recent documents</p>
+            )}
           </div>
         </div>
+      </div>
 
-        <div className="mt-6 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-sm p-8 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Platform Overview</h2>
-              <p className="text-sm opacity-90">Complete statistics of all platform data</p>
-            </div>
-            <BarChart3 className="h-16 w-16 opacity-60" />
+      {/* Platform overview */}
+      <div className="p-8 rounded-3xl"
+        style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', border: '1.5px solid rgba(255,255,255,0.2)', boxShadow: '0 16px 48px rgba(99,102,241,0.3)' }}>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-black text-white mb-1">Platform Overview</h2>
+            <p className="text-sm font-medium text-white/70">Complete statistics of all platform data</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <p className="text-2xl font-bold">{stats?.totals.suppliers || 0}</p>
-              <p className="text-xs opacity-90">Suppliers</p>
-            </div>
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <p className="text-2xl font-bold">{stats?.totals.invoices || 0}</p>
-              <p className="text-xs opacity-90">Invoices</p>
-            </div>
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <p className="text-2xl font-bold">{stats?.totals.quotations || 0}</p>
-              <p className="text-xs opacity-90">Quotations</p>
-            </div>
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
-              <p className="text-2xl font-bold">{stats?.totals.challans || 0}</p>
-              <p className="text-xs opacity-90">Challans</p>
-            </div>
-          </div>
+          <BarChart3 className="h-14 w-14 text-white/30" />
         </div>
-      </main>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            ['Suppliers',   stats?.totals?.suppliers || 0],
+            ['Invoices',    stats?.totals?.invoices || 0],
+            ['Quotations',  stats?.totals?.quotations || 0],
+            ['Challans',    stats?.totals?.challans || 0],
+          ].map(([label, value]) => (
+            <div key={label as string} className="p-4 rounded-2xl"
+              style={{ background: 'rgba(255,255,255,0.15)', border: '1.5px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}>
+              <p className="text-2xl font-black text-white">{value}</p>
+              <p className="text-xs font-semibold text-white/70 mt-0.5">{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

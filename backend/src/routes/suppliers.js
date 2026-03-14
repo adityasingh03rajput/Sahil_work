@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { requireActiveSubscription } from '../middleware/subscription.js';
 import { requireProfile } from '../middleware/profile.js';
+import { enforceLimit, enforceFeature } from '../middleware/subscriberEnforcement.js';
 import { Supplier } from '../models/Supplier.js';
 import { fetchGstinDetails } from '../lib/gstin.js';
 
@@ -10,7 +11,7 @@ export const suppliersRouter = Router();
 
 suppliersRouter.use(requireAuth, requireValidDeviceSession, requireActiveSubscription, requireProfile);
 
-suppliersRouter.post('/', async (req, res, next) => {
+suppliersRouter.post('/', enforceLimit('maxSuppliers', (req) => Supplier.countDocuments({ userId: req.userId })), async (req, res, next) => {
   try {
     const data = req.body || {};
     const supplier = await Supplier.create({ userId: req.userId, profileId: req.profileId, ...data });
@@ -117,7 +118,7 @@ suppliersRouter.delete('/:id', async (req, res, next) => {
   }
 });
 
-suppliersRouter.post('/gstin/lookup', async (req, res, next) => {
+suppliersRouter.post('/gstin/lookup', enforceFeature('allowGstinLookup'), async (req, res, next) => {
   try {
     const { gstin } = req.body || {};
     if (!gstin) {
@@ -163,7 +164,7 @@ suppliersRouter.post('/gstin/lookup', async (req, res, next) => {
   }
 });
 
-suppliersRouter.post('/gstin', async (req, res, next) => {
+suppliersRouter.post('/gstin', enforceFeature('allowGstinLookup'), async (req, res, next) => {
   try {
     const { gstin } = req.body || {};
     if (!gstin) {

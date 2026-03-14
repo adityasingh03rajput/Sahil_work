@@ -16,3 +16,4 @@ const tenantLicenseSchema = new mongoose.Schema(
 );
 
 export const TenantLicense = mongoose.model('TenantLicense', tenantLicenseSchema);
+export const SubscriberLicense = TenantLicense; // alias

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { TenantLicense } from '../../models/TenantLicense.js';
-import { Tenant } from '../../models/Tenant.js';
+import { Subscriber as Tenant } from '../../models/Subscriber.js';
+import { TenantLicense } from '../../models/SubscriberLicense.js';
 import { Plan } from '../../models/Plan.js';
 import { AuditLog } from '../../models/AuditLog.js';
 import { requireMasterAdmin } from '../../middleware/masterAdmin.js';

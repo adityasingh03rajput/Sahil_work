@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import mongoose from 'mongoose';
 import { MasterAdmin } from '../models/MasterAdmin.js';
-import { Tenant } from '../models/Tenant.js';
+import { Subscriber as Tenant } from '../models/Subscriber.js';
 import { Plan } from '../models/Plan.js';
 
 const __filename = fileURLToPath(import.meta.url);

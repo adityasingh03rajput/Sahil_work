@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { requireActiveSubscription } from '../middleware/subscription.js';
 import { requireProfile } from '../middleware/profile.js';
+import { enforceLimit } from '../middleware/subscriberEnforcement.js';
 import { Payment } from '../models/Payment.js';
 import { Document } from '../models/Document.js';
 import { createLedgerForPayment } from '../lib/ledger.js';
@@ -39,7 +40,11 @@ async function refreshDocumentPaymentStatus({ userId, profileId, documentId }) {
   };
 }
 
-paymentsRouter.post('/', async (req, res, next) => {
+paymentsRouter.post('/', enforceLimit('maxPaymentsPerMonth', (req) => {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  return Payment.countDocuments({ userId: req.userId, createdAt: { $gte: startOfMonth } });
+}), async (req, res, next) => {
   try {
     const body = req.body || {};
     const amount = Number(body.amount);

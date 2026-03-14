@@ -1,10 +1,12 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { User } from '../../models/User.js';
 import { Subscription } from '../../models/Subscription.js';
 import { BusinessProfile } from '../../models/BusinessProfile.js';
 import { Document } from '../../models/Document.js';
 import { Customer } from '../../models/Customer.js';
-import { Tenant } from '../../models/Tenant.js';
+import { Subscriber } from '../../models/Subscriber.js';
+import { Session } from '../../models/Session.js';
 import { AuditLog } from '../../models/AuditLog.js';
 import { requireMasterAdmin } from '../../middleware/masterAdmin.js';
 
@@ -54,7 +56,7 @@ masterAdminUsersRouter.get('/', async (req, res, next) => {
           BusinessProfile.countDocuments({ userId: user._id }),
           Document.countDocuments({ userId: user._id }),
           Customer.countDocuments({ userId: user._id }),
-          Tenant.findOne({ ownerUserId: user._id }).lean(),
+          Subscriber.findOne({ ownerUserId: user._id }).lean(),
         ]);
 
         return {
@@ -102,7 +104,7 @@ masterAdminUsersRouter.get('/:id', async (req, res, next) => {
       BusinessProfile.find({ userId: user._id }).lean(),
       Document.find({ userId: user._id }).sort({ createdAt: -1 }).limit(10).lean(),
       Customer.find({ userId: user._id }).limit(10).lean(),
-      Tenant.findOne({ ownerUserId: user._id }).lean(),
+      Subscriber.findOne({ ownerUserId: user._id }).lean(),
     ]);
 
     res.json({
@@ -163,41 +165,34 @@ masterAdminUsersRouter.delete('/:id', async (req, res, next) => {
   }
 });
 
-// Convert user to tenant
-masterAdminUsersRouter.post('/:id/convert-to-tenant', async (req, res, next) => {
+// Auto-create subscriber (tenant) record on license activation — called from auth.js
+// No manual "convert to tenant" needed anymore.
+
+// Reset user password (admin override — no old password needed)
+masterAdminUsersRouter.post('/:id/reset-password', async (req, res, next) => {
   try {
+    const { newPassword } = req.body || {};
+    if (!newPassword || String(newPassword).length < 6) {
+      return res.status(400).json({ error: 'newPassword must be at least 6 characters' });
+    }
+
     const user = await User.findById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Check if already a tenant
-    const existingTenant = await Tenant.findOne({ ownerUserId: user._id });
-    if (existingTenant) {
-      return res.status(400).json({ error: 'User is already a tenant' });
-    }
+    const newHash = await bcrypt.hash(String(newPassword), 10);
 
-    // Get first business profile for tenant info
-    const profile = await BusinessProfile.findOne({ userId: user._id });
+    // Push old hash into history (cap at 5)
+    const history = Array.isArray(user.passwordHistory) ? user.passwordHistory : [];
+    user.passwordHistory = [user.passwordHash, ...history].filter(Boolean).slice(0, 5);
+    user.passwordHash = newHash;
+    await user.save();
 
-    const tenant = await Tenant.create({
-      ownerUserId: user._id,
-      name: profile?.businessName || user.name || 'Unnamed Business',
-      email: user.email,
-      phone: user.phone,
-      gstin: profile?.gstin || null,
-      status: 'active',
-    });
+    // Invalidate all existing sessions so user must re-login
+    await Session.deleteMany({ userId: user._id });
 
-    await logAudit(req.masterAdminId, 'user_converted_to_tenant', tenant._id, null, tenant.toObject(), { userId: String(user._id) });
+    await logAudit(req.masterAdminId, 'user_password_reset', null, null, null, { userId: String(user._id) });
 
-    res.json({
-      tenant: {
-        ...tenant.toObject(),
-        _id: String(tenant._id),
-        ownerUserId: String(tenant.ownerUserId),
-      },
-    });
+    res.json({ ok: true, message: 'Password updated and all sessions invalidated' });
   } catch (err) {
     next(err);
   }

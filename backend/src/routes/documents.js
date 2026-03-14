@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { requireActiveSubscription } from '../middleware/subscription.js';
 import { requireProfile } from '../middleware/profile.js';
+import { enforceLimit } from '../middleware/subscriberEnforcement.js';
 import { Document } from '../models/Document.js';
 import { Payment } from '../models/Payment.js';
 import { Counter } from '../models/Counter.js';
@@ -107,7 +108,7 @@ async function refreshDocumentPaymentStatus({ userId, profileId, documentId }) {
   };
 }
 
-documentsRouter.post('/:id/remind', async (req, res, next) => {
+documentsRouter.post('/:id/remind', enforceFeature('allowSmsReminders'), async (req, res, next) => {
   try {
     const doc = await Document.findOne({ _id: req.params.id, userId: req.userId, profileId: req.profileId });
     if (!doc) {
@@ -259,9 +260,25 @@ async function nextDocumentNumber(userId, profileId, type) {
   }
 }
 
-documentsRouter.post('/', async (req, res, next) => {
+documentsRouter.post('/', enforceLimit('maxDocumentsPerMonth', (req) => {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  return Document.countDocuments({ userId: req.userId, createdAt: { $gte: startOfMonth } });
+}), async (req, res, next) => {
   try {
     const docData = req.body || {};
+
+    // Enforce max line items per document
+    const maxLineItems = (req.tenantLimits || {}).maxDocumentLineItems ?? -1;
+    if (maxLineItems !== -1 && Array.isArray(docData.items) && docData.items.length > maxLineItems) {
+      return res.status(403).json({
+        error: 'Limit reached',
+        message: `Maximum ${maxLineItems} line items allowed per document. Contact support to increase your limit.`,
+        code: 'LIMIT_REACHED',
+        limit: maxLineItems,
+        current: docData.items.length,
+      });
+    }
 
     await validateInvoiceCancellation({ userId: req.userId, profileId: req.profileId, docData });
     await validateOrderReferenceQuotation({ userId: req.userId, profileId: req.profileId, docData });

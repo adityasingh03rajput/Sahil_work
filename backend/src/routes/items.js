@@ -2,13 +2,14 @@ import { Router } from 'express';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { requireActiveSubscription } from '../middleware/subscription.js';
 import { requireProfile } from '../middleware/profile.js';
+import { enforceLimit } from '../middleware/subscriberEnforcement.js';
 import { Item } from '../models/Item.js';
 
 export const itemsRouter = Router();
 
 itemsRouter.use(requireAuth, requireValidDeviceSession, requireActiveSubscription, requireProfile);
 
-itemsRouter.post('/', async (req, res, next) => {
+itemsRouter.post('/', enforceLimit('maxItems', (req) => Item.countDocuments({ userId: req.userId })), async (req, res, next) => {
   try {
     const data = req.body || {};
     const item = await Item.create({ userId: req.userId, profileId: req.profileId, ...data });

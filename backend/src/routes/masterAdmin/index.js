@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { masterAdminAuthRouter } from './auth.js';
-import { masterAdminTenantsRouter } from './tenants.js';
+import { masterAdminSubscribersRouter } from './subscribers.js';
+import { masterAdminSubscriberDetailsRouter } from './subscriberDetails.js';
 import { masterAdminPlansRouter } from './plans.js';
 import { masterAdminLicensesRouter } from './licenses.js';
 import { masterAdminLicenseKeysRouter } from './licenseKeys.js';
@@ -12,7 +13,8 @@ import { masterAdminDataRouter } from './data.js';
 export const masterAdminRouter = Router();
 
 masterAdminRouter.use('/auth', masterAdminAuthRouter);
-masterAdminRouter.use('/tenants', masterAdminTenantsRouter);
+masterAdminRouter.use('/subscribers', masterAdminSubscribersRouter);
+masterAdminRouter.use('/subscribers', masterAdminSubscriberDetailsRouter);
 masterAdminRouter.use('/plans', masterAdminPlansRouter);
 masterAdminRouter.use('/licenses', masterAdminLicensesRouter);
 masterAdminRouter.use('/license-keys', masterAdminLicenseKeysRouter);

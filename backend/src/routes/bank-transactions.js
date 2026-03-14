@@ -3,13 +3,14 @@ import mongoose from 'mongoose';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { requireActiveSubscription } from '../middleware/subscription.js';
 import { requireProfile } from '../middleware/profile.js';
+import { enforceLimit, enforceFeature } from '../middleware/subscriberEnforcement.js';
 import { BankTransaction } from '../models/BankTransaction.js';
 
 export const bankTransactionsRouter = Router();
 
 bankTransactionsRouter.use(requireAuth, requireValidDeviceSession, requireActiveSubscription, requireProfile);
 
-bankTransactionsRouter.get('/', async (req, res, next) => {
+bankTransactionsRouter.get('/', enforceFeature('allowBankAccounts'), async (req, res, next) => {
   try {
     const { bankAccountId } = req.query || {};
 
@@ -44,7 +45,7 @@ bankTransactionsRouter.get('/', async (req, res, next) => {
   }
 });
 
-bankTransactionsRouter.post('/', async (req, res, next) => {
+bankTransactionsRouter.post('/', enforceFeature('allowBankAccounts'), enforceLimit('maxBankTransactions', (req) => BankTransaction.countDocuments({ userId: req.userId })), async (req, res, next) => {
   try {
     const body = req.body || {};
 

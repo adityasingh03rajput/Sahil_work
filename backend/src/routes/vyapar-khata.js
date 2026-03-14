@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { requireActiveSubscription } from '../middleware/subscription.js';
 import { requireProfile } from '../middleware/profile.js';
+import { enforceLimit, enforceFeature } from '../middleware/subscriberEnforcement.js';
 
 import { VyaparKhataTransaction } from '../models/VyaparKhataTransaction.js';
 import { Customer } from '../models/Customer.js';
@@ -11,7 +12,7 @@ import { Supplier } from '../models/Supplier.js';
 
 export const vyaparKhataRouter = Router();
 
-vyaparKhataRouter.use(requireAuth, requireValidDeviceSession, requireActiveSubscription, requireProfile);
+vyaparKhataRouter.use(requireAuth, requireValidDeviceSession, requireActiveSubscription, requireProfile, enforceFeature('allowKhata'));
 
 function computePartyNet({ openingBalance, openingBalanceType, gave, got }) {
   const ob = Number(openingBalance || 0);
@@ -271,7 +272,7 @@ vyaparKhataRouter.get('/party/:partyId/entries', async (req, res, next) => {
   }
 });
 
-vyaparKhataRouter.post('/entries', async (req, res, next) => {
+vyaparKhataRouter.post('/entries', enforceLimit('maxKhataEntries', (req) => VyaparKhataTransaction.countDocuments({ userId: req.userId })), async (req, res, next) => {
   try {
     const body = req.body || {};
     const partyType = String(body.partyType || '').trim().toLowerCase();

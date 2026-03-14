@@ -14,9 +14,9 @@ async function createMasterAdmin() {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
 
-    const email = 'adityarajsir162@gmail.com';
+    const email = 'adityarajsir16@gmail.com';
     const password = 'adi*tya';
-    const name = 'Super Admin';
+    const name = 'Aditya Raj';
 
     const existing = await MasterAdmin.findOne({ email });
     if (existing) {

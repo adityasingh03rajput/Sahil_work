@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { Tenant } from '../../models/Tenant.js';
-import { TenantLicense } from '../../models/TenantLicense.js';
-import { TenantPayment } from '../../models/TenantPayment.js';
+import { Subscriber as Tenant } from '../../models/Subscriber.js';
+import { LicenseKey } from '../../models/LicenseKey.js';
+import { TenantPayment } from '../../models/SubscriberPayment.js';
 import { requireMasterAdmin } from '../../middleware/masterAdmin.js';
 
 export const masterAdminDashboardRouter = Router();
@@ -27,11 +27,14 @@ masterAdminDashboardRouter.get('/stats', async (req, res, next) => {
       Tenant.countDocuments({ status: 'active' }),
       Tenant.countDocuments({ status: 'expired' }),
       Tenant.countDocuments({ status: 'suspended' }),
-      TenantLicense.countDocuments({
-        licenseEndAt: { $gte: now, $lte: sevenDaysFromNow },
+      // Use LicenseKey as source of truth for expiry alerts
+      LicenseKey.countDocuments({
+        status: 'active',
+        expiresAt: { $gte: now, $lte: sevenDaysFromNow },
       }),
-      TenantLicense.countDocuments({
-        licenseEndAt: { $gte: now, $lte: thirtyDaysFromNow },
+      LicenseKey.countDocuments({
+        status: 'active',
+        expiresAt: { $gte: now, $lte: thirtyDaysFromNow },
       }),
       TenantPayment.aggregate([
         { $match: { status: 'paid' } },

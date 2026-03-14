@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { requireActiveSubscription } from '../middleware/subscription.js';
+import { enforceLimit } from '../middleware/subscriberEnforcement.js';
 import { BusinessProfile } from '../models/BusinessProfile.js';
 import { Customer } from '../models/Customer.js';
 import { Item } from '../models/Item.js';
@@ -11,7 +12,7 @@ export const profilesRouter = Router();
 
 profilesRouter.use(requireAuth, requireValidDeviceSession, requireActiveSubscription);
 
-profilesRouter.post('/', async (req, res, next) => {
+profilesRouter.post('/', enforceLimit('maxProfiles', (req) => BusinessProfile.countDocuments({ userId: req.userId })), async (req, res, next) => {
   try {
     const data = req.body || {};
     const profile = await BusinessProfile.create({

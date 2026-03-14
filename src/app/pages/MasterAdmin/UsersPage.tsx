@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ADMIN_API_URL as API_URL } from '../../config/api';
 import { toast } from 'sonner';
-import { ArrowLeft, Search, Users as UsersIcon, FileText, ShoppingCart, Building2, RefreshCw } from 'lucide-react';
+import { Search, Users as UsersIcon, FileText, Building2, Mail, Phone, ExternalLink } from 'lucide-react';
 
 export function MasterAdminUsersPage() {
   const navigate = useNavigate();
@@ -10,188 +10,125 @@ export function MasterAdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    loadUsers();
-  }, [search]);
+  useEffect(() => { loadUsers(); }, [search]);
 
   const loadUsers = async () => {
     try {
       const token = localStorage.getItem('masterAdminToken');
       const params = new URLSearchParams();
       if (search) params.append('search', search);
-
-      const response = await fetch(`${API_URL}/master-admin/users?${params}`, {
+      const res = await fetch(`${API_URL}/master-admin/users?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      const data = await response.json();
-      if (data.error) {
-        toast.error(data.error);
-      } else {
-        setUsers(data.users || []);
-      }
-    } catch (error) {
-      toast.error('Failed to load users');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleConvertToTenant = async (userId: string) => {
-    if (!confirm('Convert this user to a tenant? This will allow you to assign licenses.')) return;
-
-    try {
-      const token = localStorage.getItem('masterAdminToken');
-      const response = await fetch(`${API_URL}/master-admin/users/${userId}/convert-to-tenant`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await response.json();
-      if (data.error) {
-        toast.error(data.error);
-      } else {
-        toast.success('User converted to tenant!');
-        loadUsers();
-      }
-    } catch (error) {
-      toast.error('Failed to convert user');
-    }
-  };
-
-  const getSubscriptionBadge = (subscription: any) => {
-    if (!subscription) {
-      return <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">No Subscription</span>;
-    }
-    
-    const endDate = new Date(subscription.endDate);
-    const now = new Date();
-    const isExpired = endDate < now;
-
-    return (
-      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-        isExpired 
-          ? 'bg-red-100 text-red-800 border-red-200' 
-          : 'bg-green-100 text-green-800 border-green-200'
-      }`}>
-        {subscription.plan} {isExpired ? '(Expired)' : ''}
-      </span>
-    );
+      const data = await res.json();
+      if (data.error) toast.error(data.error);
+      else setUsers(data.users || []);
+    } catch { toast.error('Failed to load users'); }
+    finally { setLoading(false); }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16 gap-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5 text-gray-600" />
-            </button>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <UsersIcon className="h-5 w-5 text-blue-600" />
-              </div>
-              <h1 className="text-xl font-bold text-gray-900">All Users</h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                {users.length} users
-              </span>
-            </div>
-          </div>
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-black" style={{ color: '#1e1b4b' }}>All Users</h1>
+          <p className="text-sm font-medium mt-0.5" style={{ color: '#94a3b8' }}>Every registered user across the platform</p>
         </div>
-      </nav>
+        <span className="text-xs px-3.5 py-2 rounded-2xl font-bold"
+          style={{ background: '#eef2ff', color: '#6366f1', border: '1.5px solid #c7d2fe', boxShadow: '0 2px 8px rgba(99,102,241,0.1)' }}>
+          {users.length} users
+        </span>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search users by email, name, or phone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#a5b4fc' }} />
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name, email or phone..."
+          className="w-full pl-11 pr-4 py-3 rounded-2xl text-sm font-medium outline-none transition-all"
+          style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid #e2e8f0', color: '#1e1b4b', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}
+          onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(165,180,252,0.2)'; }}
+          onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)'; }} />
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-10 h-10 rounded-full border-indigo-200 border-t-indigo-500 animate-spin" style={{ borderWidth: 3 }} />
         </div>
-
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading users...</p>
+      ) : users.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 rounded-3xl"
+          style={{ background: 'rgba(255,255,255,0.7)', border: '1.5px solid rgba(255,255,255,0.9)', boxShadow: '0 8px 32px rgba(99,102,241,0.06)' }}>
+          <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4"
+            style={{ background: '#eef2ff', border: '1.5px solid #c7d2fe' }}>
+            <UsersIcon className="h-8 w-8" style={{ color: '#a5b4fc' }} />
           </div>
-        ) : users.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-            <UsersIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No users found</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {users.map((user) => (
-              <div key={user._id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{user.name || 'Unnamed User'}</h3>
-                      {getSubscriptionBadge(user.subscription)}
+          <p className="text-sm font-bold" style={{ color: '#94a3b8' }}>No users found</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {users.map(user => (
+            <div key={user._id} className="p-5 transition-all"
+              style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(255,255,255,0.9)', borderRadius: 20, boxShadow: '0 4px 16px rgba(99,102,241,0.06)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(99,102,241,0.1)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(99,102,241,0.06)'; }}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-black flex-shrink-0"
+                    style={{ background: '#eef2ff', color: '#6366f1', border: '1.5px solid #c7d2fe', boxShadow: '0 4px 12px rgba(99,102,241,0.15)' }}>
+                    {(user.name || user.email || '?')[0].toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <p className="text-sm font-bold" style={{ color: '#1e1b4b' }}>{user.name || 'Unnamed User'}</p>
                       {user.tenant && (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 border border-purple-200">
-                          Tenant: {user.tenant.status}
+                        <span className="text-[10px] px-2.5 py-1 rounded-full font-black"
+                          style={{ background: '#ede9fe', color: '#7c3aed', border: '1.5px solid #ddd6fe' }}>
+                          SUBSCRIBER
                         </span>
                       )}
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-gray-600">📧 {user.email}</p>
-                      <p className="text-sm text-gray-600">📱 {user.phone}</p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                      <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: '#64748b' }}>
+                        <Mail className="h-3 w-3" style={{ color: '#a5b4fc' }} />{user.email}
+                      </span>
+                      {user.phone && (
+                        <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: '#64748b' }}>
+                          <Phone className="h-3 w-3" style={{ color: '#a5b4fc' }} />{user.phone}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 mb-4 pt-4 border-t border-gray-100">
-                  <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <Building2 className="h-5 w-5 text-blue-600 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-gray-900">{user.stats.profiles}</p>
-                    <p className="text-xs text-gray-600">Profiles</p>
-                  </div>
-                  <div className="text-center p-3 bg-green-50 rounded-lg">
-                    <FileText className="h-5 w-5 text-green-600 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-gray-900">{user.stats.documents}</p>
-                    <p className="text-xs text-gray-600">Documents</p>
-                  </div>
-                  <div className="text-center p-3 bg-purple-50 rounded-lg">
-                    <ShoppingCart className="h-5 w-5 text-purple-600 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-gray-900">{user.stats.customers}</p>
-                    <p className="text-xs text-gray-600">Customers</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-4 border-t border-gray-100">
-                  {!user.tenant && (
-                    <button
-                      onClick={() => handleConvertToTenant(user._id)}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Convert to Tenant
-                    </button>
-                  )}
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  {[
+                    { icon: Building2, val: user.stats?.profiles ?? 0,  label: 'Profiles',  bg: '#eef2ff',  color: '#6366f1' },
+                    { icon: FileText,  val: user.stats?.documents ?? 0, label: 'Docs',      bg: '#d1fae5',  color: '#059669' },
+                    { icon: UsersIcon, val: user.stats?.customers ?? 0, label: 'Customers', bg: '#ede9fe',  color: '#7c3aed' },
+                  ].map(({ icon: Icon, val, label, bg, color }) => (
+                    <div key={label} className="text-center hidden sm:block px-3 py-2 rounded-2xl"
+                      style={{ background: bg, border: `1.5px solid ${color}30` }}>
+                      <p className="text-base font-black" style={{ color }}>{val}</p>
+                      <p className="text-[10px] font-bold" style={{ color: `${color}99` }}>{label}</p>
+                    </div>
+                  ))}
                   {user.tenant && (
-                    <button
-                      onClick={() => navigate(`/tenants/${user.tenant.id}`)}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-                    >
-                      <Building2 className="h-4 w-4 mr-2" />
-                      Manage Tenant
+                    <button onClick={() => navigate(`/subscribers/${user.tenant.id}`)}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all ml-1"
+                      style={{ background: '#ede9fe', color: '#7c3aed', border: '1.5px solid #ddd6fe' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#ddd6fe'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#ede9fe'; }}>
+                      <ExternalLink className="h-3 w-3" />Manage
                     </button>
                   )}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </main>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

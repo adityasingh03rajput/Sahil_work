@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { requireActiveSubscription } from '../middleware/subscription.js';
 import { requireProfile } from '../middleware/profile.js';
+import { enforceLimit } from '../middleware/subscriberEnforcement.js';
 
 import { ExtraExpense } from '../models/ExtraExpense.js';
 
@@ -49,7 +50,7 @@ extraExpensesRouter.get('/', async (req, res, next) => {
   }
 });
 
-extraExpensesRouter.post('/', async (req, res, next) => {
+extraExpensesRouter.post('/', enforceLimit('maxExtraExpenses', (req) => ExtraExpense.countDocuments({ userId: req.userId })), async (req, res, next) => {
   try {
     const body = req.body || {};
 

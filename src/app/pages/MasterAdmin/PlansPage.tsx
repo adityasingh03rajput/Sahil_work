@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ADMIN_API_URL as API_URL } from '../../config/api';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Package, DollarSign, Users, Calendar, Monitor, X, Save } from 'lucide-react';
+import { Plus, Package, DollarSign, Users, Calendar, Monitor, X, Save } from 'lucide-react';
 
 const emptyPlan = {
   name: '',
@@ -70,151 +70,179 @@ export function MasterAdminPlansPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-gray-100 rounded-lg">
-                <ArrowLeft className="h-5 w-5 text-gray-600" />
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg"><Package className="h-5 w-5 text-blue-600" /></div>
-                <h1 className="text-xl font-bold text-gray-900">Manage Plans</h1>
-              </div>
-            </div>
-            <button onClick={openCreate} className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">
-              <Plus className="h-4 w-4 mr-2" />Create Plan
-            </button>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center"
+            style={{ background: '#fef3c7', border: '1.5px solid #fde68a', boxShadow: '0 4px 12px rgba(245,158,11,0.15)' }}>
+            <Package className="h-5 w-5" style={{ color: '#d97706' }} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black" style={{ color: '#1e1b4b' }}>Manage Plans</h1>
+            <p className="text-sm font-medium" style={{ color: '#94a3b8' }}>Configure subscription plans and pricing</p>
           </div>
         </div>
-      </nav>
+        <button onClick={openCreate}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-white transition-all"
+          style={{ background: 'linear-gradient(135deg,#f59e0b,#fbbf24)', boxShadow: '0 6px 20px rgba(245,158,11,0.35)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}>
+          <Plus className="h-4 w-4" />Create Plan
+        </button>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {plans.map((plan) => (
-              <div key={plan._id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white">
-                  <h3 className="text-2xl font-bold mb-1">{plan.displayName}</h3>
-                  <p className="text-sm opacity-90">{plan.description}</p>
-                </div>
-                <div className="p-6 space-y-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Calendar className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm font-semibold text-gray-700">Durations</span>
-                    </div>
-                    {plan.durations?.map((d: any, i: number) => (
-                      <div key={i} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg mb-1">
-                        <span className="text-sm text-gray-700">{d.days} days</span>
-                        <span className="text-sm font-semibold text-blue-600">₹{d.price?.toLocaleString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="pt-3 border-t border-gray-100 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2"><Users className="h-4 w-4 text-gray-500" /><span className="text-sm text-gray-700">Max Seats</span></div>
-                      <span className="text-sm font-semibold">{plan.limits?.maxSeats ?? 5}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2"><Monitor className="h-4 w-4 text-gray-500" /><span className="text-sm text-gray-700">Max Sessions</span></div>
-                      <span className="text-sm font-semibold text-purple-600">{plan.limits?.maxSessions ?? 1} device(s)</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2"><DollarSign className="h-4 w-4 text-gray-500" /><span className="text-sm text-gray-700">Seat Price</span></div>
-                      <span className="text-sm font-semibold">₹{plan.seatPrice?.toLocaleString() || 0}</span>
-                    </div>
-                  </div>
-                  <button onClick={() => openEdit(plan)} className="w-full mt-2 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg text-sm hover:bg-blue-50">
-                    Edit Plan
-                  </button>
-                </div>
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-10 h-10 rounded-full border-amber-200 border-t-amber-500 animate-spin" style={{ borderWidth: 3 }} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {plans.map((plan) => (
+            <div key={plan._id} className="rounded-3xl overflow-hidden transition-all"
+              style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(255,255,255,0.9)', boxShadow: '0 8px 32px rgba(245,158,11,0.08)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 40px rgba(245,158,11,0.15)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(245,158,11,0.08)'; }}>
+              <div className="p-6" style={{ background: 'linear-gradient(135deg, #f59e0b, #fbbf24)' }}>
+                <h3 className="text-xl font-black text-white mb-1">{plan.displayName}</h3>
+                <p className="text-sm text-white/80 font-medium">{plan.description}</p>
               </div>
-            ))}
-          </div>
-        )}
-      </main>
+              <div className="p-5 space-y-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="h-4 w-4" style={{ color: '#f59e0b' }} />
+                    <span className="text-xs font-black uppercase tracking-wide" style={{ color: '#374151' }}>Durations</span>
+                  </div>
+                  {plan.durations?.map((d: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center p-2.5 rounded-xl mb-1.5"
+                      style={{ background: '#fffbeb', border: '1.5px solid #fde68a' }}>
+                      <span className="text-sm font-bold" style={{ color: '#374151' }}>{d.days} days</span>
+                      <span className="text-sm font-black" style={{ color: '#d97706' }}>₹{d.price?.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-3 space-y-2" style={{ borderTop: '1.5px solid #f1f5f9' }}>
+                  {[
+                    { icon: Users,   label: 'Max Seats',    value: plan.limits?.maxSeats ?? 5, color: '#6366f1' },
+                    { icon: Monitor, label: 'Max Sessions', value: `${plan.limits?.maxSessions ?? 1} device(s)`, color: '#8b5cf6' },
+                    { icon: DollarSign, label: 'Seat Price', value: `₹${plan.seatPrice?.toLocaleString() || 0}`, color: '#10b981' },
+                  ].map(({ icon: Icon, label, value, color }) => (
+                    <div key={label} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-3.5 w-3.5" style={{ color }} />
+                        <span className="text-xs font-semibold" style={{ color: '#64748b' }}>{label}</span>
+                      </div>
+                      <span className="text-xs font-black" style={{ color }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => openEdit(plan)}
+                  className="w-full mt-1 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all"
+                  style={{ background: '#fffbeb', color: '#d97706', border: '1.5px solid #fde68a' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fef3c7'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#fffbeb'; }}>
+                  Edit Plan
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal */}
       {modal.open && modal.plan && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-lg font-bold">{modal.isNew ? 'Create Plan' : 'Edit Plan'}</h2>
-              <button onClick={() => setModal({ open: false, plan: null, isNew: false })}><X className="h-5 w-5" /></button>
+        <div className="fixed inset-0 flex items-center justify-center z-[50] p-4"
+          style={{ background: 'rgba(15,23,42,0.4)', backdropFilter: 'blur(4px)' }}>
+          <div className="w-full max-w-lg rounded-3xl overflow-hidden max-h-[90vh] overflow-y-auto"
+            style={{ background: 'rgba(255,255,255,0.97)', border: '1.5px solid rgba(255,255,255,0.9)', boxShadow: '0 32px 80px rgba(245,158,11,0.15)' }}>
+            <div className="flex items-center justify-between px-6 py-5 sticky top-0 z-10"
+              style={{ borderBottom: '1.5px solid #f1f5f9', background: 'rgba(255,255,255,0.97)' }}>
+              <h2 className="text-base font-black" style={{ color: '#1e1b4b' }}>{modal.isNew ? 'Create Plan' : 'Edit Plan'}</h2>
+              <button onClick={() => setModal({ open: false, plan: null, isNew: false })}
+                className="p-1.5 rounded-xl" style={{ background: '#f1f5f9', color: '#94a3b8' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#ffe4e6'; (e.currentTarget as HTMLElement).style.color = '#f43f5e'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#f1f5f9'; (e.currentTarget as HTMLElement).style.color = '#94a3b8'; }}>
+                <X className="h-4 w-4" />
+              </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name (slug)</label>
-                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={modal.plan.name} onChange={e => setPlanField('name', e.target.value)} placeholder="basic" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
-                  <input className="w-full border rounded-lg px-3 py-2 text-sm" value={modal.plan.displayName} onChange={e => setPlanField('displayName', e.target.value)} placeholder="Basic Plan" />
-                </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[['Name (slug)', 'name', 'basic'], ['Display Name', 'displayName', 'Basic Plan']].map(([label, key, ph]) => (
+                  <div key={key}>
+                    <label className="block text-xs font-black mb-1.5 uppercase tracking-wide" style={{ color: '#475569' }}>{label}</label>
+                    <input className="w-full px-3 py-2.5 rounded-xl text-sm font-medium outline-none"
+                      style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', color: '#1e1b4b' }}
+                      value={modal.plan[key]} onChange={e => setPlanField(key, e.target.value)} placeholder={ph} />
+                  </div>
+                ))}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <input className="w-full border rounded-lg px-3 py-2 text-sm" value={modal.plan.description || ''} onChange={e => setPlanField('description', e.target.value)} />
+                <label className="block text-xs font-black mb-1.5 uppercase tracking-wide" style={{ color: '#475569' }}>Description</label>
+                <input className="w-full px-3 py-2.5 rounded-xl text-sm font-medium outline-none"
+                  style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', color: '#1e1b4b' }}
+                  value={modal.plan.description || ''} onChange={e => setPlanField('description', e.target.value)} />
               </div>
 
-              <div className="border rounded-lg p-4 space-y-3">
-                <div className="flex items-center gap-2 font-medium text-sm text-gray-700">
-                  <Monitor className="h-4 w-4 text-purple-500" />
-                  Session & Seat Limits
+              <div className="p-4 rounded-2xl space-y-3" style={{ background: '#ede9fe', border: '1.5px solid #ddd6fe' }}>
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide" style={{ color: '#7c3aed' }}>
+                  <Monitor className="h-4 w-4" />Session & Seat Limits
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">Max Sessions (devices)</label>
-                    <input type="number" min="1" className="w-full border rounded-lg px-3 py-2 text-sm"
+                    <label className="block text-xs font-bold mb-1" style={{ color: '#6d28d9' }}>Max Sessions (devices)</label>
+                    <input type="number" min="1" className="w-full px-3 py-2 rounded-xl text-sm font-medium outline-none"
+                      style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid #ddd6fe', color: '#1e1b4b' }}
                       value={modal.plan.limits?.maxSessions ?? 1}
                       onChange={e => setPlanField('limits.maxSessions', Number(e.target.value))} />
-                    <p className="text-xs text-gray-400 mt-1">How many devices can be logged in simultaneously</p>
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-600 mb-1">Max Seats</label>
-                    <input type="number" min="1" className="w-full border rounded-lg px-3 py-2 text-sm"
+                    <label className="block text-xs font-bold mb-1" style={{ color: '#6d28d9' }}>Max Seats</label>
+                    <input type="number" min="1" className="w-full px-3 py-2 rounded-xl text-sm font-medium outline-none"
+                      style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid #ddd6fe', color: '#1e1b4b' }}
                       value={modal.plan.limits?.maxSeats ?? 5}
                       onChange={e => setPlanField('limits.maxSeats', Number(e.target.value))} />
                   </div>
                 </div>
               </div>
 
-              <div className="border rounded-lg p-4 space-y-3">
-                <div className="text-sm font-medium text-gray-700">Durations & Pricing</div>
+              <div className="p-4 rounded-2xl space-y-3" style={{ background: '#fffbeb', border: '1.5px solid #fde68a' }}>
+                <div className="text-xs font-black uppercase tracking-wide" style={{ color: '#d97706' }}>Durations & Pricing</div>
                 {modal.plan.durations?.map((d: any, i: number) => (
                   <div key={i} className="flex gap-2 items-center">
-                    <input type="number" className="w-24 border rounded-lg px-2 py-1.5 text-sm" value={d.days}
+                    <input type="number" className="w-24 px-2.5 py-2 rounded-xl text-sm font-medium outline-none"
+                      style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid #fde68a', color: '#1e1b4b' }}
+                      value={d.days}
                       onChange={e => { const durations = [...modal.plan.durations]; durations[i].days = Number(e.target.value); setPlanField('durations', durations); }}
                       placeholder="Days" />
-                    <span className="text-sm text-gray-500">days —</span>
-                    <input type="number" className="flex-1 border rounded-lg px-2 py-1.5 text-sm" value={d.price}
+                    <span className="text-xs font-bold" style={{ color: '#d97706' }}>days —</span>
+                    <input type="number" className="flex-1 px-2.5 py-2 rounded-xl text-sm font-medium outline-none"
+                      style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid #fde68a', color: '#1e1b4b' }}
+                      value={d.price}
                       onChange={e => { const durations = [...modal.plan.durations]; durations[i].price = Number(e.target.value); setPlanField('durations', durations); }}
                       placeholder="₹ Price" />
-                    <button onClick={() => { const durations = modal.plan.durations.filter((_: any, j: number) => j !== i); setPlanField('durations', durations); }} className="text-red-500 hover:text-red-700">
-                      <X className="h-4 w-4" />
+                    <button onClick={() => { const durations = modal.plan.durations.filter((_: any, j: number) => j !== i); setPlanField('durations', durations); }}
+                      className="p-1.5 rounded-xl" style={{ background: '#ffe4e6', color: '#f43f5e' }}>
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ))}
                 <button onClick={() => setPlanField('durations', [...modal.plan.durations, { days: 30, price: 0 }])}
-                  className="text-sm text-blue-600 hover:underline">+ Add duration</button>
+                  className="text-xs font-bold" style={{ color: '#d97706' }}>+ Add duration</button>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Seat Price (₹/extra seat)</label>
-                <input type="number" className="w-full border rounded-lg px-3 py-2 text-sm" value={modal.plan.seatPrice || 0}
-                  onChange={e => setPlanField('seatPrice', Number(e.target.value))} />
+                <label className="block text-xs font-black mb-1.5 uppercase tracking-wide" style={{ color: '#475569' }}>Seat Price (₹/extra seat)</label>
+                <input type="number" className="w-full px-3 py-2.5 rounded-xl text-sm font-medium outline-none"
+                  style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', color: '#1e1b4b' }}
+                  value={modal.plan.seatPrice || 0} onChange={e => setPlanField('seatPrice', Number(e.target.value))} />
               </div>
             </div>
-            <div className="flex gap-3 p-6 border-t">
-              <button onClick={() => setModal({ open: false, plan: null, isNew: false })} className="flex-1 px-4 py-2 border rounded-lg text-sm">Cancel</button>
-              <button onClick={savePlan} disabled={saving} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+            <div className="flex gap-3 px-6 py-5 sticky bottom-0" style={{ borderTop: '1.5px solid #f1f5f9', background: 'rgba(255,255,255,0.97)' }}>
+              <button onClick={() => setModal({ open: false, plan: null, isNew: false })}
+                className="flex-1 px-4 py-3 rounded-2xl text-sm font-bold"
+                style={{ background: '#f1f5f9', border: '1.5px solid #e2e8f0', color: '#64748b' }}>Cancel</button>
+              <button onClick={savePlan} disabled={saving}
+                className="flex-1 px-4 py-3 rounded-2xl text-sm font-black text-white flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                style={{ background: 'linear-gradient(135deg,#f59e0b,#fbbf24)', boxShadow: '0 6px 20px rgba(245,158,11,0.35)' }}>
                 <Save className="h-4 w-4" />{saving ? 'Saving...' : 'Save Plan'}
               </button>
             </div>

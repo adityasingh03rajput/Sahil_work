@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { User } from '../models/User.js';
 import { Subscription } from '../models/Subscription.js';
 import { Session } from '../models/Session.js';
+import { Subscriber } from '../models/Subscriber.js';
 import { PasswordResetOtp } from '../models/PasswordResetOtp.js';
 import { LicenseKey } from '../models/LicenseKey.js';
 import { signAccessToken, decodeAccessToken } from '../lib/jwt.js';
@@ -103,6 +104,21 @@ authRouter.post('/signin', async (req, res, next) => {
     }
 
     const deviceId = req.header('X-Device-ID') || `web-${Date.now()}`;
+
+    // Enforce maxSessions limit if set for this tenant
+    const subscriber = await Subscriber.findOne({ ownerUserId: user._id }).lean();
+    const maxSessions = subscriber?.limits?.maxSessions ?? -1;
+    if (maxSessions !== -1) {
+      const existingSessionCount = await Session.countDocuments({ userId: user._id });
+      const alreadyHasDevice = await Session.exists({ userId: user._id, deviceId });
+      if (!alreadyHasDevice && existingSessionCount >= maxSessions) {
+        return res.status(403).json({
+          error: 'Session limit reached',
+          message: `Maximum ${maxSessions} simultaneous login(s) allowed. Please sign out from another device first.`,
+          code: 'SESSION_LIMIT_REACHED',
+        });
+      }
+    }
 
     await Session.findOneAndUpdate(
       { userId: user._id, deviceId },
@@ -306,7 +322,9 @@ authRouter.get('/license-status', requireAuth, async (req, res, next) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const TRIAL_DAYS = 7;
-    const trialEndsAt = new Date(user.createdAt.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+    const subscriber = await Subscriber.findOne({ ownerUserId: req.userId }).lean();
+    const extensionDays = Number(subscriber?.trialExtensionDays || 0);
+    const trialEndsAt = new Date(user.createdAt.getTime() + (TRIAL_DAYS + extensionDays) * 24 * 60 * 60 * 1000);
     const now = new Date();
     const trialActive = now <= trialEndsAt;
     const trialDaysRemaining = Math.max(0, Math.ceil((trialEndsAt - now) / (1000 * 60 * 60 * 24)));
@@ -375,6 +393,28 @@ authRouter.post('/activate-license', requireAuth, async (req, res, next) => {
     license.activatedAt = now;
     license.expiresAt = expiresAt;
     await license.save();
+
+    // ── Upsert Subscriber record ──────────────────────────────────────────────
+    // A user with an active license key IS a subscriber. Create or update the
+    // Subscriber record so the admin panel can see them.
+    await Subscriber.findOneAndUpdate(
+      { ownerUserId: req.userId },
+      {
+        $set: {
+          name: user.name || user.email.split('@')[0],
+          email: user.email,
+          phone: user.phone || '',
+          status: 'active',
+        },
+        $setOnInsert: {
+          ownerUserId: req.userId,
+          gstin: null,
+          notes: null,
+        },
+      },
+      { upsert: true, new: true }
+    );
+    // ─────────────────────────────────────────────────────────────────────────
 
     const daysRemaining = license.durationDays;
     res.json({

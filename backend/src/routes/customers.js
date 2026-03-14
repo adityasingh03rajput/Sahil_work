@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { requireActiveSubscription } from '../middleware/subscription.js';
 import { requireProfile } from '../middleware/profile.js';
+import { enforceLimit, enforceFeature } from '../middleware/subscriberEnforcement.js';
 import { Customer } from '../models/Customer.js';
 import { fetchGstinDetails } from '../lib/gstin.js';
 
@@ -10,7 +11,7 @@ export const customersRouter = Router();
 
 customersRouter.use(requireAuth, requireValidDeviceSession, requireActiveSubscription, requireProfile);
 
-customersRouter.post('/', async (req, res, next) => {
+customersRouter.post('/', enforceLimit('maxCustomers', (req) => Customer.countDocuments({ userId: req.userId })), async (req, res, next) => {
   try {
     const data = req.body || {};
     const customer = await Customer.create({ userId: req.userId, profileId: req.profileId, ...data });
@@ -117,7 +118,7 @@ customersRouter.delete('/:id', async (req, res, next) => {
   }
 });
 
-customersRouter.post('/gstin/lookup', async (req, res, next) => {
+customersRouter.post('/gstin/lookup', enforceFeature('allowGstinLookup'), async (req, res, next) => {
   try {
     const { gstin } = req.body || {};
     if (!gstin) {
@@ -163,7 +164,7 @@ customersRouter.post('/gstin/lookup', async (req, res, next) => {
   }
 });
 
-customersRouter.post('/gstin', async (req, res, next) => {
+customersRouter.post('/gstin', enforceFeature('allowGstinLookup'), async (req, res, next) => {
   try {
     const { gstin } = req.body || {};
     if (!gstin) {
