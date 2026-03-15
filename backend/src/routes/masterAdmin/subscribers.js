@@ -279,8 +279,9 @@ masterAdminSubscribersRouter.post('/:id/reset-password', async (req, res, next) 
     const user = await User.findById(subscriber.ownerUserId);
     if (!user) return res.status(404).json({ error: 'Owner user not found' });
 
-    const bcrypt = await import('bcryptjs');
-    user.password = await bcrypt.default.hash(newPassword, 10);
+    const bcryptLib = await import('bcryptjs');
+    user.passwordHash = await bcryptLib.default.hash(newPassword, 10);
+    user.passwordHistory = [];  // clear history so the new password isn't blocked
     await user.save();
 
     await logAudit(req.masterAdminId, 'subscriber_password_reset', subscriber._id, null, null, { userId: String(user._id) });
