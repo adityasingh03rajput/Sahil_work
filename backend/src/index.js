@@ -165,6 +165,11 @@ const API_PREFIXES = [
 app.get('*', (req, res, next) => {
   if (API_PREFIXES.some(p => req.path.startsWith(p))) return next();
   if (!distPath) return res.status(500).send('Frontend build not found');
+  // Admin panel routes → serve admin.html
+  if (req.path === '/admin' || req.path.startsWith('/admin/')) {
+    const adminHtml = path.join(distPath, 'admin.html');
+    if (fs.existsSync(adminHtml)) return res.sendFile(adminHtml);
+  }
   return res.sendFile(path.join(distPath, 'index.html'));
 });
 

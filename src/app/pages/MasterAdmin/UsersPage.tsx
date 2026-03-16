@@ -2,13 +2,18 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ADMIN_API_URL as API_URL } from '../../config/api';
 import { toast } from 'sonner';
-import { Search, Users as UsersIcon, FileText, Building2, Mail, Phone, ExternalLink } from 'lucide-react';
+import { Search, Users as UsersIcon, FileText, Building2, Mail, Phone, ExternalLink, KeyRound, X } from 'lucide-react';
 
 export function MasterAdminUsersPage() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+
+  // Reset password modal state
+  const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => { loadUsers(); }, [search]);
 
@@ -25,6 +30,29 @@ export function MasterAdminUsersPage() {
       else setUsers(data.users || []);
     } catch { toast.error('Failed to load users'); }
     finally { setLoading(false); }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetTarget) return;
+    if (newPassword.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+    setResetting(true);
+    try {
+      const token = localStorage.getItem('masterAdminToken');
+      const res = await fetch(`${API_URL}/master-admin/users/${resetTarget.id}/reset-password`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      toast.success(`Password reset for ${resetTarget.name}`);
+      setResetTarget(null);
+      setNewPassword('');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to reset password');
+    } finally {
+      setResetting(false);
+    }
   };
 
   return (
@@ -132,9 +160,17 @@ export function MasterAdminUsersPage() {
                       <p className="text-[10px] font-bold" style={{ color: `${color}99` }}>{label}</p>
                     </div>
                   ))}
+                  <button
+                    onClick={() => { setResetTarget({ id: user._id, name: user.name || user.email }); setNewPassword(''); }}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all"
+                    style={{ background: '#fef3c7', color: '#d97706', border: '1.5px solid #fde68a' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#fde68a'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#fef3c7'; }}>
+                    <KeyRound className="h-3 w-3" />Reset PW
+                  </button>
                   {user.tenant && (
                     <button onClick={() => navigate(`/subscribers/${user.tenant.id}`)}
-                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all ml-1"
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all"
                       style={{ background: '#ede9fe', color: '#7c3aed', border: '1.5px solid #ddd6fe' }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#ddd6fe'; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#ede9fe'; }}>
@@ -145,6 +181,50 @@ export function MasterAdminUsersPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      
+      {/* Reset Password Modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setResetTarget(null)}>
+          <div className="w-full max-w-sm p-6 rounded-3xl"
+            style={{ background: '#fff', border: '1.5px solid #e2e8f0', boxShadow: '0 24px 64px rgba(0,0,0,0.15)' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-base font-black" style={{ color: '#1e1b4b' }}>Reset Password</h2>
+                <p className="text-xs font-medium mt-0.5" style={{ color: '#94a3b8' }}>{resetTarget.name}</p>
+              </div>
+              <button onClick={() => setResetTarget(null)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center"
+                style={{ background: '#f1f5f9', color: '#64748b' }}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <input
+              type="password"
+              placeholder="New password (min 6 chars)"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleResetPassword()}
+              className="w-full px-4 py-3 rounded-2xl text-sm font-medium outline-none mb-4"
+              style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', color: '#1e1b4b' }}
+              autoFocus
+            />
+            <button
+              onClick={handleResetPassword}
+              disabled={resetting || newPassword.length < 6}
+              className="w-full py-3 rounded-2xl text-sm font-bold transition-all"
+              style={{
+                background: newPassword.length >= 6 ? '#d97706' : '#e2e8f0',
+                color: newPassword.length >= 6 ? '#fff' : '#94a3b8',
+                cursor: newPassword.length >= 6 ? 'pointer' : 'not-allowed',
+              }}>
+              {resetting ? 'Resetting…' : 'Reset Password'}
+            </button>
+          </div>
         </div>
       )}
     </div>
