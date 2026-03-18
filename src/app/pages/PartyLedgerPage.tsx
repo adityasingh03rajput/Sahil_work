@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
@@ -291,16 +290,16 @@ export function PartyLedgerPage() {
 
   if (loadingParties && parties.length === 0) {
     return (
-      <AppLayout>
+      <>
         <div className="flex items-center justify-center h-full">
           <TraceLoader label="Loading ledger..." />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   return (
-    <AppLayout>
+    <>
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
@@ -494,7 +493,7 @@ export function PartyLedgerPage() {
           )}
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 }
 

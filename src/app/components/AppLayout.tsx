@@ -67,7 +67,15 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [subscriptionWarning, setSubscriptionWarning] = useState<string | null>(null);
   const [subscriptionExpired, setSubscriptionExpired] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
-  const [profileGateChecked, setProfileGateChecked] = useState(false);
+  // Start as true if we already have a profile cached — avoids spinner flash on every nav
+  const [profileGateChecked, setProfileGateChecked] = useState(() => {
+    try {
+      const raw = localStorage.getItem('currentProfile');
+      if (!raw) return false;
+      const p = JSON.parse(raw);
+      return !!(typeof p === 'string' ? JSON.parse(p) : p)?.id;
+    } catch { return false; }
+  });
 
   const readCurrentProfile = () => {
     const raw = localStorage.getItem('currentProfile');
@@ -248,7 +256,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     };
 
     run();
-  }, [accessToken, deviceId, location.pathname, navigate, isNative]);
+  }, [accessToken, deviceId]);
 
   useEffect(() => {
     if (!profileGateChecked) return;

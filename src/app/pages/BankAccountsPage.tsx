@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { AppLayout } from '../components/AppLayout';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
@@ -229,7 +228,7 @@ export function BankAccountsPage() {
   }, [unified]);
 
   return (
-    <AppLayout>
+    <>
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -406,6 +405,6 @@ export function BankAccountsPage() {
           </Card>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 }

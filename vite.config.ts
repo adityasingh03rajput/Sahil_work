@@ -57,6 +57,7 @@ export default defineConfig({
     assetsInlineLimit: 4096,
     cssCodeSplit: true,
     chunkSizeWarningLimit: 1200,
+    modulePreload: { polyfill: true },
     rollupOptions: {
       input: {
         main:  path.resolve(__dirname, 'index.html'),
@@ -67,11 +68,8 @@ export default defineConfig({
         assetFileNames:  'assets/[name]-[hash][extname]',
         manualChunks(id) {
           if (!id.includes('node_modules')) return;
-          // Heavy lazy-loaded libs — safe to split because nothing depends on them at init
           if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('pdfmake')) return 'vendor-pdf';
           if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
-          // Everything else (react, radix, router, lucide…) stays in one vendor chunk
-          // so load order is guaranteed by Rollup's own dependency graph
           return 'vendor';
         },
       },

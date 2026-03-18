@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -258,7 +257,7 @@ export function VyaparKhataPage() {
   };
 
   return (
-    <AppLayout>
+    <>
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
@@ -528,6 +527,6 @@ export function VyaparKhataPage() {
           </div>
         )}
       </div>
-    </AppLayout>
+    </>
   );
 }

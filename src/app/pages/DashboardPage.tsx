@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { 
@@ -14,8 +13,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
-import { toast } from 'sonner';
-import { cacheSubscriptionToken, validateSubscriptionTokenOnline } from '../utils/subscriptionValidation';
 import { TraceLoader } from '../components/TraceLoader';
 import { prefetchRoutesOnIdle } from '../hooks/usePrefetch';
 
@@ -90,8 +87,15 @@ export function DashboardPage() {
     try {
       const headers = { 'Authorization': `Bearer ${accessToken}`, 'X-Device-ID': deviceId, 'X-Profile-ID': profileId };
 
-      // Load analytics
-      const analyticsRes = await fetch(`${apiUrl}/analytics`, { headers });
+      // Fire all requests in parallel — no sequential waiting
+      const [analyticsRes, docsRes, subRes] = await Promise.all([
+        fetch(`${apiUrl}/analytics`, { headers }),
+        fetch(`${apiUrl}/documents`, { headers }),
+        profileId
+          ? fetch(`${apiUrl}/subscription/validate`, { headers })
+          : fetch(`${apiUrl}/subscription`, { headers: { 'Authorization': `Bearer ${accessToken}`, 'X-Device-ID': deviceId } }),
+      ]);
+
       let analyticsData: any = null;
       if (analyticsRes.status !== 403) {
         const d = await analyticsRes.json();
@@ -99,8 +103,6 @@ export function DashboardPage() {
       }
       if (analyticsData) setAnalytics(analyticsData);
 
-      // Load recent documents
-      const docsRes = await fetch(`${apiUrl}/documents`, { headers });
       let recentDocsData: any[] = [];
       if (docsRes.status !== 403) {
         const d = await docsRes.json();
@@ -108,34 +110,13 @@ export function DashboardPage() {
       }
       setRecentDocs(recentDocsData);
 
-      // Write cache
-      writeDashCache(analyticsData, recentDocsData);
-
-      // Prefetch the most-visited pages while the device is idle
-      prefetchRoutesOnIdle(['/documents', '/customers', '/items', '/analytics']);
-
-      // Load subscription (not cached — always fresh)
-      if (profileId) {
-        const online = await validateSubscriptionTokenOnline({
-          apiUrl,
-          accessToken: accessToken || '',
-          deviceId,
-          profileId,
-        });
-        if (online.ok && online.token) {
-          cacheSubscriptionToken(profileId, online.token);
-        }
-
-        const subRes = await fetch(`${apiUrl}/subscription/validate`, { headers });
-        const subData = await subRes.json();
-        if (!subData?.error && subData?.subscription) setSubscription(subData.subscription);
-      } else {
-        const subRes = await fetch(`${apiUrl}/subscription`, {
-          headers: { 'Authorization': `Bearer ${accessToken}`, 'X-Device-ID': deviceId },
-        });
-        const subData = await subRes.json();
-        if (!subData.error) setSubscription(subData);
+      const subData = await subRes.json();
+      if (!subData?.error) {
+        setSubscription(subData?.subscription ?? subData);
       }
+
+      writeDashCache(analyticsData, recentDocsData);
+      prefetchRoutesOnIdle(['/documents', '/customers', '/items', '/analytics']);
     } catch {
       // ignore
     } finally {
@@ -164,16 +145,16 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <>
         <div className="flex items-center justify-center h-full">
           <TraceLoader label="Loading dashboard..." />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   return (
-    <AppLayout>
+    <>
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
@@ -445,6 +426,6 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </AppLayout>
+    </>
   );
 }

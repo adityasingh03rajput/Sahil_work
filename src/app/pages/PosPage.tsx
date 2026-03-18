@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -317,7 +316,7 @@ export function PosPage() {
   };
 
   return (
-    <AppLayout>
+    <>
       <div className="p-4 sm:p-6 max-w-5xl mx-auto">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
@@ -570,6 +569,6 @@ export function PosPage() {
           </Card>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 }

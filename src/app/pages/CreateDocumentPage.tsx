@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -1810,16 +1809,16 @@ export function CreateDocumentPage() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <>
         <div className="flex items-center justify-center h-full">
           <TraceLoader label="Loading document..." />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   return (
-    <AppLayout>
+    <>
       <div className="bg-muted/30">
       <div>
         <div className="space-y-4">
@@ -3250,6 +3249,6 @@ export function CreateDocumentPage() {
       </div>
       </div>
       </div>
-    </AppLayout>
+    </>
   );
 }

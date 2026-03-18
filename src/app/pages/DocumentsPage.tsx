@@ -1,6 +1,5 @@
 import { useState, useEffect, type ChangeEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -898,11 +897,11 @@ export function DocumentsPage() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <>
         <div className="flex items-center justify-center h-full">
           <TraceLoader label="Loading documents..." />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
@@ -1018,7 +1017,7 @@ export function DocumentsPage() {
   // ── Mobile layout ─────────────────────────────────────────────────────────
   if (isNative) {
     return (
-      <AppLayout>
+      <>
         <SharedDialogs />
         {/* PDF dialog */}
         <Dialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen}>
@@ -1215,12 +1214,12 @@ export function DocumentsPage() {
             </>
           )}
         </div>
-      </AppLayout>
+      </>
     );
   }
 
   return (
-    <AppLayout>
+    <>
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <DialogContent className="max-w-md">
@@ -1737,6 +1736,6 @@ export function DocumentsPage() {
           </Card>
         )}
       </div>
-    </AppLayout>
+    </>
   );
 }

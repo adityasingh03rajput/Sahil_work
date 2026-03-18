@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -82,11 +81,11 @@ export function SubscriptionPage() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <>
         <div className="flex items-center justify-center h-full">
           <TraceLoader label="Loading subscription..." />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
@@ -95,7 +94,7 @@ export function SubscriptionPage() {
   const isExpired = status?.status === 'expired';
 
   return (
-    <AppLayout>
+    <>
       <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground">Subscription</h1>
@@ -209,6 +208,6 @@ export function SubscriptionPage() {
           </CardContent>
         </Card>
       </div>
-    </AppLayout>
+    </>
   );
 }

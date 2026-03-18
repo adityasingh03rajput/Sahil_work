@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -230,17 +229,14 @@ export function ItemsPage() {
 
   if (loading) {
     return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <TraceLoader label="Loading items..." />
-        </div>
-      </AppLayout>
+      <div className="flex items-center justify-center h-full">
+        <TraceLoader label="Loading items..." />
+      </div>
     );
   }
 
   return (
-    <AppLayout>
-      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>
@@ -648,6 +644,5 @@ export function ItemsPage() {
           </Card>
         )}
       </div>
-    </AppLayout>
   );
 }

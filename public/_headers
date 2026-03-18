@@ -1,0 +1,28 @@
+# HTML — always revalidate so users get fresh deploys
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/admin.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Hashed JS/CSS assets — cache forever (Vite adds content hash to filenames)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Fonts & images
+/*.png
+  Cache-Control: public, max-age=31536000, immutable
+/*.ico
+  Cache-Control: public, max-age=31536000, immutable
+/*.svg
+  Cache-Control: public, max-age=31536000, immutable
+
+# Service worker — never cache
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Security headers on all routes
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin

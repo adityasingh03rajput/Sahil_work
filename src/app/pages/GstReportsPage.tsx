@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -99,7 +98,7 @@ export function GstReportsPage() {
   }, []);
 
   return (
-    <AppLayout>
+    <>
       <div className="p-6 max-w-7xl mx-auto">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -224,6 +223,6 @@ export function GstReportsPage() {
           </Card>
         </div>
       </div>
-    </AppLayout>
+    </>
   );
 }

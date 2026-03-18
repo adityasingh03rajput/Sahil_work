@@ -127,22 +127,22 @@ export function MasterAdminUsersPage() {
                             ? `LICENSE · ${user.license.daysRemaining}d left`
                             : user.license.status.toUpperCase()}
                         </span>
-                      )}
-                      {!user.license && (
-                        <span className="text-[10px] px-2.5 py-1 rounded-full font-black"
-                          style={{ background: '#fef9c3', color: '#ca8a04', border: '1.5px solid #fde68a' }}>
-                          TRIAL
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-                      <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: '#64748b' }}>
-                        <Mail className="h-3 w-3" style={{ color: '#a5b4fc' }} />{user.email}
-                      </span>
-                      {user.phone && (
-                        <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: '#64748b' }}>
-                          <Phone className="h-3 w-3" style={{ color: '#a5b4fc' }} />{user.phone}
-                        </span>
+                          )}
+                          {!user.license && (
+                            <span className="text-[10px] px-2.5 py-1 rounded-full font-black"
+                              style={{ background: '#fef9c3', color: '#ca8a04', border: '1.5px solid #fde68a' }}>
+                              TRIAL
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                          <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: '#64748b' }}>
+                            <Mail className="h-3 w-3" style={{ color: '#a5b4fc' }} />{user.email}
+                          </span>
+                          {user.phone && (
+                            <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: '#64748b' }}>
+                              <Phone className="h-3 w-3" style={{ color: '#a5b4fc' }} />{user.phone}
+                            </span>
                       )}
                     </div>
                   </div>

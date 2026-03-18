@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AppLayout } from '../components/AppLayout';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -449,7 +448,7 @@ export function VyaparKhataPageNew() {
   };
 
   return (
-    <AppLayout>
+    <>
       <div className="flex h-[calc(100vh-4rem)]">
         <div className="w-[420px] border-r bg-background flex flex-col">
           <div className="border-b">
@@ -892,6 +891,6 @@ export function VyaparKhataPageNew() {
         )}
 
       </div>
-    </AppLayout>
+    </>
   );
 }

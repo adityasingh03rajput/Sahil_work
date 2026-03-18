@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { AppLayout } from '../components/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { 
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -200,11 +199,11 @@ export function AnalyticsPage() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <>
         <div className="flex items-center justify-center h-full">
           <TraceLoader label="Loading analytics..." />
         </div>
-      </AppLayout>
+      </>
     );
   }
 
@@ -223,7 +222,7 @@ export function AnalyticsPage() {
   })) || [];
 
   return (
-    <AppLayout>
+    <>
       <div className="p-4 sm:p-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
@@ -550,6 +549,6 @@ export function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
-    </AppLayout>
+    </>
   );
 }

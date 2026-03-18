@@ -8,6 +8,7 @@
 
     <!-- Preconnect to the API so the first fetch has no DNS/TLS cold-start -->
     <link rel="preconnect" href="https://accounts-8rx9.onrender.com" crossorigin />
+    <link rel="dns-prefetch" href="https://accounts-8rx9.onrender.com" />
 
     <!-- Tell the browser to start fetching the React runtime before JS is parsed -->
     <link rel="modulepreload" href="/src/main.tsx" />
@@ -34,6 +35,12 @@
     </style>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Register service worker for asset caching
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
       // Remove splash once React has painted its first frame
       document.addEventListener('DOMContentLoaded', () => {
         const splash = document.getElementById('app-splash');
