@@ -341,7 +341,7 @@ documentsRouter.get('/', async (req, res, next) => {
     const type   = req.query.type   ? String(req.query.type)   : null;
     const status = req.query.status ? String(req.query.status) : null;
 
-    const filter: any = { userId: req.userId, profileId: req.profileId };
+    const filter = { userId: req.userId, profileId: req.profileId };
     if (type)   filter.type = type;
     if (status === 'paid')   filter.paymentStatus = 'paid';
     if (status === 'unpaid') filter.paymentStatus = { $in: ['unpaid', 'pending', 'partial'] };
