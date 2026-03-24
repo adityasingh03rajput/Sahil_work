@@ -5,14 +5,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { TraceLoader } from '../components/TraceLoader';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
+import { toast } from 'sonner';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 function formatInr(amount: number) {
   const val = Number(amount || 0);
   return `₹${val.toFixed(2)}`;
 }
+
+const EMPTY_FORM = { label: '', bankName: '', bankBranch: '', accountNumber: '', ifscCode: '', upiId: '', upiQrText: '', isDefault: false };
 
 export function BankAccountsPage() {
   const navigate = useNavigate();
@@ -27,25 +32,19 @@ export function BankAccountsPage() {
     return `${yyyy}-${mm}-${dd}`;
   }, []);
 
-  const currentProfile = useMemo(() => {
+  const readProfile = () => {
     const raw = localStorage.getItem('currentProfile');
     if (!raw) return {} as any;
     try {
       const parsed = JSON.parse(raw);
-      if (typeof parsed === 'string') {
-        try {
-          return JSON.parse(parsed);
-        } catch {
-          return {} as any;
-        }
-      }
-      return parsed || ({} as any);
-    } catch {
-      return {} as any;
-    }
-  }, []);
+      return (typeof parsed === 'string' ? JSON.parse(parsed) : parsed) || ({} as any);
+    } catch { return {} as any; }
+  };
 
-  const accounts = Array.isArray(currentProfile?.bankAccounts) ? currentProfile.bankAccounts : [];
+  const [profileSnapshot, setProfileSnapshot] = useState<any>(() => readProfile());
+
+  const currentProfile = profileSnapshot;
+  const accounts: any[] = Array.isArray(currentProfile?.bankAccounts) ? currentProfile.bankAccounts : [];
 
   const legacy = useMemo(() => {
     const bankName = String(currentProfile?.bankName || '').trim();
@@ -54,17 +53,8 @@ export function BankAccountsPage() {
     const ifscCode = String(currentProfile?.ifscCode || '').trim();
     const upiId = String(currentProfile?.upiId || '').trim();
     const hasLegacy = !!(bankName || bankBranch || accountNumber || ifscCode || upiId);
-    return {
-      hasLegacy,
-      label: bankName || 'Primary Bank',
-      bankName,
-      bankBranch,
-      accountNumber,
-      ifscCode,
-      upiId,
-      upiQrText: '',
-    };
-  }, [currentProfile?.accountNumber, currentProfile?.bankBranch, currentProfile?.bankName, currentProfile?.ifscCode, currentProfile?.upiId]);
+    return { hasLegacy, label: bankName || 'Primary Bank', bankName, bankBranch, accountNumber, ifscCode, upiId, upiQrText: '' };
+  }, [currentProfile]);
 
   const defaultId = String(currentProfile?.defaultBankAccountId || '').trim();
   const fallbackDefault = accounts.find((a: any) => a?.isDefault && a?._id) || null;
@@ -79,6 +69,90 @@ export function BankAccountsPage() {
   const [manualAmount, setManualAmount] = useState<string>('');
   const [manualDescription, setManualDescription] = useState<string>('');
   const [savingManual, setSavingManual] = useState(false);
+
+  // ── Add / Edit bank account dialog ────────────────────────────────────────
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editIndex, setEditIndex] = useState<number | null>(null); // null = add new
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [savingAccount, setSavingAccount] = useState(false);
+
+  const openAdd = () => { setEditIndex(null); setForm({ ...EMPTY_FORM }); setDialogOpen(true); };
+  const openEdit = (idx: number) => {
+    const a = accounts[idx];
+    setEditIndex(idx);
+    setForm({
+      label: String(a?.label || ''),
+      bankName: String(a?.bankName || ''),
+      bankBranch: String(a?.bankBranch || ''),
+      accountNumber: String(a?.accountNumber || ''),
+      ifscCode: String(a?.ifscCode || ''),
+      upiId: String(a?.upiId || ''),
+      upiQrText: String(a?.upiQrText || ''),
+      isDefault: !!a?.isDefault,
+    });
+    setDialogOpen(true);
+  };
+
+  const saveAccount = async () => {
+    const profileId = String(currentProfile?.id || '').trim();
+    if (!profileId || !accessToken || !deviceId) { toast.error('No profile selected'); return; }
+    if (!form.bankName.trim() && !form.accountNumber.trim() && !form.label.trim()) {
+      toast.error('Enter at least a bank name or account number');
+      return;
+    }
+    setSavingAccount(true);
+    try {
+      const next = [...accounts];
+      const entry: any = {
+        ...(editIndex !== null ? (next[editIndex] || {}) : {}),
+        label: form.label.trim() || undefined,
+        bankName: form.bankName.trim() || undefined,
+        bankBranch: form.bankBranch.trim() || undefined,
+        accountNumber: form.accountNumber.trim() || undefined,
+        ifscCode: form.ifscCode.trim() || undefined,
+        upiId: form.upiId.trim() || undefined,
+        upiQrText: form.upiQrText.trim() || undefined,
+        isDefault: form.isDefault,
+      };
+      if (form.isDefault) next.forEach((a) => { a.isDefault = false; });
+      if (editIndex !== null) { next[editIndex] = entry; } else { next.push(entry); }
+
+      const res = await fetch(`${apiUrl}/profiles/${profileId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, 'X-Device-ID': deviceId, 'X-Profile-ID': profileId },
+        body: JSON.stringify({ bankAccounts: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to save');
+
+      // Update localStorage so the page reflects immediately
+      const updated = { ...currentProfile, bankAccounts: data.bankAccounts ?? next };
+      localStorage.setItem('currentProfile', JSON.stringify(updated));
+      setProfileSnapshot(updated);
+      setDialogOpen(false);
+      toast.success(editIndex !== null ? 'Bank account updated' : 'Bank account added');
+    } catch (e: any) { toast.error(e.message || 'Failed to save bank account'); }
+    finally { setSavingAccount(false); }
+  };
+
+  const deleteAccount = async (idx: number) => {
+    const profileId = String(currentProfile?.id || '').trim();
+    if (!profileId || !accessToken || !deviceId) return;
+    const next = accounts.filter((_, i) => i !== idx);
+    try {
+      const res = await fetch(`${apiUrl}/profiles/${profileId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, 'X-Device-ID': deviceId, 'X-Profile-ID': profileId },
+        body: JSON.stringify({ bankAccounts: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to delete');
+      const updated = { ...currentProfile, bankAccounts: data.bankAccounts ?? next };
+      localStorage.setItem('currentProfile', JSON.stringify(updated));
+      setProfileSnapshot(updated);
+      toast.success('Bank account removed');
+    } catch (e: any) { toast.error(e.message || 'Failed to remove'); }
+  };
 
   useEffect(() => {
     const run = async () => {
@@ -235,9 +309,14 @@ export function BankAccountsPage() {
             <div className="text-xl font-semibold">Bank Accounts</div>
             <div className="text-sm text-muted-foreground">{String(currentProfile?.businessName || '').trim() || 'Select a business profile'}</div>
           </div>
-          <Button type="button" variant="outline" onClick={() => navigate('/profiles')}>
-            Manage in Business Profile
-          </Button>
+          <div className="flex gap-2">
+            <Button type="button" onClick={openAdd}>
+              <Plus className="w-4 h-4 mr-1" /> Add Bank Account
+            </Button>
+            <Button type="button" variant="outline" onClick={() => navigate('/profiles')}>
+              Manage in Profile
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
@@ -281,6 +360,14 @@ export function BankAccountsPage() {
                         <div className="font-semibold">
                           {String(a?.label || a?.bankName || 'Bank Account')}
                           {a?.isDefault ? <span className="ml-2 text-xs text-muted-foreground">(Default)</span> : null}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(idx)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteAccount(idx)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
                         </div>
                       </div>
 
@@ -405,6 +492,53 @@ export function BankAccountsPage() {
           </Card>
         </div>
       </div>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editIndex !== null ? 'Edit Bank Account' : 'Add Bank Account'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <div className="space-y-1">
+              <Label>Label</Label>
+              <Input placeholder="e.g. Main Account" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>Bank Name</Label>
+              <Input placeholder="e.g. SBI" value={form.bankName} onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>Branch</Label>
+              <Input placeholder="Branch name" value={form.bankBranch} onChange={(e) => setForm((f) => ({ ...f, bankBranch: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>Account Number</Label>
+              <Input placeholder="Account number" value={form.accountNumber} onChange={(e) => setForm((f) => ({ ...f, accountNumber: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>IFSC Code</Label>
+              <Input placeholder="IFSC" value={form.ifscCode} onChange={(e) => setForm((f) => ({ ...f, ifscCode: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>UPI ID</Label>
+              <Input placeholder="name@bank" value={form.upiId} onChange={(e) => setForm((f) => ({ ...f, upiId: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>UPI QR Text</Label>
+              <Input placeholder="Optional QR text" value={form.upiQrText} onChange={(e) => setForm((f) => ({ ...f, upiQrText: e.target.value }))} />
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
+              Set as default account
+            </label>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button type="button" onClick={saveAccount} disabled={savingAccount}>
+                {savingAccount ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

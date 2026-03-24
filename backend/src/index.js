@@ -2,6 +2,8 @@ import compression from 'compression';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +36,10 @@ import { extraExpensesRouter } from './routes/extra-expenses.js';
 import { vyaparKhataRouter } from './routes/vyapar-khata.js';
 import { uploadsRouter } from './routes/uploads.js';
 import { masterAdminRouter } from './routes/masterAdmin/index.js';
+import { employeesRouter } from './routes/employees.js';
+import { rolesRouter } from './routes/roles.js';
+import { attendanceRouter } from './routes/attendance.js';
+import { projectsRouter } from './routes/projects.js';
 import twilio from 'twilio';
 import { Document } from './models/Document.js';
 import { BusinessProfile } from './models/BusinessProfile.js';
@@ -138,6 +144,10 @@ app.use('/extra-expenses', extraExpensesRouter);
 app.use('/vyapar-khata', vyaparKhataRouter);
 app.use('/uploads', uploadsRouter);
 app.use('/master-admin', masterAdminRouter);
+app.use('/employees', employeesRouter);
+app.use('/roles', rolesRouter);
+app.use('/attendance', attendanceRouter);
+app.use('/projects', projectsRouter);
 
 // ── Static frontend ───────────────────────────────────────────────────────────
 const distPathCandidates = [
@@ -159,7 +169,7 @@ const API_PREFIXES = [
   '/auth', '/profiles', '/documents', '/customers', '/suppliers', '/items',
   '/subscription', '/analytics', '/payments', '/reports', '/ledger',
   '/extra-expenses', '/uploads', '/health', '/bank-transactions',
-  '/vyapar-khata', '/master-admin',
+  '/vyapar-khata', '/master-admin', '/employees', '/roles', '/attendance', '/projects',
 ];
 
 app.get('*', (req, res, next) => {
@@ -290,7 +300,90 @@ const runAutoReminders = async () => {
   }
 };
 
-const server = app.listen(port, () => {
+const httpServer = createServer(app);
+
+// ── Socket.io for real-time employee location tracking ────────────────────────
+const io = new SocketIOServer(httpServer, {
+  cors: { origin: '*', methods: ['GET', 'POST'] },
+  path: '/socket.io',
+});
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  // ── Owner: joins their room to receive all employee location updates ──────
+  socket.on('join-owner', (ownerUserId) => {
+    if (ownerUserId) {
+      socket.join(`owner:${ownerUserId}`);
+      console.log(`[socket] owner ${ownerUserId} joined room`);
+    }
+  });
+
+  // ── Employee: announces check-in, joins their own room ───────────────────
+  socket.on('employee-join', ({ employeeId, ownerUserId }) => {
+    if (!employeeId || !ownerUserId) return;
+    socket.join(`employee:${employeeId}`);
+    socket.data.employeeId = employeeId;
+    socket.data.ownerUserId = ownerUserId;
+    // Notify owner that this employee is now live
+    io.to(`owner:${ownerUserId}`).emit('employee-online', { employeeId, online: true });
+    console.log(`[socket] employee ${employeeId} joined room (owner: ${ownerUserId})`);
+  });
+
+  // ── Employee: streams live GPS position ──────────────────────────────────
+  socket.on('employee-location', (data) => {
+    const { employeeId, ownerUserId, name, lat, lng, updatedAt } = data;
+    if (!employeeId || !ownerUserId || lat == null || lng == null) return;
+
+    console.log(`[socket] location from ${name ?? employeeId}: ${lat}, ${lng} → room owner:${ownerUserId}`);
+
+    // Relay to owner's room in real-time
+    io.to(`owner:${ownerUserId}`).emit('employee-location', {
+      employeeId,
+      name,
+      lat,
+      lng,
+      updatedAt,
+    });
+
+    // Persist to DB + accumulate km (fire-and-forget)
+    import('./models/Attendance.js').then(({ Attendance }) => {
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      const newPt = { lat, lng, ts: new Date(updatedAt) };
+
+      Attendance.findOne({ employeeId, date: today }).then((record) => {
+        if (!record) return;
+        const hist = record.locationHistory || [];
+        let addedKm = 0;
+        if (hist.length > 0) {
+          const last = hist[hist.length - 1];
+          const R = 6371;
+          const dLat = (lat - last.lat) * Math.PI / 180;
+          const dLng = (lng - last.lng) * Math.PI / 180;
+          const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(last.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+          addedKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          if (addedKm < 0.005 || addedKm > 1) addedKm = 0;
+        }
+        Attendance.findByIdAndUpdate(record._id, {
+          $set: { lastLocation: { lat, lng, updatedAt: newPt.ts } },
+          $push: { locationHistory: newPt },
+          $inc: { totalKm: addedKm },
+        }).catch(() => {});
+      }).catch(() => {});
+    });
+  });
+
+  // ── Cleanup on disconnect ────────────────────────────────────────────────
+  socket.on('disconnect', () => {
+    const { employeeId, ownerUserId } = socket.data;
+    if (employeeId && ownerUserId) {
+      io.to(`owner:${ownerUserId}`).emit('employee-online', { employeeId, online: false });
+      console.log(`[socket] employee ${employeeId} disconnected`);
+    }
+  });
+});
+
+const server = httpServer.listen(port, () => {
   console.log(`🚀 Backend listening on http://localhost:${port}`);
   console.log(`📦 MongoDB: ${mongoUri.replace(/\/\/[^@]+@/, '//***@')}`); // mask credentials
 });

@@ -27,6 +27,7 @@ import {
   Flame,
   Maximize2,
   Minimize2,
+  UserCog,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
@@ -329,6 +330,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     { icon: Receipt, label: 'GST Reports', path: '/reports/gst' },
     { icon: CreditCard, label: 'Ledger', path: '/ledger' },
     { icon: Landmark, label: 'Bank Accounts', path: '/bank-accounts' },
+    { icon: UserCog, label: 'Employees', path: '/employees' },
     { icon: CreditCard, label: 'Subscription', path: '/subscription' },
   ];
 

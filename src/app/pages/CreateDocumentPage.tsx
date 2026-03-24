@@ -1033,13 +1033,14 @@ export function CreateDocumentPage() {
   const loadDocument = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${apiUrl}/documents`, {
+      const response = await fetch(`${apiUrl}/documents/${id}`, {
         headers: { 'Authorization': `Bearer ${accessToken}`, 'X-Device-ID': deviceId, 'X-Profile-ID': profileId },
       });
-      const allDocs = await response.json();
-      const doc = allDocs.find((d: any) => d.id === id);
-
-      if (doc) {
+      const doc = await response.json();
+      if (!response.ok || doc?.error) {
+        toast.error(doc?.error || 'Failed to load document');
+        return;
+      }
         setType(doc.type);
         setCustomerName(doc.customerName || '');
         setCustomerAddress(doc.customerAddress || '');
@@ -1132,7 +1133,6 @@ export function CreateDocumentPage() {
             .map((x: any) => ({ label: String(x?.label || '').trim(), value: String(x?.value || '').trim() }))
             .filter((x: any) => x.label || x.value)
         );
-      }
     } catch (error) {
       toast.error('Failed to load document');
     } finally {
@@ -1900,6 +1900,36 @@ export function CreateDocumentPage() {
                     </Button>
                   </div>
                 </div>
+
+                {/* Doc type pill selector — only on create */}
+                {!isEdit && (
+                  <div className="mt-3 -mx-1 overflow-x-auto">
+                    <div className="flex gap-2 px-1 pb-1 min-w-max">
+                      {([
+                        { value: 'invoice', label: '🧾 Invoice' },
+                        { value: 'quotation', label: '📋 Quotation' },
+                        { value: 'order', label: '📦 Order' },
+                        { value: 'proforma', label: '📄 Proforma' },
+                        { value: 'challan', label: '🚚 Challan' },
+                        { value: 'purchase', label: '🛒 Purchase' },
+                        { value: 'invoice_cancellation', label: '↩ Sale Return' },
+                      ] as { value: string; label: string }[]).map((dt) => (
+                        <button
+                          key={dt.value}
+                          type="button"
+                          onClick={() => setType(dt.value)}
+                          className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                            type === dt.value
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+                          }`}
+                        >
+                          {dt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -2429,7 +2459,16 @@ export function CreateDocumentPage() {
                       <CardContent className="p-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="md:col-span-2 space-y-2">
-                            <Label>Bank Account</Label>
+                            <div className="flex items-center justify-between">
+                              <Label>Bank Account</Label>
+                              <button
+                                type="button"
+                                onClick={() => navigate('/bank-accounts')}
+                                className="text-xs text-primary hover:underline font-medium"
+                              >
+                                + Add Bank Account
+                              </button>
+                            </div>
                             <Select
                               value={bankAccountId || '__custom__'}
                               onValueChange={(v) => {
@@ -3248,6 +3287,17 @@ export function CreateDocumentPage() {
 
       </div>
       </div>
+      </div>
+
+      {/* Sticky bottom save bar */}
+      <div className="sticky bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-3 flex items-center justify-end gap-3 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
+        <Button type="button" variant="outline" onClick={() => navigate('/documents')}>
+          Cancel
+        </Button>
+        <Button onClick={handleSave} disabled={saving} className="px-6">
+          <Save className="h-4 w-4 mr-2" />
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
       </div>
     </>
   );

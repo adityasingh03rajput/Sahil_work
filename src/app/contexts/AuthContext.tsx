@@ -6,6 +6,11 @@ interface User {
   id: string;
   email: string;
   name?: string;
+  // Employee-specific fields (only set when logged in as employee)
+  userType?: 'owner' | 'employee';
+  role?: 'manager' | 'salesperson' | 'accountant' | 'viewer';
+  ownerUserId?: string;
+  profileId?: string;
 }
 
 interface AuthContextType {
@@ -14,8 +19,10 @@ interface AuthContextType {
   deviceId: string;
   loading: boolean;
   subscriptionExpired: boolean;
+  isEmployee: boolean;
   setSubscriptionExpired: (v: boolean) => void;
   signIn: (email: string, password: string) => Promise<void>;
+  signInAsEmployee: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string, phone: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -26,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [subscriptionExpired, setSubscriptionExpired] = useState(false);
-  const [deviceId] = useState(() => {
+  const isEmployee = user?.userType === 'employee';  const [deviceId] = useState(() => {
     let id = localStorage.getItem('deviceId');
     if (!id) {
       id = 'web-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
@@ -113,12 +120,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw err;
     }
 
-    const userData = {
+    const userData: User = {
       id: data.user.id,
       email: data.user.email,
       name: data.user.user_metadata?.name,
+      userType: 'owner',
     };
-
     setUser(userData);
     setAccessToken(data.session.access_token);
     setSubscriptionExpired(false);
@@ -148,6 +155,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signIn(email, password);
   };
 
+  const signInAsEmployee = async (email: string, password: string) => {
+    const response = await fetch(`${apiUrl}/employees/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+
+    const userData: User = {
+      id: data.user.id,
+      email: data.user.email,
+      name: data.user.name,
+      userType: 'employee',
+      role: data.user.role,
+      ownerUserId: data.user.ownerUserId,
+      profileId: data.user.profileId,
+    };
+    setUser(userData);
+    setAccessToken(data.session.access_token);
+    setSubscriptionExpired(false);
+    localStorage.setItem('accessToken', data.session.access_token);
+    localStorage.setItem('user', JSON.stringify(userData));
+    // Auto-set the profile so employee lands on dashboard directly
+    localStorage.setItem('currentProfile', JSON.stringify({ id: data.user.profileId }));
+  };
+
   const signOut = async () => {
     const token = localStorage.getItem('accessToken');
     if (token) {
@@ -174,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, deviceId, loading, subscriptionExpired, setSubscriptionExpired, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, accessToken, deviceId, loading, subscriptionExpired, setSubscriptionExpired, signIn, signInAsEmployee, signUp, signOut, isEmployee }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,8 +1,8 @@
 import { Suspense, lazy, useEffect } from 'react';
 import React from 'react';
-import { createBrowserRouter, RouterProvider, Outlet } from 'react-router';
+import { createBrowserRouter, RouterProvider, Outlet, Navigate } from 'react-router';
 import { Toaster } from './components/ui/sonner';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
@@ -10,6 +10,8 @@ import { useIsNative } from './hooks/useIsNative';
 import { AuthPage } from './pages/AuthPage';
 import { AppLayout } from './components/AppLayout';
 import { prefetchRoutesOnIdle } from './hooks/usePrefetch';
+import { EmployeeLoginPage } from './pages/EmployeeLoginPage';
+import { EmployeeAttendancePage } from './pages/EmployeeAttendancePage';
 
 // Lazy-load all heavy pages
 const WelcomePageWrapper        = lazy(() => import('./pages/WelcomePageWrapper').then(m => ({ default: m.WelcomePageWrapper })));
@@ -29,6 +31,8 @@ const PosPageWrapper            = lazy(() => import('./pages/PosPageWrapper').th
 const ExtraExpensesPageWrapper  = lazy(() => import('./pages/ExtraExpensesPageWrapper').then(m => ({ default: m.ExtraExpensesPageWrapper })));
 const VyaparKhataPageWrapper    = lazy(() => import('./pages/VyaparKhataPageWrapper').then(m => ({ default: m.VyaparKhataPageWrapper })));
 const VyaparKhataPageNewWrapper = lazy(() => import('./pages/VyaparKhataPageNewWrapper').then(m => ({ default: m.VyaparKhataPageNewWrapper })));
+const EmployeesPageWrapper      = lazy(() => import('./pages/EmployeesPageWrapper').then(m => ({ default: m.EmployeesPageWrapper })));
+const AttendancePageWrapper     = lazy(() => import('./pages/AttendancePageWrapper').then(m => ({ default: m.AttendancePageWrapper })));
 
 /** Skeleton shown while a lazy page chunk is loading */
 function PageSkeleton() {
@@ -58,9 +62,17 @@ function wrap(Component: React.ComponentType) {
 
 /** Persistent layout — never unmounts during navigation, preloads top routes on idle */
 function LayoutRoute() {
+  const { isEmployee } = useAuth();
+
   useEffect(() => {
-    prefetchRoutesOnIdle(['/dashboard', '/documents', '/items', '/customers', '/suppliers']);
-  }, []);
+    if (!isEmployee) {
+      prefetchRoutesOnIdle(['/dashboard', '/documents', '/items', '/customers', '/suppliers']);
+    }
+  }, [isEmployee]);
+
+  if (isEmployee) {
+    return <Navigate to="/employee/attendance" replace />;
+  }
 
   return (
     <AppLayout>
@@ -71,6 +83,8 @@ function LayoutRoute() {
 
 const router = createBrowserRouter([
   { path: "/", element: <AuthPage /> },
+  { path: "/employee/login",      element: <EmployeeLoginPage /> },
+  { path: "/employee/attendance", element: <EmployeeAttendancePage /> },
   {
     element: <LayoutRoute />,
     children: [
@@ -92,6 +106,8 @@ const router = createBrowserRouter([
       { path: "/extra-expenses",      element: wrap(ExtraExpensesPageWrapper) },
       { path: "/vyapar-khata",        element: wrap(VyaparKhataPageWrapper) },
       { path: "/vyapar-khata-new",    element: wrap(VyaparKhataPageNewWrapper) },
+      { path: "/employees",           element: wrap(EmployeesPageWrapper) },
+      { path: "/attendance",          element: wrap(AttendancePageWrapper) },
     ],
   },
 ]);

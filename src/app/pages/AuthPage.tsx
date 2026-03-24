@@ -9,6 +9,7 @@ import { Label } from '../components/ui/label';
 
 export function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [loginTab, setLoginTab] = useState<'owner' | 'employee'>('owner');
   const [mode, setMode] = useState<'auth' | 'forgot' | 'reset'>('auth');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,9 +25,8 @@ export function AuthPage() {
   const apiOverrideActive = !!getApiUrlOverride();
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const [checkingBackend, setCheckingBackend] = useState(false);
-  const { signIn, signUp, user, loading: authLoading } = useAuth();
+  const { signIn, signUp, signInAsEmployee, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-
   useEffect(() => {
     if (authLoading) return;
     if (!user) return;
@@ -115,6 +115,14 @@ export function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      // Employee login path
+      if (loginTab === 'employee') {
+        await signInAsEmployee(email, password);
+        toast.success('Signed in as employee!');
+        navigate('/employee/attendance', { replace: true });
+        return;
+      }
+
       if (mode === 'forgot') {
         const response = await fetch(`${API_URL}/auth/forgot-password`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -205,17 +213,19 @@ export function AuthPage() {
   };
 
   const title = mode === 'auth'
-    ? (isSignUp ? 'Create Account' : 'Welcome Back')
+    ? (loginTab === 'employee' ? 'Employee Login' : isSignUp ? 'Create Account' : 'Welcome Back')
     : mode === 'forgot' ? 'Forgot Password' : 'Reset Password';
 
   const subtitle = mode === 'auth'
-    ? (isSignUp ? 'Start managing your business' : 'Sign in to your dashboard')
+    ? (loginTab === 'employee' ? 'Sign in with your employee credentials'
+      : isSignUp ? 'Start managing your business' : 'Sign in to your dashboard')
     : mode === 'forgot' ? 'Enter your email to receive an OTP'
     : 'Enter the OTP and your new password';
 
   const btnLabel = loading ? 'Please wait…'
     : mode === 'forgot' ? 'Send OTP'
     : mode === 'reset' ? 'Reset Password'
+    : loginTab === 'employee' ? 'Sign In as Employee'
     : isSignUp ? 'Create Account' : 'Sign In';
 
   return (
@@ -321,6 +331,36 @@ export function AuthPage() {
             </div>
           </div>
 
+          {/* Login type tabs */}
+          {mode === 'auth' && (
+            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.06)', borderRadius: 8, padding: 3, marginBottom: 20, gap: 2 }}>
+              {(['owner', 'employee'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    if (tab === 'employee') {
+                      navigate('/employee/login');
+                      return;
+                    }
+                    setLoginTab(tab);
+                    setIsSignUp(false);
+                  }}
+                  style={{
+                    flex: 1, padding: '8px 0', borderRadius: 6, border: 'none', cursor: 'pointer',
+                    fontWeight: 600, fontSize: 13, fontFamily: 'Manrope, sans-serif',
+                    transition: 'all 0.15s',
+                    background: loginTab === tab ? 'rgba(255,255,255,0.9)' : 'transparent',
+                    color: loginTab === tab ? '#1a1a14' : '#6a6a5a',
+                    boxShadow: loginTab === tab ? '0 1px 4px rgba(0,0,0,0.12)' : 'none',
+                  }}
+                >
+                  {tab === 'owner' ? '🏢 Owner / Business' : '👤 Employee'}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Form heading */}
           <div style={{ textAlign: 'center', marginBottom: 20 }}>
             <h2 style={{ fontFamily: 'Newsreader, serif', fontSize: 22, fontWeight: 600, color: '#1a1a14', margin: 0 }}>{title}</h2>
@@ -358,14 +398,14 @@ export function AuthPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {mode === 'auth' && isSignUp && (
+            {mode === 'auth' && isSignUp && loginTab === 'owner' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a4a3a' }}>Full Name</label>
                 <input type="text" placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} required style={inputStyle} />
               </div>
             )}
 
-            {mode === 'auth' && isSignUp && (
+            {mode === 'auth' && isSignUp && loginTab === 'owner' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a4a3a' }}>Phone</label>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -405,13 +445,12 @@ export function AuthPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a4a3a' }}>Password</label>
-                  {!isSignUp && (
+                  {!isSignUp && loginTab === 'owner' && (
                     <button type="button" onClick={() => setMode('forgot')}
                       style={{ fontSize: 12, fontWeight: 600, color: '#2350db', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                       Forgot password?
                     </button>
-                  )}
-                </div>
+                  )}                </div>
                 <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={6}
                   autoComplete={isSignUp ? 'new-password' : 'current-password'} style={inputStyle} />
               </div>
@@ -453,13 +492,20 @@ export function AuthPage() {
                 ← Back to sign in
               </button>
             )}
-            <p style={{ fontSize: 13, color: '#4a4a3a', margin: 0 }}>
-              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-              <button type="button" onClick={() => { setMode('auth'); setIsSignUp(!isSignUp); }}
-                style={{ fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontWeight: 700, color: '#2350db', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>
-                {isSignUp ? 'Sign in' : 'Sign up'}
-              </button>
-            </p>
+            {loginTab === 'owner' && (
+              <p style={{ fontSize: 13, color: '#4a4a3a', margin: 0 }}>
+                {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+                <button type="button" onClick={() => { setMode('auth'); setIsSignUp(!isSignUp); }}
+                  style={{ fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontWeight: 700, color: '#2350db', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>
+                  {isSignUp ? 'Sign in' : 'Sign up'}
+                </button>
+              </p>
+            )}
+            {loginTab === 'employee' && (
+              <p style={{ fontSize: 12, color: '#6a6a5a', margin: 0 }}>
+                Contact your employer if you forgot your password
+              </p>
+            )}
           </div>
 
           {/* Decorative stamp */}

@@ -1106,7 +1106,7 @@ export function DocumentsPage() {
           </div>
 
           {/* Green CTA */}
-          <div className="px-4 mb-4">
+          <div className="px-4 mb-3">
             <button
               type="button"
               onClick={() => navigate('/documents/create')}
@@ -1115,6 +1115,30 @@ export function DocumentsPage() {
               <Plus className="h-5 w-5" strokeWidth={2.5} />
               Create Document
             </button>
+          </div>
+
+          {/* Doc type quick-create pills */}
+          <div className="px-4 mb-4 -mx-0 overflow-x-auto">
+            <div className="flex gap-2 pb-1 min-w-max">
+              {([
+                { value: 'invoice',              label: '🧾 Invoice' },
+                { value: 'quotation',            label: '📋 Quotation' },
+                { value: 'order',                label: '📦 Order' },
+                { value: 'proforma',             label: '📄 Proforma' },
+                { value: 'challan',              label: '🚚 Challan' },
+                { value: 'purchase',             label: '🛒 Purchase' },
+                { value: 'invoice_cancellation', label: '↩ Return' },
+              ] as { value: string; label: string }[]).map((dt) => (
+                <button
+                  key={dt.value}
+                  type="button"
+                  onClick={() => navigate(`/documents/create?type=${dt.value}`)}
+                  className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-200 bg-white text-gray-700 active:bg-gray-100 active:scale-95 transition-all shadow-sm"
+                >
+                  {dt.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Filters card */}
