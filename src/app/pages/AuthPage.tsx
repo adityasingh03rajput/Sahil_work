@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-import { FileText } from 'lucide-react';
-import { API_URL, clearApiUrlOverride, getApiUrlOverride, setApiUrlOverride } from '../config/api';
+import { API_URL } from '../config/api';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Label } from '../components/ui/label';
 
@@ -20,13 +19,12 @@ export function AuthPage() {
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpChannel, setOtpChannel] = useState<'sms' | 'email' | 'both'>('sms');
-  const [apiEditOpen, setApiEditOpen] = useState(false);
-  const [apiDraft, setApiDraft] = useState('');
-  const apiOverrideActive = !!getApiUrlOverride();
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const [checkingBackend, setCheckingBackend] = useState(false);
   const { signIn, signUp, signInAsEmployee, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect immediately if already logged in — avoids blank screen flash
   useEffect(() => {
     if (authLoading) return;
     if (!user) return;
@@ -61,10 +59,6 @@ export function AuthPage() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  useEffect(() => {
-    if (apiEditOpen) setApiDraft(API_URL);
-  }, [apiEditOpen]);
-
   // Force full-screen: remove any max-width constraints from html/body/#root
   useEffect(() => {
     const style = document.createElement('style');
@@ -98,18 +92,19 @@ export function AuthPage() {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   };
 
-  if (authLoading) {
+  if (user) {
+    // Redirect is firing via useEffect — show dark screen while it happens
     return (
-      <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fdf9f0' }}>
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <FileText style={{ width: 48, height: 48, color: '#1f4ed8', animation: 'pulse 1.5s infinite' }} />
-          <span style={{ fontSize: 22, fontWeight: 700, fontFamily: 'Newsreader, serif', color: '#1c1c17' }}>BillVyapar</span>
+          <div style={{ width: 64, height: 64, borderRadius: 16, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <span style={{ fontSize: 22, fontWeight: 700, color: '#818cf8', fontFamily: 'system-ui,sans-serif' }}>BillVyapar</span>
         </div>
       </div>
     );
   }
-
-  if (user) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,11 +187,6 @@ export function AuthPage() {
     }
   };
 
-  const statusColor = backendOnline ? '#22c55e' : backendOnline === false ? '#ef4444' : '#f59e0b';
-  const statusText = checkingBackend && backendOnline === null ? 'Connecting…'
-    : backendOnline ? 'Online' : backendOnline === false && checkingBackend ? 'Reconnecting…'
-    : backendOnline === false ? 'Offline' : '…';
-
   const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: '11px 14px',
@@ -233,7 +223,7 @@ export function AuthPage() {
       position: 'fixed', inset: 0,
       display: 'flex', flexDirection: 'column',
       fontFamily: 'Manrope, sans-serif',
-      backgroundImage: 'url(/background.png)',
+      backgroundImage: `url(/background.png)`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundColor: '#2a3a5c',
@@ -314,8 +304,8 @@ export function AuthPage() {
           {/* Logo block */}
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             {/* Icon */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 52, height: 52, borderRadius: 14, background: 'linear-gradient(135deg, #4f7df3, #2350db)', boxShadow: '0 4px 16px rgba(31,78,216,0.35)', marginBottom: 12 }}>
-              <FileText style={{ width: 26, height: 26, color: '#fff' }} />
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 60, height: 60, borderRadius: 14, background: 'linear-gradient(135deg, #4f7df3, #2350db)', boxShadow: '0 4px 16px rgba(31,78,216,0.35)', marginBottom: 10 }}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
             <h1 style={{ fontFamily: 'Newsreader, serif', fontSize: 'clamp(22px, 6vw, 30px)', fontWeight: 700, color: '#1a1a14', margin: 0, letterSpacing: '-0.3px' }}>BillVyapar</h1>
             <p style={{ fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontSize: 14, color: '#4a4a3a', margin: '4px 0 0' }}>Business Billing &amp; Documentation</p>
@@ -368,33 +358,13 @@ export function AuthPage() {
             <p style={{ fontSize: 13, color: '#5a5a4a', margin: '3px 0 0' }}>{subtitle}</p>
           </div>
 
-          {/* API status bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, fontSize: 11, color: '#6a6a5a' }}>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%' }}>
-              {API_URL}{apiOverrideActive ? ' (custom)' : ''}
-              {!apiEditOpen && (
-                <button type="button" style={{ marginLeft: 4, color: '#1f4ed8', background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, textDecoration: 'underline', padding: 0 }}
-                  onClick={() => setApiEditOpen(true)}>edit</button>
-              )}
-            </span>
+          {/* Server status */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 14, fontSize: 11, color: '#6a6a5a' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor, display: 'inline-block' }} />
-              {statusText}
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: backendOnline ? '#22c55e' : backendOnline === false ? '#ef4444' : '#f59e0b', display: 'inline-block' }} />
+              {checkingBackend && backendOnline === null ? 'Connecting…' : backendOnline ? 'Server Online' : backendOnline === false && checkingBackend ? 'Reconnecting…' : backendOnline === false ? 'Server Offline' : '…'}
             </span>
           </div>
-
-          {apiEditOpen && (
-            <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-              <input value={apiDraft} onChange={e => setApiDraft(e.target.value)} placeholder="https://your-backend.com"
-                style={{ flex: 1, padding: '7px 10px', borderRadius: 6, border: '1px solid rgba(0,0,0,0.15)', background: 'rgba(255,255,255,0.5)', fontSize: 12, color: '#1a1a14', outline: 'none' }} />
-              <button type="button" onClick={() => { const n = setApiUrlOverride(apiDraft); toast.success(`API → ${n}`); window.location.reload(); }}
-                style={{ padding: '7px 12px', borderRadius: 6, background: '#3b6ef5', color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Save</button>
-              <button type="button" onClick={() => setApiEditOpen(false)}
-                style={{ padding: '7px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.1)', color: '#3a3a2a', border: 'none', fontSize: 12, cursor: 'pointer' }}>✕</button>
-              <button type="button" onClick={() => { clearApiUrlOverride(); toast.success('Reset'); window.location.reload(); }}
-                style={{ padding: '7px 10px', borderRadius: 6, background: 'rgba(0,0,0,0.1)', color: '#3a3a2a', border: 'none', fontSize: 12, cursor: 'pointer' }}>Reset</button>
-            </div>
-          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

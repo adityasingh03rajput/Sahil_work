@@ -38,6 +38,7 @@ import { useIsNative } from '../hooks/useIsNative';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 import { TraceLoader } from '../components/TraceLoader';
+import { DocumentsPageSkeleton } from '../components/PageSkeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { fetchDocumentById, PDF_TEMPLATES, PdfRenderer, exportElementToPdf, exportElementToPdfBlobUrl, type PdfTemplateId, type DocumentDto } from '../pdf';
@@ -423,14 +424,17 @@ export function DocumentsPage() {
   const loadDocuments = async ({ force = false }: { force?: boolean } = {}) => {
     if (!accessToken || !deviceId || !profileId) return;
     const cached = force ? null : readDocsCache();
-    const isFresh = cached ? Date.now() - cached.ts < DOCS_CACHE_TTL_MS : false;
+    // Cache is fresh only if it's recent AND it has either a full page of items, 
+    // or we've verified it's exactly the total amount. Since total isn't cached here easily,
+    // if we have < PAGE_SIZE items (like the 5 seeded from dashboard), we refresh in background.
+    const isFresh = cached && (Date.now() - cached.ts < DOCS_CACHE_TTL_MS) && cached.data.length >= PAGE_SIZE;
 
     if (cached?.data?.length) {
       setDocuments(cached.data);
       filterDocuments(cached.data);
       setLoading(false);
       if (isFresh) return;
-      // Stale — revalidate in background without showing spinner
+      // Stale/Incomplete — revalidate in background without showing spinner
     } else {
       setLoading(true);
     }
@@ -895,15 +899,8 @@ export function DocumentsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <>
-        <div className="flex items-center justify-center h-full">
-          <TraceLoader label="Loading documents..." />
-        </div>
-      </>
-    );
-  }
+  // Removed top-level loading override.
+  // The actual UI wrapper will render instantly, eliminating any DOM-destroying flickers.
 
   // ── Shared dialogs (used by both mobile and desktop) ──────────────────────
   const SharedDialogs = () => (
@@ -930,21 +927,21 @@ export function DocumentsPage() {
 
   // ── Mobile document card ──────────────────────────────────────────────────
   const MobileDocCard = ({ doc }: { doc: any }) => (
-    <div className="bg-white rounded-2xl shadow-sm mx-4 mb-3 overflow-hidden">
+    <div className="bg-card rounded-2xl shadow-sm mx-4 mb-3 overflow-hidden border border-border">
       <div className="p-4">
         {/* Row 1: doc number + badges */}
         <div className="flex items-center gap-2 flex-wrap mb-2">
-          <span className="text-base font-bold text-gray-900">
+          <span className="text-base font-bold text-foreground">
             {doc.invoiceNo || doc.documentNumber}
           </span>
           <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${getTypeColor(doc.type)}`}>
             {getTypeLabel(doc.type)}
           </span>
           {doc.status === 'draft' && (
-            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">Draft</span>
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Draft</span>
           )}
           {doc.paymentStatus === 'paid' && (
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-green-600">
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-green-500">
               <CheckCircle2 className="h-3.5 w-3.5" /> Paid
             </span>
           )}
@@ -954,17 +951,17 @@ export function DocumentsPage() {
             </span>
           )}
           {doc.paymentStatus === 'partial' && (
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-blue-500">
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-blue-400">
               <Clock className="h-3.5 w-3.5" /> Partial
             </span>
           )}
         </div>
 
         {/* Row 2: details */}
-        <div className="text-sm text-gray-500 space-y-0.5 mb-3">
-          <p>Customer: <span className="text-gray-700">{doc.customerName || 'N/A'}</span></p>
-          {doc.date && <p>Date: <span className="text-gray-700">{formatDate(doc.date)}</span></p>}
-          <p>Amount: <span className="font-semibold text-gray-900">{formatCurrency(doc.grandTotal || 0)}</span></p>
+        <div className="text-sm text-muted-foreground space-y-0.5 mb-3">
+          <p>Customer: <span className="text-foreground">{doc.customerName || 'N/A'}</span></p>
+          {doc.date && <p>Date: <span className="text-foreground">{formatDate(doc.date)}</span></p>}
+          <p>Amount: <span className="font-semibold text-foreground">{formatCurrency(doc.grandTotal || 0)}</span></p>
         </div>
 
         {/* Row 3: actions */}
@@ -972,7 +969,7 @@ export function DocumentsPage() {
           <button
             type="button"
             onClick={() => navigate(`/documents/edit/${doc.id}`)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium text-gray-700 active:scale-95 transition-transform"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-muted text-sm font-medium text-foreground active:scale-95 transition-transform"
           >
             <FileEdit className="h-4 w-4" />
             Edit
@@ -981,7 +978,7 @@ export function DocumentsPage() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center justify-center h-9 w-9 rounded-xl border border-gray-200 bg-gray-50 text-gray-600 active:scale-95 transition-transform"
+                className="flex items-center justify-center h-9 w-9 rounded-xl border border-border bg-muted text-muted-foreground active:scale-95 transition-transform"
               >
                 <MoreVertical className="h-4 w-4" />
               </button>
@@ -1101,8 +1098,8 @@ export function DocumentsPage() {
         <div className="pt-4 pb-4">
           {/* Page header */}
           <div className="px-4 mb-4">
-            <h1 className="text-2xl font-bold text-gray-900">Documents</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Manage all your business documents</p>
+            <h1 className="text-2xl font-bold text-foreground">Documents</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Manage all your business documents</p>
           </div>
 
           {/* Green CTA */}
@@ -1133,7 +1130,7 @@ export function DocumentsPage() {
                   key={dt.value}
                   type="button"
                   onClick={() => navigate(`/documents/create?type=${dt.value}`)}
-                  className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-200 bg-white text-gray-700 active:bg-gray-100 active:scale-95 transition-all shadow-sm"
+                  className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border border-border bg-card text-foreground active:bg-muted active:scale-95 transition-all shadow-sm"
                 >
                   {dt.label}
                 </button>
@@ -1142,15 +1139,15 @@ export function DocumentsPage() {
           </div>
 
           {/* Filters card */}
-          <div className="mx-4 mb-4 bg-white rounded-2xl shadow-sm p-4 space-y-3">
+          <div className="mx-4 mb-4 bg-card rounded-2xl shadow-sm border border-border p-4 space-y-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search documents..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-blue-400 focus:bg-white transition-colors"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-border bg-muted text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:bg-background transition-colors"
               />
             </div>
             <input
@@ -1158,11 +1155,11 @@ export function DocumentsPage() {
               placeholder="Filter by party name..."
               value={partyFilter}
               onChange={(e) => setPartyFilter(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-blue-400 focus:bg-white transition-colors"
+              className="w-full px-3 py-2.5 rounded-xl border border-border bg-muted text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:bg-background transition-colors"
             />
             <div className="grid grid-cols-2 gap-2">
               <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger className="rounded-xl border-gray-200 bg-gray-50 text-sm">
+                <SelectTrigger className="rounded-xl border-border bg-muted text-sm">
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1177,7 +1174,7 @@ export function DocumentsPage() {
                 </SelectContent>
               </Select>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="rounded-xl border-gray-200 bg-gray-50 text-sm">
+                <SelectTrigger className="rounded-xl border-border bg-muted text-sm">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1192,28 +1189,38 @@ export function DocumentsPage() {
 
           {/* Party outstanding summary */}
           {partyFilter.trim() && (partySalesOutstanding > 0 || partyPurchasePayable > 0) && (
-            <div className="mx-4 mb-4 bg-white rounded-2xl shadow-sm p-4 flex justify-between items-center">
+            <div className="mx-4 mb-4 bg-card rounded-2xl shadow-sm border border-border p-4 flex justify-between items-center">
               <div>
-                <p className="text-xs text-gray-500">Party</p>
-                <p className="font-semibold text-gray-900">{partyFilter.trim()}</p>
+                <p className="text-xs text-muted-foreground">Party</p>
+                <p className="font-semibold text-foreground">{partyFilter.trim()}</p>
               </div>
               {partySalesOutstanding > 0 && (
                 <div className="text-right">
-                  <p className="text-xs text-gray-500">Outstanding</p>
-                  <p className="font-bold text-orange-600">{formatCurrency(partySalesOutstanding)}</p>
+                  <p className="text-xs text-muted-foreground">Outstanding</p>
+                  <p className="font-bold text-orange-500">{formatCurrency(partySalesOutstanding)}</p>
                 </div>
               )}
             </div>
           )}
 
           {/* Document list */}
-          {filteredDocs.length === 0 ? (
-            <div className="mx-4 bg-white rounded-2xl shadow-sm p-8 text-center">
-              <FileX className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p className="font-semibold text-gray-700">
+          {loading && documents.length === 0 ? (
+            <div className="mx-4 space-y-3">
+              {[1,2,3,4].map(i => (
+                <div key={i} className="animate-pulse bg-card rounded-2xl shadow-sm border border-border p-4">
+                  <div className="h-5 w-32 bg-muted rounded mb-2"></div>
+                  <div className="h-4 w-16 bg-muted rounded mb-1"></div>
+                  <div className="h-4 w-24 bg-muted rounded"></div>
+                </div>
+              ))}
+            </div>
+          ) : filteredDocs.length === 0 ? (
+            <div className="mx-4 bg-card rounded-2xl shadow-sm border border-border p-8 text-center">
+              <FileX className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <p className="font-semibold text-foreground">
                 {documents.length === 0 ? 'No documents yet' : 'No matching documents'}
               </p>
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 {documents.length === 0 ? 'Tap Create Document to get started' : 'Try adjusting your filters'}
               </p>
             </div>
@@ -1231,7 +1238,7 @@ export function DocumentsPage() {
                 </button>
               )}
               {!hasMore && documents.length > 0 && (
-                <p className="text-center text-xs text-gray-400 mt-2 mb-2">
+                <p className="text-center text-xs text-muted-foreground mt-2 mb-2">
                   {filteredDocs.length} of {documents.length} documents
                 </p>
               )}
@@ -1593,7 +1600,19 @@ export function DocumentsPage() {
         </Card>
 
         {/* Documents List */}
-        {filteredDocs.length === 0 ? (
+        {loading && documents.length === 0 ? (
+          <div className="space-y-4">
+            {[1,2,3,4,5].map(i => (
+              <div key={i} className="animate-pulse bg-card rounded-xl border border-border p-6 flex justify-between">
+                <div className="flex gap-4">
+                  <div className="h-6 w-32 bg-muted rounded"></div>
+                  <div className="h-6 w-20 bg-muted rounded"></div>
+                </div>
+                <div className="h-6 w-24 bg-muted rounded"></div>
+              </div>
+            ))}
+          </div>
+        ) : filteredDocs.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <FileX className="h-16 w-16 text-muted-foreground mx-auto mb-4" />

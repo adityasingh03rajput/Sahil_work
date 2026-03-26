@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
-import { API_URL, clearApiUrlOverride, getApiUrlOverride, setApiUrlOverride } from '../config/api';
+import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 
 // Fingerprint / lock icon as inline SVG — no extra dep
@@ -24,9 +24,6 @@ export function EmployeeLoginPage() {
   const [loading, setLoading]   = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
-  const [apiEditOpen, setApiEditOpen] = useState(false);
-  const [apiDraft, setApiDraft] = useState('');
-  const apiOverrideActive = !!getApiUrlOverride();
 
   // Redirect if already logged in as employee
   useEffect(() => {
@@ -54,10 +51,6 @@ export function EmployeeLoginPage() {
     const id = setInterval(ping, 30000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
-
-  useEffect(() => {
-    if (apiEditOpen) setApiDraft(API_URL);
-  }, [apiEditOpen]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,9 +90,6 @@ export function EmployeeLoginPage() {
       </div>
     );
   }
-
-  const statusDot = backendOnline === true ? '#4ade80'
-    : backendOnline === false ? '#f87171' : '#fbbf24';
 
   return (
     <div style={{
@@ -289,53 +279,12 @@ export function EmployeeLoginPage() {
           </p>
         </div>
 
-        {/* API status + edit */}
-        <div style={{ marginTop: 24, width: '100%', maxWidth: 380 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: apiEditOpen ? 8 : 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: statusDot, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
-                {API_URL}{apiOverrideActive ? ' (custom)' : ''}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setApiEditOpen((v) => !v)}
-              style={{ fontSize: 11, color: 'rgba(99,102,241,0.7)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
-            >
-              {apiEditOpen ? 'close' : 'edit'}
-            </button>
-          </div>
-
-          {apiEditOpen && (
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input
-                value={apiDraft}
-                onChange={(e) => setApiDraft(e.target.value)}
-                placeholder="https://your-backend.com"
-                style={{
-                  flex: 1, padding: '8px 10px', borderRadius: 8,
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  background: 'rgba(255,255,255,0.07)', color: '#fff',
-                  fontSize: 12, outline: 'none',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => { setApiUrlOverride(apiDraft); toast.success('API URL saved'); window.location.reload(); }}
-                style={{ padding: '8px 12px', borderRadius: 8, background: '#6366f1', color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={() => { clearApiUrlOverride(); toast.success('Reset'); window.location.reload(); }}
-                style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer' }}
-              >
-                ↺
-              </button>
-            </div>
-          )}
+        {/* Server status */}
+        <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: backendOnline === true ? '#4ade80' : backendOnline === false ? '#f87171' : '#fbbf24', flexShrink: 0 }} />
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+            {backendOnline === true ? 'Server Online' : backendOnline === false ? 'Server Offline' : 'Connecting…'}
+          </span>
         </div>
       </div>
 

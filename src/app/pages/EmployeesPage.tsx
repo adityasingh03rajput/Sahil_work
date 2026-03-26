@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
+import { idbGet, idbSet } from '../lib/idbCache';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -139,21 +140,39 @@ export function EmployeesPage() {
 
   const loadEmployees = async () => {
     if (!profileId) return;
-    setEmpLoading(true);
+    const cacheKey = `apicache:${profileId}:employees`;
+    const TTL = 5 * 60 * 1000;
+    // Show cached immediately
+    const cached = await idbGet<{ data: Employee[]; cachedAt: number }>(cacheKey);
+    if (cached?.data) { setEmployees(cached.data); setEmpLoading(false); }
+    else setEmpLoading(true);
+    // Skip network if fresh
+    if (cached && Date.now() - cached.cachedAt < TTL) return;
     try {
       const res = await fetch(`${API_URL}/employees?profileId=${profileId}`, { headers });
       const data = await res.json();
-      if (Array.isArray(data)) setEmployees(data);
+      if (Array.isArray(data)) {
+        setEmployees(data);
+        await idbSet(cacheKey, { data, cachedAt: Date.now() });
+      }
     } catch { toast.error('Failed to load employees'); }
     finally { setEmpLoading(false); }
   };
 
   const loadRoles = async () => {
-    setRolesLoading(true);
+    const cacheKey = `apicache:roles`;
+    const TTL = 10 * 60 * 1000;
+    const cached = await idbGet<{ data: CustomRole[]; cachedAt: number }>(cacheKey);
+    if (cached?.data) { setCustomRoles(cached.data); setRolesLoading(false); }
+    else setRolesLoading(true);
+    if (cached && Date.now() - cached.cachedAt < TTL) return;
     try {
       const res = await fetch(`${API_URL}/roles`, { headers });
       const data = await res.json();
-      if (Array.isArray(data)) setCustomRoles(data);
+      if (Array.isArray(data)) {
+        setCustomRoles(data);
+        await idbSet(cacheKey, { data, cachedAt: Date.now() });
+      }
     } catch { toast.error('Failed to load roles'); }
     finally { setRolesLoading(false); }
   };
@@ -213,6 +232,7 @@ export function EmployeesPage() {
         toast.success('Employee added');
       }
       setEmpDialogOpen(false);
+      await idbSet(`apicache:${profileId}:employees`, { data: [], cachedAt: 0 }); // bust cache
       loadEmployees();
     } catch (err: any) { toast.error(err.message || 'Failed to save'); }
     finally { setEmpSaving(false); }
@@ -236,6 +256,7 @@ export function EmployeesPage() {
       if (data.error) throw new Error(data.error);
       toast.success('Employee removed');
       setDeleteEmp(null);
+      await idbSet(`apicache:${profileId}:employees`, { data: [], cachedAt: 0 });
       loadEmployees();
     } catch (err: any) { toast.error(err.message || 'Failed to delete'); }
   };

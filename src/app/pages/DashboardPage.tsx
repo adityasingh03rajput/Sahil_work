@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { TraceLoader } from '../components/TraceLoader';
+import { GenericPageSkeleton } from '../components/PageSkeleton';
 import { prefetchRoutesOnIdle } from '../hooks/usePrefetch';
 
 function readDashCacheSync() {
@@ -90,7 +91,7 @@ export function DashboardPage() {
       // Fire all requests in parallel — no sequential waiting
       const [analyticsRes, docsRes, subRes] = await Promise.all([
         fetch(`${apiUrl}/analytics`, { headers }),
-        fetch(`${apiUrl}/documents`, { headers }),
+        fetch(`${apiUrl}/documents?limit=5`, { headers }),
         profileId
           ? fetch(`${apiUrl}/subscription/validate`, { headers })
           : fetch(`${apiUrl}/subscription`, { headers: { 'Authorization': `Bearer ${accessToken}`, 'X-Device-ID': deviceId } }),
@@ -101,12 +102,29 @@ export function DashboardPage() {
         const d = await analyticsRes.json();
         if (!d.error) analyticsData = d;
       }
-      if (analyticsData) setAnalytics(analyticsData);
+      if (analyticsData) {
+        setAnalytics(analyticsData);
+        // ── Cross-seed the AnalyticsPage cache so navigating Dashboard→Analytics is instant ──
+        if (profileId) {
+          try {
+            localStorage.setItem(`cache:analytics:${profileId}`, JSON.stringify({ ts: Date.now(), data: analyticsData }));
+          } catch { /* ignore */ }
+        }
+      }
 
       let recentDocsData: any[] = [];
       if (docsRes.status !== 403) {
         const d = await docsRes.json();
-        if (!d.error) recentDocsData = d.slice(0, 5);
+        const rawArray = Array.isArray(d.data) ? d.data : Array.isArray(d) ? d : [];
+        if (!d.error) recentDocsData = rawArray.slice(0, 5);
+        
+        // ── Cross-seed the DocumentsPage cache so navigating Dashboard→Documents is instant ──
+        if (profileId && rawArray.length > 0) {
+          try {
+            // Seed with all docs we got (it asked for limit=5, so usually 5)
+            localStorage.setItem(`cache:documents:${profileId}`, JSON.stringify({ ts: Date.now(), data: rawArray }));
+          } catch { /* ignore */ }
+        }
       }
       setRecentDocs(recentDocsData);
 
@@ -144,13 +162,7 @@ export function DashboardPage() {
   };
 
   if (loading) {
-    return (
-      <>
-        <div className="flex items-center justify-center h-full">
-          <TraceLoader label="Loading dashboard..." />
-        </div>
-      </>
-    );
+    return <GenericPageSkeleton />;
   }
 
   return (

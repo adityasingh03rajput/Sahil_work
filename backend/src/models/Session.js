@@ -11,5 +11,7 @@ const sessionSchema = new mongoose.Schema(
 
 // One session per user+device combo
 sessionSchema.index({ userId: 1, deviceId: 1 }, { unique: true });
+// Auto-delete sessions inactive for 30 days
+sessionSchema.index({ lastActive: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 export const Session = mongoose.model('Session', sessionSchema);

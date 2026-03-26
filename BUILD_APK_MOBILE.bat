@@ -52,7 +52,7 @@ echo APK Location:
 echo   android\app\build\outputs\apk\release\app-release-unsigned.apk
 echo.
 echo To sign with debug keystore (for testing):
-echo   jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore "%USERPROFILE%\.android\debug.keystore" -storepass android -keypass android android\app\build\outputs\apk\release\app-release-unsigned.apk androiddebugkey
-echo   zipalign -v 4 android\app\build\outputs\apk\release\app-release-unsigned.apk BillVyapar.apk
+echo   %LOCALAPPDATA%\Android\Sdk\build-tools\36.0.0\apksigner.bat sign --ks "%USERPROFILE%\.android\debug.keystore" --ks-pass pass:android --key-pass pass:android --out BillVyapar-signed.apk android\app\build\outputs\apk\release\app-release-unsigned.apk
+echo   adb install -r BillVyapar-signed.apk
 echo.
 pause

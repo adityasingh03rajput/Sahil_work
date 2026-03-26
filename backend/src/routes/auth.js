@@ -8,6 +8,7 @@ import { PasswordResetOtp } from '../models/PasswordResetOtp.js';
 import { LicenseKey } from '../models/LicenseKey.js';
 import { signAccessToken, decodeAccessToken } from '../lib/jwt.js';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
+import { invalidateSubscriptionCache } from '../middleware/subscription.js';
 import { canSendSms, sendSms } from '../lib/twilio.js';
 import { canSendEmail, sendEmail } from '../lib/email.js';
 
@@ -402,6 +403,7 @@ authRouter.post('/activate-license', requireAuth, async (req, res, next) => {
     license.activatedAt = now;
     license.expiresAt = expiresAt;
     await license.save();
+    invalidateSubscriptionCache(req.userId); // bust cache so next request re-checks DB
 
     // ── Upsert Subscriber record ──────────────────────────────────────────────
     // A user with an active license key IS a subscriber. Create or update the

@@ -10,13 +10,17 @@
     "generate-icons": "node scripts/generate-icons.cjs",
     "generate-android-icons": "node scripts/generate-android-icons.cjs",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "electron:build": "vite build && electron-builder",
-    "electron:build:win": "vite build && electron-builder --win",
-    "electron:build:portable": "vite build && electron-builder --win portable"
+    "electron:build": "cross-env ELECTRON=true vite build && electron-builder",
+    "electron:build:win": "cross-env ELECTRON=true vite build && electron-builder --win",
+    "electron:build:portable": "cross-env ELECTRON=true vite build && electron-builder --win portable",
+    "build:exe:app": "cross-env ELECTRON=true vite build && electron-builder --config electron-builder-app.json --win",
+    "build:exe:admin": "cross-env ELECTRON=true vite build && electron-builder --config electron-builder-admin.json --win",
+    "build:exe:both": "cross-env ELECTRON=true vite build && electron-builder --config electron-builder-app.json --win && electron-builder --config electron-builder-admin.json --win"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",
     "@capacitor/core": "^8.2.0",
+    "@capacitor/status-bar": "^8.0.2",
     "@radix-ui/react-accordion": "1.2.3",
     "@radix-ui/react-alert-dialog": "1.1.6",
     "@radix-ui/react-aspect-ratio": "1.1.2",
@@ -69,17 +73,20 @@
     "vaul": "1.1.2"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.2.0",
     "@tailwindcss/vite": "4.1.12",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "4.7.0",
     "concurrently": "^9.1.2",
+    "cross-env": "^10.1.0",
     "electron": "^33.3.1",
     "electron-builder": "^25.1.8",
     "png-to-ico": "^3.0.1",
     "sharp": "^0.34.5",
     "tailwindcss": "4.1.12",
+    "terser": "^5.46.1",
     "vite": "6.3.5",
     "wait-on": "^8.0.1"
   },

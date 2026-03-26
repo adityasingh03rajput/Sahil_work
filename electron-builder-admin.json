@@ -1,0 +1,37 @@
+{
+  "appId": "com.billvyapar.admin",
+  "productName": "BillVyapar Admin",
+  "directories": {
+    "output": "release/admin",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/main-admin.cjs",
+    "package.json"
+  ],
+  "extraMetadata": {
+    "main": "electron/main-admin.cjs"
+  },
+  "win": {
+    "target": [
+      { "target": "nsis", "arch": ["x64"] }
+    ],
+    "icon": "build/icon.ico",
+    "artifactName": "BillVyapar-Admin-Setup-${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": true,
+    "allowElevation": true,
+    "allowToChangeInstallationDirectory": false,
+    "deleteAppDataOnUninstall": false,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "BillVyapar Admin",
+    "installerIcon": "build/icon.ico",
+    "uninstallerIcon": "build/icon.ico",
+    "installerHeaderIcon": "build/icon.ico",
+    "include": "build/installer-admin.nsh"
+  }
+}

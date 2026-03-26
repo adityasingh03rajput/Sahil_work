@@ -28,7 +28,9 @@ import {
   Maximize2,
   Minimize2,
   UserCog,
+  HelpCircle,
 } from 'lucide-react';
+import logoImg from '../../../public/logo.png';
 import { useAuth } from '../contexts/AuthContext';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { API_URL } from '../config/api';
@@ -542,7 +544,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <aside className="hidden lg:flex lg:flex-col w-64 bg-sidebar border-r border-sidebar-border">
         <div className="p-6 border-b border-sidebar-border">
           <div className="flex items-center gap-2 mb-4">
-            <FileText className="h-8 w-8 text-blue-600" />
+            <img src={logoImg} alt="BillVyapar" className="h-12 w-12 rounded-2xl shadow-sm object-contain" />
             <h1 className="text-2xl font-bold text-foreground">BillVyapar</h1>
             <div className="ml-auto flex items-center gap-2">
               <ThemeSwitcher />
@@ -632,7 +634,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         {/* Mobile Header */}
         <header className="lg:hidden bg-background border-b border-border p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FileText className="h-6 w-6 text-blue-600" />
+            <img src={logoImg} alt="BillVyapar" className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl shrink-0 shadow-sm object-contain" />
             <h1 className="text-xl font-bold">BillVyapar</h1>
             <ThemeSwitcher compact />
             <Button
@@ -671,7 +673,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <SheetContent side="left" className="w-64 p-0">
               <div className="p-6 border-b border-border">
                 <div className="flex items-center gap-2 mb-4">
-                  <FileText className="h-8 w-8 text-blue-600" />
+                  <img src={logoImg} alt="BillVyapar" className="h-12 w-12 rounded-2xl shrink-0 shadow-sm object-contain" />
                   <h1 className="text-2xl font-bold text-foreground">BillVyapar</h1>
                 </div>
                 {currentProfile.businessName && (
@@ -732,57 +734,51 @@ export function AppLayout({ children }: AppLayoutProps) {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
-          {!profileGateChecked ? (
-            <div className="flex items-center justify-center h-full">
-              <TraceLoader label="Loading..." />
-            </div>
-          ) : (
-            <>
-              {subscriptionWarning && (
-                <div className="mx-4 mt-4 mb-2 p-3 rounded-lg border border-yellow-200 bg-yellow-50 flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-yellow-700 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-yellow-900">Subscription Notice</p>
-                    <p className="text-sm text-yellow-800">{subscriptionWarning}</p>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={() => navigate('/subscription')} className="border-yellow-300 text-yellow-900 hover:bg-yellow-100">
-                    Renew
-                  </Button>
+          <>
+            {subscriptionWarning && (
+              <div className="mx-4 mt-4 mb-2 p-3 rounded-lg border border-yellow-200 bg-yellow-50 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-yellow-700 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-yellow-900">Subscription Notice</p>
+                  <p className="text-sm text-yellow-800">{subscriptionWarning}</p>
                 </div>
-              )}
-              {subscriptionExpired && location.pathname !== '/subscription' && location.pathname !== '/dashboard' && location.pathname !== '/welcome' && (
-                <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                  <div className="w-full max-w-md bg-card text-card-foreground rounded-xl shadow-xl border border-border p-6">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="h-6 w-6 text-red-600 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-lg font-semibold text-foreground">Subscription Expired</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Your subscription has expired. Renew to continue using the service.
-                        </p>
-                        {typeof daysRemaining === 'number' && (
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Days remaining: {daysRemaining}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                      <Button className="flex-1" onClick={() => navigate('/subscription')}>
-                        Renew Now
-                      </Button>
-                      <Button variant="outline" className="flex-1" onClick={signOut}>
-                        Sign Out
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="app-container">
-                {children}
+                <Button size="sm" variant="outline" onClick={() => navigate('/subscription')} className="border-yellow-300 text-yellow-900 hover:bg-yellow-100">
+                  Renew
+                </Button>
               </div>
-            </>
-          )}
+            )}
+            {subscriptionExpired && location.pathname !== '/subscription' && location.pathname !== '/dashboard' && location.pathname !== '/welcome' && (
+              <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="w-full max-w-md bg-card text-card-foreground rounded-xl shadow-xl border border-border p-6">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-6 w-6 text-red-600 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-lg font-semibold text-foreground">Subscription Expired</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Your subscription has expired. Renew to continue using the service.
+                      </p>
+                      {typeof daysRemaining === 'number' && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Days remaining: {daysRemaining}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                    <Button className="flex-1" onClick={() => navigate('/subscription')}>
+                      Renew Now
+                    </Button>
+                    <Button variant="outline" className="flex-1" onClick={signOut}>
+                      Sign Out
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="app-container">
+              {children}
+            </div>
+          </>
         </main>
       </div>
       </>

@@ -70,5 +70,10 @@ const attendanceSchema = new mongoose.Schema(
 );
 
 attendanceSchema.index({ employeeId: 1, date: 1 }, { unique: true });
+// Owner queries — filter by ownerUserId + date/month range (most common queries)
+attendanceSchema.index({ ownerUserId: 1, date: 1 });
+attendanceSchema.index({ ownerUserId: 1, profileId: 1, date: 1 });
+// Live tracking query — filters on lastLocation.lat != null
+attendanceSchema.index({ ownerUserId: 1, date: 1, 'lastLocation.lat': 1 });
 
 export const Attendance = mongoose.model('Attendance', attendanceSchema);

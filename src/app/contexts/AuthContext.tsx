@@ -30,10 +30,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch { return null; }
+  });
+  const [accessToken, setAccessToken] = useState<string | null>(() => {
+    return localStorage.getItem('accessToken');
+  });
   const [subscriptionExpired, setSubscriptionExpired] = useState(false);
-  const isEmployee = user?.userType === 'employee';  const [deviceId] = useState(() => {
+  const isEmployee = user?.userType === 'employee';
+  const [deviceId] = useState(() => {
     let id = localStorage.getItem('deviceId');
     if (!id) {
       id = 'web-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
@@ -41,7 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     return id;
   });
-  const [loading, setLoading] = useState(true);
+  // loading is false immediately — we read from localStorage synchronously above
+  const [loading, setLoading] = useState(false);
 
   const apiUrl = API_URL;
 
@@ -59,39 +68,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Check for existing session
     const storedToken = localStorage.getItem('accessToken');
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedToken && storedUser) {
-      setAccessToken(storedToken);
-      setUser(JSON.parse(storedUser));
-      
-      // Verify session
-      fetch(`${apiUrl}/auth/verify-session`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${storedToken}`,
-          'X-Device-ID': deviceId,
-        },
+    if (!storedToken) return;
+
+    // Verify session in background — 10s timeout, won't block UI
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10000);
+    fetch(`${apiUrl}/auth/verify-session`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${storedToken}`, 'X-Device-ID': deviceId },
+      signal: ctrl.signal,
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('user');
+          setAccessToken(null);
+          setUser(null);
+        }
       })
-        .then(res => res.json())
-        .then(data => {
-          if (data.error) {
-            // Session invalid, clear storage
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('user');
-            setAccessToken(null);
-            setUser(null);
-          }
-        })
-        .catch(() => {
-          // On error, keep local session for offline mode
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+      .catch(() => { /* network error — keep local session */ })
+      .finally(() => clearTimeout(t));
   }, [deviceId]);
 
   const signIn = async (email: string, password: string) => {

@@ -62,6 +62,15 @@ export default defineConfig({
     cssCodeSplit: true,
     chunkSizeWarningLimit: 1200,
     modulePreload: { polyfill: true },
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,      // strip all console.log in production
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
+        passes: 2,               // two compression passes — smaller bundle
+      },
+    },
     rollupOptions: {
       input: {
         main:  path.resolve(__dirname, 'index.html'),
@@ -74,6 +83,7 @@ export default defineConfig({
           if (!id.includes('node_modules')) return;
           if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('pdfmake')) return 'vendor-pdf';
           if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
+          if (id.includes('socket.io') || id.includes('engine.io')) return 'vendor-socket';
           return 'vendor';
         },
       },

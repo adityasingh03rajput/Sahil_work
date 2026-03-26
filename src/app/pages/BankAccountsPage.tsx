@@ -5,12 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { TraceLoader } from '../components/TraceLoader';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { MobileFormSheet, MobileFormSection, MobileFormActions } from '../components/MobileFormSheet';
 
 function formatInr(amount: number) {
   const val = Number(amount || 0);
@@ -492,53 +492,54 @@ export function BankAccountsPage() {
           </Card>
         </div>
       </div>
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editIndex !== null ? 'Edit Bank Account' : 'Add Bank Account'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 pt-1">
-            <div className="space-y-1">
+      <MobileFormSheet open={dialogOpen} onClose={() => setDialogOpen(false)} title={editIndex !== null ? 'Edit Bank Account' : 'Add Bank Account'}>
+        <div className="space-y-3">
+          <MobileFormSection label="Account Info">
+            <div>
               <Label>Label</Label>
               <Input placeholder="e.g. Main Account" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} />
             </div>
-            <div className="space-y-1">
-              <Label>Bank Name</Label>
-              <Input placeholder="e.g. SBI" value={form.bankName} onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Bank Name</Label>
+                <Input placeholder="e.g. SBI" value={form.bankName} onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Branch</Label>
+                <Input placeholder="Branch name" value={form.bankBranch} onChange={(e) => setForm((f) => ({ ...f, bankBranch: e.target.value }))} />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label>Branch</Label>
-              <Input placeholder="Branch name" value={form.bankBranch} onChange={(e) => setForm((f) => ({ ...f, bankBranch: e.target.value }))} />
-            </div>
-            <div className="space-y-1">
+            <div>
               <Label>Account Number</Label>
               <Input placeholder="Account number" value={form.accountNumber} onChange={(e) => setForm((f) => ({ ...f, accountNumber: e.target.value }))} />
             </div>
-            <div className="space-y-1">
+            <div>
               <Label>IFSC Code</Label>
               <Input placeholder="IFSC" value={form.ifscCode} onChange={(e) => setForm((f) => ({ ...f, ifscCode: e.target.value }))} />
             </div>
-            <div className="space-y-1">
+          </MobileFormSection>
+
+          <MobileFormSection label="UPI">
+            <div>
               <Label>UPI ID</Label>
               <Input placeholder="name@bank" value={form.upiId} onChange={(e) => setForm((f) => ({ ...f, upiId: e.target.value }))} />
             </div>
-            <div className="space-y-1">
+            <div>
               <Label>UPI QR Text</Label>
               <Input placeholder="Optional QR text" value={form.upiQrText} onChange={(e) => setForm((f) => ({ ...f, upiQrText: e.target.value }))} />
             </div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
-              Set as default account
-            </label>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="button" onClick={saveAccount} disabled={savingAccount}>
-                {savingAccount ? 'Saving...' : 'Save'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </MobileFormSection>
+
+          <label className="flex items-center gap-2 text-sm cursor-pointer text-foreground">
+            <input type="checkbox" checked={form.isDefault} onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))} />
+            Set as default account
+          </label>
+        </div>
+        <MobileFormActions>
+          <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button type="button" onClick={saveAccount} disabled={savingAccount}>{savingAccount ? 'Saving...' : 'Save'}</Button>
+        </MobileFormActions>
+      </MobileFormSheet>
     </>
   );
 }

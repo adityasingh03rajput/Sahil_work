@@ -13,15 +13,24 @@ export const paymentsRouter = Router();
 paymentsRouter.use(requireAuth, requireValidDeviceSession, requireActiveSubscription, requireProfile);
 
 async function computeDocumentPaidAmount({ userId, profileId, documentId }) {
-  const rows = await Payment.find({ userId, profileId, documentId });
-  return rows.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const result = await Payment.aggregate([
+    { $match: { userId: new mongoose.Types.ObjectId(userId), profileId: new mongoose.Types.ObjectId(profileId), documentId: new mongoose.Types.ObjectId(documentId) } },
+    { $group: { _id: null, total: { $sum: '$amount' } } },
+  ]);
+  return result[0]?.total ?? 0;
 }
 
 async function refreshDocumentPaymentStatus({ userId, profileId, documentId }) {
-  const doc = await Document.findOne({ _id: documentId, userId, profileId });
+  const [doc, aggResult] = await Promise.all([
+    Document.findOne({ _id: documentId, userId, profileId }, 'grandTotal paymentStatus').lean(),
+    Payment.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(userId), profileId: new mongoose.Types.ObjectId(profileId), documentId: new mongoose.Types.ObjectId(documentId) } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]),
+  ]);
   if (!doc) return null;
 
-  const paidAmount = await computeDocumentPaidAmount({ userId, profileId, documentId });
+  const paidAmount = aggResult[0]?.total ?? 0;
   const total = Number(doc.grandTotal || 0);
   const remaining = Math.max(0, total - paidAmount);
 
@@ -30,14 +39,8 @@ async function refreshDocumentPaymentStatus({ userId, profileId, documentId }) {
   if (remaining <= 0 && total > 0) status = 'paid';
   if (total <= 0) status = 'paid';
 
-  doc.paymentStatus = status;
-  await doc.save();
-
-  return {
-    paymentStatus: doc.paymentStatus,
-    paidAmount,
-    remaining,
-  };
+  await Document.updateOne({ _id: documentId, userId, profileId }, { $set: { paymentStatus: status } });
+  return { paymentStatus: status, paidAmount, remaining };
 }
 
 paymentsRouter.post('/', enforceLimit('maxPaymentsPerMonth', (req) => {
@@ -158,7 +161,7 @@ paymentsRouter.get('/', async (req, res, next) => {
       }
     }
 
-    const payments = await Payment.find(filter).sort({ date: -1, createdAt: -1 });
+    const payments = await Payment.find(filter).sort({ date: -1, createdAt: -1 }).lean();
 
     res.json(
       payments.map(p => ({

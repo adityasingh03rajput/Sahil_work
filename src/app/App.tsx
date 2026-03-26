@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect } from 'react';
 import React from 'react';
-import { createBrowserRouter, RouterProvider, Outlet, Navigate } from 'react-router';
+import { createBrowserRouter, createHashRouter, RouterProvider, Outlet, Navigate } from 'react-router';
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -81,7 +81,8 @@ function LayoutRoute() {
   );
 }
 
-const router = createBrowserRouter([
+const createRouter = window.location.protocol === 'file:' ? createHashRouter : createBrowserRouter;
+const router = createRouter([
   { path: "/", element: <AuthPage /> },
   { path: "/employee/login",      element: <EmployeeLoginPage /> },
   { path: "/employee/attendance", element: <EmployeeAttendancePage /> },

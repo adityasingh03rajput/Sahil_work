@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createBrowserRouter, RouterProvider, useNavigate, Outlet, Navigate } from 'react-router';
+import { createBrowserRouter, createHashRouter, RouterProvider, useNavigate, Outlet, Navigate } from 'react-router';
 import { Toaster } from './app/components/ui/sonner';
 import { ThemeProvider } from './app/contexts/ThemeContext';
 import { MasterAdminLoginPage } from './app/pages/MasterAdmin/LoginPage';
@@ -65,7 +65,8 @@ function GuestOnly() {
   return <MasterAdminLoginPage />;
 }
 
-const router = createBrowserRouter([
+const createRouter = window.location.protocol === 'file:' ? createHashRouter : createBrowserRouter;
+const router = createRouter([
   { path: '/', Component: GuestOnly, errorElement: <RouterError /> },
   {
     Component: RequireAuth,
@@ -83,7 +84,7 @@ const router = createBrowserRouter([
     ],
   },
   { path: '*', Component: NotFound },
-], { basename: '/admin' });
+], window.location.protocol === 'file:' ? {} : { basename: '/admin' });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

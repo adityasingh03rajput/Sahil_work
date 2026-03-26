@@ -17,7 +17,31 @@ import { Subscriber }  from '../models/Subscriber.js';
 
 const TRIAL_DAYS = 7;
 
+// Cache subscription check results for 60s per userId
+// Cuts 3 DB queries → 0 for the vast majority of requests
+const subscriptionCache = new Map(); // userId → { result, expiresAt }
+const SUBSCRIPTION_CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+function getCachedAccess(userId) {
+  const entry = subscriptionCache.get(userId);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { subscriptionCache.delete(userId); return null; }
+  return entry.result;
+}
+
+function setCachedAccess(userId, result) {
+  subscriptionCache.set(userId, { result, expiresAt: Date.now() + SUBSCRIPTION_CACHE_TTL_MS });
+}
+
+// Allow routes to invalidate cache when subscription changes (e.g. license activation)
+export function invalidateSubscriptionCache(userId) {
+  subscriptionCache.delete(userId);
+}
+
 async function checkAccess(userId) {
+  const cached = getCachedAccess(userId);
+  if (cached) return cached;
+
   const [user, subscriber] = await Promise.all([
     User.findById(userId).lean(),
     Subscriber.findOne({ ownerUserId: userId }).lean(),
@@ -51,14 +75,9 @@ async function checkAccess(userId) {
     }
 
     const daysRemaining = Math.ceil((new Date(activeLicense.expiresAt) - now) / (1000 * 60 * 60 * 24));
-    return {
-      ok: true,
-      source: 'license',
-      license: activeLicense,
-      daysRemaining,
-      endDate: activeLicense.expiresAt,
-      subscriber,
-    };
+    const result = { ok: true, source: 'license', license: activeLicense, daysRemaining, endDate: activeLicense.expiresAt, subscriber };
+    setCachedAccess(userId, result);
+    return result;
   }
 
   // Sync any stale 'active' keys that have actually expired
@@ -73,28 +92,24 @@ async function checkAccess(userId) {
 
   if (now <= trialEnd) {
     const daysRemaining = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24));
-    return {
-      ok: true,
-      source: 'trial',
-      daysRemaining,
-      endDate: trialEnd,
-      subscriber,
-    };
+    const result = { ok: true, source: 'trial', daysRemaining, endDate: trialEnd, subscriber };
+    setCachedAccess(userId, result);
+    return result;
   }
 
   // ── No valid access ────────────────────────────────────────────────────────
-  // Sync Subscriber.status to 'expired' so dashboard counts are accurate
   if (subscriber && subscriber.status === 'active') {
     Subscriber.updateOne({ ownerUserId: userId }, { $set: { status: 'expired' } }).catch(() => {});
   }
 
-  return {
-    ok: false,
-    code: 'LICENSE_EXPIRED',
-    status: 402,
+  const failResult = {
+    ok: false, code: 'LICENSE_EXPIRED', status: 402,
     message: 'Your license has expired. Please activate a new license key to continue.',
     trialEndedAt: trialEnd.toISOString(),
   };
+  // Cache failures for only 10s — user might activate a license soon
+  subscriptionCache.set(userId, { result: failResult, expiresAt: Date.now() + 10_000 });
+  return failResult;
 }
 
 // ── Drop-in replacement for requireActiveSubscription ─────────────────────────

@@ -2,6 +2,59 @@
 @import './tailwind.css';
 @import './theme.css';
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   NATIVE ANDROID WEBVIEW SCROLL & TOUCH OPTIMIZATIONS
+   These properties collectively eliminate the "sticky/laggy" scroll feel
+   that WebView apps suffer from compared to native Android apps.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. Momentum scrolling on iOS + WebView (feels like native inertia) */
+html, body {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;        /* prevent page bouncing / chaining */
+  -webkit-tap-highlight-color: transparent;  /* remove blue flash on tap */
+  touch-action: pan-y;                 /* allow vertical scrolling, block zoom */
+}
+
+/* 2. Remove 300ms tap delay on every interactive element */
+a, button, input, select, textarea,
+[role="button"], [tabindex] {
+  touch-action: manipulation;          /* fastest possible tap response */
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+/* 3. Promote scroll containers to GPU compositing layers
+   (avoids CPU-bound paint during scroll, the #1 cause of jank) */
+.overflow-y-auto,
+.overflow-y-scroll,
+.overflow-auto,
+.overflow-scroll {
+  -webkit-overflow-scrolling: touch;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);            /* force compositing layer */
+}
+
+/* 4. Prevent card/list items from triggering unintended scroll-chaining */
+[data-radix-scroll-area-viewport],
+.scroll-area,
+[class*="ScrollArea"] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* 5. Shared transition timing for page-level animations — uses GPU-only
+   properties (opacity, transform) to keep scroll thread unblocked */
+.page-transition {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  will-change: opacity, transform;
+}
+
+
+
 /* From Uiverse.io by Vosoone */
 .main-container {
   display: flex;

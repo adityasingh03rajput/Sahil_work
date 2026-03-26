@@ -302,12 +302,20 @@ attendanceRouter.get('/', requireAuth, async (req, res, next) => {
     } else if (month && /^\d{4}-\d{2}$/.test(String(month))) {
       filter.date = { $gte: `${month}-01`, $lte: `${month}-31` };
     }
+
     const records = await Attendance.find(filter)
       .select('-locationHistory')
-      .populate('employeeId', 'name email role')
       .sort({ date: -1, createdAt: -1 })
       .limit(500).lean();
-    res.json(records);
+
+    // Manual lookup instead of populate
+    const empIds = [...new Set(records.map(r => String(r.employeeId)))];
+    const employees = empIds.length
+      ? await Employee.find({ _id: { $in: empIds } }, 'name email role').lean()
+      : [];
+    const empMap = Object.fromEntries(employees.map(e => [String(e._id), e]));
+
+    res.json(records.map(r => ({ ...r, employeeId: empMap[String(r.employeeId)] ?? null })));
   } catch (err) { next(err); }
 });
 
@@ -318,13 +326,25 @@ attendanceRouter.get('/today', requireAuth, async (req, res, next) => {
     const date = todayIST();
     const filter = { ownerUserId: req.userId, date };
     if (profileId) filter.profileId = profileId;
-    const records = await Attendance.find(filter)
-      .select('-locationHistory')
-      .populate('employeeId', 'name email role').lean();
+
     const empFilter = { ownerUserId: req.userId, isActive: true };
     if (profileId) empFilter.profileId = profileId;
-    const totalEmployees = await Employee.countDocuments(empFilter);
-    res.json({ date, totalEmployees, present: records.length, records });
+
+    const [records, totalEmployees] = await Promise.all([
+      Attendance.find(filter).select('-locationHistory').lean(),
+      Employee.countDocuments(empFilter),
+    ]);
+
+    // Manual lookup instead of populate — faster, no Mongoose overhead
+    const empIds = [...new Set(records.map(r => String(r.employeeId)))];
+    const employees = empIds.length
+      ? await Employee.find({ _id: { $in: empIds } }, 'name email role').lean()
+      : [];
+    const empMap = Object.fromEntries(employees.map(e => [String(e._id), e]));
+
+    const enriched = records.map(r => ({ ...r, employeeId: empMap[String(r.employeeId)] ?? null }));
+    res.set('Cache-Control', 'private, max-age=10, stale-while-revalidate=20');
+    res.json({ date, totalEmployees, present: records.length, records: enriched });
   } catch (err) { next(err); }
 });
 
@@ -357,7 +377,7 @@ attendanceRouter.post('/location', requireAuth, async (req, res, next) => {
 
     await Attendance.findByIdAndUpdate(record._id, {
       $set: { lastLocation: newPt },
-      $push: { locationHistory: newPt },
+      $push: { locationHistory: { $each: [newPt], $slice: -240 } },
       $inc: { totalKm: addedKm },
     });
 
@@ -379,10 +399,16 @@ attendanceRouter.get('/live', requireAuth, async (req, res, next) => {
     const date = todayIST();
     const filter = { ownerUserId: req.userId, date, 'lastLocation.lat': { $ne: null } };
     if (profileId) filter.profileId = profileId;
-    const records = await Attendance.find(filter)
-      .select('-locationHistory')
-      .populate('employeeId', 'name email role').lean();
-    res.json(records);
+
+    const records = await Attendance.find(filter).select('-locationHistory').lean();
+
+    const empIds = [...new Set(records.map(r => String(r.employeeId)))];
+    const employees = empIds.length
+      ? await Employee.find({ _id: { $in: empIds } }, 'name email role').lean()
+      : [];
+    const empMap = Object.fromEntries(employees.map(e => [String(e._id), e]));
+
+    res.json(records.map(r => ({ ...r, employeeId: empMap[String(r.employeeId)] ?? null })));
   } catch (err) { next(err); }
 });
 

@@ -291,10 +291,10 @@ const runAutoReminders = async () => {
     try {
       await twilioClient.messages.create({ from: twilioFrom, to, body: msg });
       doc.lastReminderSentAt = new Date();
-      doc.reminderLogs = [...(doc.reminderLogs || []), { sentAt: new Date(), channel: 'sms', to, message: msg, status: 'sent', error: null }];
+      doc.reminderLogs = [...(doc.reminderLogs || []).slice(-19), { sentAt: new Date(), channel: 'sms', to, message: msg, status: 'sent', error: null }];
       await doc.save();
     } catch (e) {
-      doc.reminderLogs = [...(doc.reminderLogs || []), { sentAt: new Date(), channel: 'sms', to, message: msg, status: 'failed', error: e?.message || 'Failed' }];
+      doc.reminderLogs = [...(doc.reminderLogs || []).slice(-19), { sentAt: new Date(), channel: 'sms', to, message: msg, status: 'failed', error: e?.message || 'Failed' }];
       await doc.save();
     }
   }
@@ -364,9 +364,12 @@ io.on('connection', (socket) => {
           addedKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           if (addedKm < 0.005 || addedKm > 1) addedKm = 0;
         }
+        // Cap locationHistory at 240 points (~8hr shift at 120s intervals, ~12KB/employee/day)
+        // Use $slice to keep only the latest 240 points — prevents unbounded array growth
+        const MAX_LOCATION_POINTS = 240;
         Attendance.findByIdAndUpdate(record._id, {
           $set: { lastLocation: { lat, lng, updatedAt: newPt.ts } },
-          $push: { locationHistory: newPt },
+          $push: { locationHistory: { $each: [newPt], $slice: -MAX_LOCATION_POINTS } },
           $inc: { totalKm: addedKm },
         }).catch(() => {});
       }).catch(() => {});
@@ -383,8 +386,8 @@ io.on('connection', (socket) => {
   });
 });
 
-const server = httpServer.listen(port, () => {
-  console.log(`🚀 Backend listening on http://localhost:${port}`);
+const server = httpServer.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 Backend listening on http://0.0.0.0:${port}`);
   console.log(`📦 MongoDB: ${mongoUri.replace(/\/\/[^@]+@/, '//***@')}`); // mask credentials
 });
 

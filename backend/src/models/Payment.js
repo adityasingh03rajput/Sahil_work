@@ -23,4 +23,10 @@ const paymentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// All list queries filter on (userId, profileId) — single-field indexes are wasteful
+paymentSchema.index({ userId: 1, profileId: 1, createdAt: -1 });
+paymentSchema.index({ userId: 1, profileId: 1, documentId: 1 });
+paymentSchema.index({ userId: 1, profileId: 1, customerId: 1, date: -1 });
+paymentSchema.index({ userId: 1, profileId: 1, bankAccountId: 1, date: -1 });
+
 export const Payment = mongoose.model('Payment', paymentSchema);

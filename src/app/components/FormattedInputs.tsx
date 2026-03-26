@@ -125,7 +125,7 @@ export function PhoneInput({ value, onChange, label, required, placeholder, disa
           value={countryCode}
           onChange={handleCodeChange}
           disabled={disabled}
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 disabled:opacity-50 min-w-[80px] max-w-[90px]"
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0 disabled:opacity-50 w-[90px] shrink-0"
           aria-label="Country code"
         >
           {COUNTRY_CODES.map((cc) => (

@@ -4,12 +4,12 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
 import { Plus, Search, Package, Tag, Edit } from 'lucide-react';
+import { MobileFormSheet, MobileFormSection, MobileFormActions } from '../components/MobileFormSheet';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
-import { TraceLoader } from '../components/TraceLoader';
+import { ItemsPageSkeleton } from '../components/PageSkeleton';
 
 interface Item {
   id: string;
@@ -97,6 +97,7 @@ export function ItemsPage() {
     loadItems();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, deviceId, profileId]);
+  const [visibleCount, setVisibleCount] = useState(20);
 
   useEffect(() => {
     if (searchTerm) {
@@ -109,6 +110,8 @@ export function ItemsPage() {
     } else {
       setFilteredItems(items);
     }
+    // Reset pagination when searching
+    setVisibleCount(20);
   }, [searchTerm, items]);
 
   const loadItems = async ({ force = false }: { force?: boolean } = {}) => {
@@ -227,13 +230,8 @@ export function ItemsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <TraceLoader label="Loading items..." />
-      </div>
-    );
-  }
+  // Removed full-page fallback to prevent layout reflow flicker.
+  // The structure renders instantly now, swapping list items smoothly.
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
@@ -243,143 +241,123 @@ export function ItemsPage() {
             <h1 className="text-3xl font-bold text-foreground">Items Catalog</h1>
             <p className="text-muted-foreground mt-1">Manage your products and services</p>
           </div>
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button className="mt-4 md:mt-0" data-tour-id="cta-add-item">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Item
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Add New Item</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4">
+          <Button className="mt-4 md:mt-0" data-tour-id="cta-add-item" onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Button>
+        </div>
+
+        <MobileFormSheet open={showCreateDialog} onClose={() => setShowCreateDialog(false)} title="Add New Item">
+          <form onSubmit={handleCreate} className="space-y-4">
+            <MobileFormSection label="Basic Info">
+              <div>
+                <Label>Item Name *</Label>
+                <Input
+                  required
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  placeholder="Product or service name"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Item Name *</Label>
+                  <Label>HSN/SAC Code</Label>
                   <Input
-                    required
-                    value={formData.name || ''}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    placeholder="Product or service name"
+                    value={formData.hsnSac || ''}
+                    onChange={(e) => setFormData({...formData, hsnSac: e.target.value})}
+                    placeholder="HSN or SAC"
                   />
                 </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>HSN/SAC Code</Label>
-                    <Input
-                      value={formData.hsnSac || ''}
-                      onChange={(e) => setFormData({...formData, hsnSac: e.target.value})}
-                      placeholder="HSN or SAC code"
-                    />
-                  </div>
-                  <div>
-                    <Label>Unit</Label>
-                    <Input
-                      value={formData.unit || ''}
-                      onChange={(e) => setFormData({...formData, unit: e.target.value})}
-                      placeholder="pcs, kg, ltr, etc."
-                    />
-                  </div>
+                <div>
+                  <Label>Unit</Label>
+                  <Input
+                    value={formData.unit || ''}
+                    onChange={(e) => setFormData({...formData, unit: e.target.value})}
+                    placeholder="pcs, kg, ltr"
+                  />
                 </div>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div>
-                    <Label>Rate (₹)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.rate || 0}
-                      onChange={(e) => setFormData({ ...formData, rate: parseFloat(e.target.value) || 0 })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <Label>Selling Price (₹)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.sellingPrice || 0}
-                      onChange={(e) => setFormData({ ...formData, sellingPrice: parseFloat(e.target.value) || 0 })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div>
-                    <Label>Purchase Cost (₹)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.purchaseCost || 0}
-                      onChange={(e) => setFormData({ ...formData, purchaseCost: parseFloat(e.target.value) || 0 })}
-                      placeholder="0.00"
-                    />
-                  </div>
+              </div>
+            </MobileFormSection>
+
+            <MobileFormSection label="Pricing">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Rate (₹)</Label>
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
+                    value={formData.rate || 0}
+                    onChange={(e) => setFormData({ ...formData, rate: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                  />
                 </div>
                 <div>
-                  <Label>Disc %</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
+                  <Label>Selling Price (₹)</Label>
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
+                    value={formData.sellingPrice || 0}
+                    onChange={(e) => setFormData({ ...formData, sellingPrice: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label>Purchase Cost (₹)</Label>
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
+                    value={formData.purchaseCost || 0}
+                    onChange={(e) => setFormData({ ...formData, purchaseCost: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <Label>Discount %</Label>
+                  <Input type="number" step="0.01" min="0" max="100" inputMode="decimal"
                     value={formData.discount || 0}
                     onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) || 0 })}
                     placeholder="0"
                   />
                 </div>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div>
-                    <Label>CGST %</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.cgst || 0}
-                      onChange={(e) => setFormData({...formData, cgst: parseFloat(e.target.value) || 0})}
-                    />
-                  </div>
-                  <div>
-                    <Label>SGST %</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.sgst || 0}
-                      onChange={(e) => setFormData({...formData, sgst: parseFloat(e.target.value) || 0})}
-                    />
-                  </div>
-                  <div>
-                    <Label>IGST %</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={formData.igst || 0}
-                      onChange={(e) => setFormData({...formData, igst: parseFloat(e.target.value) || 0})}
-                    />
-                  </div>
-                </div>
+              </div>
+            </MobileFormSection>
+
+            <MobileFormSection label="Tax Rates">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <Label>Description</Label>
-                  <Textarea
-                    value={formData.description || ''}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    placeholder="Item description (optional)"
-                    rows={3}
+                  <Label>CGST %</Label>
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
+                    value={formData.cgst || 0}
+                    onChange={(e) => setFormData({...formData, cgst: parseFloat(e.target.value) || 0})}
                   />
                 </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Add Item</Button>
+                <div>
+                  <Label>SGST %</Label>
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
+                    value={formData.sgst || 0}
+                    onChange={(e) => setFormData({...formData, sgst: parseFloat(e.target.value) || 0})}
+                  />
                 </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+                <div>
+                  <Label>IGST %</Label>
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
+                    value={formData.igst || 0}
+                    onChange={(e) => setFormData({...formData, igst: parseFloat(e.target.value) || 0})}
+                  />
+                </div>
+              </div>
+            </MobileFormSection>
+
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={formData.description || ''}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                placeholder="Item description (optional)"
+                rows={2}
+              />
+            </div>
+
+            <MobileFormActions>
+              <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
+              <Button type="submit">Add Item</Button>
+            </MobileFormActions>
+          </form>
+        </MobileFormSheet>
 
         {/* Search */}
         <Card className="mb-6">
@@ -397,7 +375,21 @@ export function ItemsPage() {
         </Card>
 
         {/* Items Grid */}
-        {filteredItems.length === 0 ? (
+        {loading && items.length === 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="animate-pulse bg-card rounded-xl border border-border p-5">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 bg-muted rounded-lg flex-shrink-0"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-1/2 bg-muted rounded"></div>
+                    <div className="h-3 w-1/4 bg-muted rounded"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredItems.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -418,91 +410,102 @@ export function ItemsPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredItems.map((item) => (
-              <Card key={item.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Package className="h-6 w-6 text-green-600" />
+          <div className="space-y-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredItems.slice(0, visibleCount).map((item) => (
+                <Card key={item.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Package className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-lg truncate">{item.name}</CardTitle>
+                          {item.hsnSac && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Tag className="h-3 w-3 text-muted-foreground" />
+                              <p className="text-xs text-muted-foreground font-mono">{item.hsnSac}</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <CardTitle className="text-lg truncate">{item.name}</CardTitle>
-                        {item.hsnSac && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <Tag className="h-3 w-3 text-muted-foreground" />
-                            <p className="text-xs text-muted-foreground font-mono">{item.hsnSac}</p>
-                          </div>
-                        )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditClick(item)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground text-xs">Rate</p>
+                        <p className="font-semibold text-blue-600">₹{item.rate.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Unit</p>
+                        <p className="font-semibold">{item.unit}</p>
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditClick(item)}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-muted-foreground text-xs">Rate</p>
-                      <p className="font-semibold text-blue-600">₹{item.rate.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground text-xs">Unit</p>
-                      <p className="font-semibold">{item.unit}</p>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-muted-foreground text-xs">Selling Price</p>
-                      <p className="font-semibold">₹{Number(item.sellingPrice || 0).toFixed(2)}</p>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground text-xs">Selling Price</p>
+                        <p className="font-semibold">₹{Number(item.sellingPrice || 0).toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">Purchase Cost</p>
+                        <p className="font-semibold">₹{Number(item.purchaseCost || 0).toFixed(2)}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground text-xs">Purchase Cost</p>
-                      <p className="font-semibold">₹{Number(item.purchaseCost || 0).toFixed(2)}</p>
+                    
+                    <div className="grid grid-cols-3 gap-2 text-xs pt-2 border-t">
+                      <div>
+                        <p className="text-muted-foreground">CGST</p>
+                        <p className="font-semibold">{item.cgst}%</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">SGST</p>
+                        <p className="font-semibold">{item.sgst}%</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">IGST</p>
+                        <p className="font-semibold">{item.igst}%</p>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-2 text-xs pt-2 border-t">
-                    <div>
-                      <p className="text-muted-foreground">CGST</p>
-                      <p className="font-semibold">{item.cgst}%</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">SGST</p>
-                      <p className="font-semibold">{item.sgst}%</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">IGST</p>
-                      <p className="font-semibold">{item.igst}%</p>
-                    </div>
-                  </div>
 
-                  {item.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 pt-2 border-t">
-                      {item.description}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                    {item.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2 pt-2 border-t">
+                        {item.description}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            
+            {visibleCount < filteredItems.length && (
+              <div className="flex justify-center pt-4">
+                <Button 
+                  variant="outline" 
+                  className="w-full sm:w-auto px-8" 
+                  onClick={() => setVisibleCount(prev => prev + 50)}
+                >
+                  Load More ({visibleCount} of {filteredItems.length})
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
-        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Item</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleUpdate} className="space-y-4">
+        <MobileFormSheet open={showEditDialog} onClose={() => setShowEditDialog(false)} title="Edit Item">
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <MobileFormSection label="Basic Info">
               <div>
                 <Label>Item Name *</Label>
                 <Input
@@ -512,13 +515,13 @@ export function ItemsPage() {
                   placeholder="Product or service name"
                 />
               </div>
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>HSN/SAC Code</Label>
                   <Input
                     value={editFormData.hsnSac || ''}
                     onChange={(e) => setEditFormData({ ...editFormData, hsnSac: e.target.value })}
-                    placeholder="HSN or SAC code"
+                    placeholder="HSN or SAC"
                   />
                 </div>
                 <div>
@@ -526,18 +529,17 @@ export function ItemsPage() {
                   <Input
                     value={editFormData.unit || ''}
                     onChange={(e) => setEditFormData({ ...editFormData, unit: e.target.value })}
-                    placeholder="pcs, kg, ltr, etc."
+                    placeholder="pcs, kg, ltr"
                   />
                 </div>
               </div>
+            </MobileFormSection>
 
-              <div className="grid md:grid-cols-3 gap-4">
+            <MobileFormSection label="Pricing">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Rate (₹)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
                     value={editFormData.rate || 0}
                     onChange={(e) => setEditFormData({ ...editFormData, rate: parseFloat(e.target.value) || 0 })}
                     placeholder="0.00"
@@ -545,10 +547,7 @@ export function ItemsPage() {
                 </div>
                 <div>
                   <Label>Selling Price (₹)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
                     value={editFormData.sellingPrice || 0}
                     onChange={(e) => setEditFormData({ ...editFormData, sellingPrice: parseFloat(e.target.value) || 0 })}
                     placeholder="0.00"
@@ -556,82 +555,65 @@ export function ItemsPage() {
                 </div>
                 <div>
                   <Label>Purchase Cost (₹)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
                     value={editFormData.purchaseCost || 0}
                     onChange={(e) => setEditFormData({ ...editFormData, purchaseCost: parseFloat(e.target.value) || 0 })}
                     placeholder="0.00"
                   />
                 </div>
+                <div>
+                  <Label>Discount %</Label>
+                  <Input type="number" step="0.01" min="0" max="100" inputMode="decimal"
+                    value={editFormData.discount || 0}
+                    onChange={(e) => setEditFormData({ ...editFormData, discount: parseFloat(e.target.value) || 0 })}
+                    placeholder="0"
+                  />
+                </div>
               </div>
+            </MobileFormSection>
 
-              <div>
-                <Label>Disc %</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="100"
-                  value={editFormData.discount || 0}
-                  onChange={(e) => setEditFormData({ ...editFormData, discount: parseFloat(e.target.value) || 0 })}
-                  placeholder="0"
-                />
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-4">
+            <MobileFormSection label="Tax Rates">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label>CGST %</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
                     value={editFormData.cgst || 0}
                     onChange={(e) => setEditFormData({ ...editFormData, cgst: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
                 <div>
                   <Label>SGST %</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
                     value={editFormData.sgst || 0}
                     onChange={(e) => setEditFormData({ ...editFormData, sgst: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
                 <div>
                   <Label>IGST %</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                  <Input type="number" step="0.01" min="0" inputMode="decimal"
                     value={editFormData.igst || 0}
                     onChange={(e) => setEditFormData({ ...editFormData, igst: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
               </div>
+            </MobileFormSection>
 
-              <div>
-                <Label>Description</Label>
-                <Textarea
-                  value={editFormData.description || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                  placeholder="Item description (optional)"
-                  rows={3}
-                />
-              </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={editFormData.description || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                placeholder="Item description (optional)"
+                rows={2}
+              />
+            </div>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save Changes</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+            <MobileFormActions>
+              <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+              <Button type="submit">Save Changes</Button>
+            </MobileFormActions>
+          </form>
+        </MobileFormSheet>
 
         {/* Summary */}
         {filteredItems.length > 0 && (

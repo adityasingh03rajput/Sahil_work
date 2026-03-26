@@ -258,18 +258,23 @@ export function EmployeeAttendancePage() {
     });
     socket.on("disconnect", () => setTracking(false));
     if (!navigator.geolocation) return;
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        socket.emit("employee-location", { employeeId, ownerUserId, name: employeeName, lat, lng, updatedAt: new Date().toISOString() });
-      },
-      (err) => console.warn("[tracking]", err.message),
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
-    );
+    // Poll every 120s instead of watchPosition — reduces DB writes by 4x vs 30s
+    const sendLocation = () => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude: lat, longitude: lng } = pos.coords;
+          socket.emit("employee-location", { employeeId, ownerUserId, name: employeeName, lat, lng, updatedAt: new Date().toISOString() });
+        },
+        (err) => console.warn("[tracking]", err.message),
+        { enableHighAccuracy: true, maximumAge: 60000, timeout: 15000 }
+      );
+    };
+    sendLocation(); // send immediately on connect
+    watchIdRef.current = window.setInterval(sendLocation, 120_000) as unknown as number;
   }, []);
 
   const stopTracking = useCallback(() => {
-    if (watchIdRef.current != null) { navigator.geolocation.clearWatch(watchIdRef.current); watchIdRef.current = null; }
+    if (watchIdRef.current != null) { clearInterval(watchIdRef.current); watchIdRef.current = null; }
     if (socketRef.current) { socketRef.current.disconnect(); socketRef.current = null; }
     trackingActiveRef.current = false;
     setTracking(false);

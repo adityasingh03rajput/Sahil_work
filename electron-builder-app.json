@@ -1,0 +1,37 @@
+{
+  "appId": "com.billvyapar.app",
+  "productName": "BillVyapar",
+  "directories": {
+    "output": "release/billvyapar",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/main-app.cjs",
+    "package.json"
+  ],
+  "extraMetadata": {
+    "main": "electron/main-app.cjs"
+  },
+  "win": {
+    "target": [
+      { "target": "nsis", "arch": ["x64"] }
+    ],
+    "icon": "build/icon.ico",
+    "artifactName": "BillVyapar-Setup-${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": true,
+    "allowElevation": true,
+    "allowToChangeInstallationDirectory": false,
+    "deleteAppDataOnUninstall": false,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "BillVyapar",
+    "installerIcon": "build/icon.ico",
+    "uninstallerIcon": "build/icon.ico",
+    "installerHeaderIcon": "build/icon.ico",
+    "include": "build/installer.nsh"
+  }
+}

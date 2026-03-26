@@ -146,7 +146,8 @@ const documentSchema = new mongoose.Schema(
     convertedFrom: { type: String, default: null },
 
     lastReminderSentAt: { type: Date, default: null },
-    reminderLogs: { type: [reminderLogSchema], default: [] },
+    // Cap at 20 reminder log entries per document to prevent unbounded growth
+    reminderLogs: { type: [reminderLogSchema], default: [], validate: { validator: (v) => v.length <= 20, message: 'reminderLogs exceeds 20 entries' } },
 
     customFields: { type: [customFieldSchema], default: [] },
   },

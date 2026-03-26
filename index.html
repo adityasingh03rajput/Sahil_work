@@ -6,55 +6,74 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <title>BillVyapar</title>
 
-    <!-- Preconnect to the API so the first fetch has no DNS/TLS cold-start -->
+    <!-- Preconnect to API — eliminates DNS/TLS cold-start on first fetch -->
+    <link rel="preconnect" href="https://billvyapar-backend.fly.dev" crossorigin />
+    <link rel="dns-prefetch" href="https://billvyapar-backend.fly.dev" />
+    <!-- Keep old URL as fallback during transition -->
     <link rel="preconnect" href="https://accounts-8rx9.onrender.com" crossorigin />
-    <link rel="dns-prefetch" href="https://accounts-8rx9.onrender.com" />
 
-    <!-- Tell the browser to start fetching the React runtime before JS is parsed -->
-    <link rel="modulepreload" href="/src/main.tsx" />
+    <!-- Let Vite auto-generate correct preload chunks during build -->
+
+    <!-- Inline theme detection — runs before React to prevent white flash on dark mode -->
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('theme') || 'dark';
+          var bg = t === 'light' ? '#ffffff' : '#0f172a';
+          document.documentElement.style.background = bg;
+          document.body && (document.body.style.background = bg);
+        } catch(e) {}
+      })();
+    </script>
   </head>
 
   <body>
-    <!-- Inline critical splash so there's zero blank-white flash before React mounts -->
+    <!-- Inline critical splash — matches dark theme to avoid white flash -->
     <div id="root">
       <div id="app-splash" style="
         position:fixed;inset:0;display:flex;flex-direction:column;
         align-items:center;justify-content:center;
-        background:linear-gradient(135deg,#eff6ff 0%,#ffffff 50%,#f0fdf4 100%);
+        background:#0f172a;
         z-index:9999;
       ">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1.2s ease-in-out infinite alternate">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:bv-pulse 1.2s ease-in-out infinite alternate">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
         </svg>
-        <span style="margin-top:12px;font-size:20px;font-weight:700;color:#1d4ed8;font-family:system-ui,sans-serif">BillVyapar</span>
+        <span style="margin-top:12px;font-size:20px;font-weight:700;color:#818cf8;font-family:system-ui,sans-serif">BillVyapar</span>
       </div>
     </div>
     <style>
-      @keyframes spin { from { opacity:.4; transform:scale(.9); } to { opacity:1; transform:scale(1); } }
-      #app-splash { transition: opacity .2s; }
+      @keyframes bv-pulse { from { opacity:.4; transform:scale(.9); } to { opacity:1; transform:scale(1); } }
+      #app-splash { transition: opacity .15s; }
     </style>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Register service worker for asset caching
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(() => {});
         });
       }
-      // Remove splash once React has painted its first frame
-      document.addEventListener('DOMContentLoaded', () => {
-        const splash = document.getElementById('app-splash');
-        if (splash) {
-          // React will replace #root content; watch for that
-          const mo = new MutationObserver(() => {
-            if (!document.getElementById('app-splash')) { mo.disconnect(); return; }
-            splash.style.opacity = '0';
-            setTimeout(() => splash.remove(), 200);
+      // Remove splash — try MutationObserver first, hard timeout as fallback
+      (function() {
+        function removeSplash() {
+          var splash = document.getElementById('app-splash');
+          if (!splash) return;
+          splash.style.opacity = '0';
+          setTimeout(function() { if (splash.parentNode) splash.parentNode.removeChild(splash); }, 150);
+        }
+        // Hard timeout — remove splash after 3s no matter what
+        setTimeout(removeSplash, 3000);
+        // Also watch for React mounting
+        document.addEventListener('DOMContentLoaded', function() {
+          var root = document.getElementById('root');
+          if (!root) return;
+          var mo = new MutationObserver(function() {
+            removeSplash();
             mo.disconnect();
           });
-          mo.observe(document.getElementById('root'), { childList: true });
-        }
-      });
+          mo.observe(root, { childList: true, subtree: true });
+        });
+      })();
     </script>
   </body>
 </html>

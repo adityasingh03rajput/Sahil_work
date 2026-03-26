@@ -31,7 +31,9 @@ reportsRouter.get('/gst', async (req, res, next) => {
       profileId: req.profileId,
       type: 'invoice',
       status: { $ne: 'draft' },
-    }).sort({ date: 1, createdAt: 1 });
+    }, 'documentNumber date customerName subtotal totalCgst totalSgst totalIgst grandTotal items.hsnSac items.total items.cgst items.sgst items.igst')
+      .sort({ date: 1, createdAt: 1 })
+      .lean();
 
     const invoices = docs.filter(d => inRange(d.date, from, to));
 
@@ -52,13 +54,7 @@ reportsRouter.get('/gst', async (req, res, next) => {
       (inv.items || []).forEach(it => {
         const code = String(it.hsnSac || 'NA');
         if (!hsnMap.has(code)) {
-          hsnMap.set(code, {
-            hsnSac: code,
-            taxableValue: 0,
-            cgst: 0,
-            sgst: 0,
-            igst: 0,
-          });
+          hsnMap.set(code, { hsnSac: code, taxableValue: 0, cgst: 0, sgst: 0, igst: 0 });
         }
         const row = hsnMap.get(code);
         const itemTaxable = Number(it.total || 0);

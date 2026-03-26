@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Plus, Search, User, Mail, Phone, MapPin, Edit, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
@@ -19,7 +19,8 @@ import {
 } from '../utils/contactValidation';
 import { PhoneInput, EmailInput, GstinInput, PanInput, PostalCodeInput, AddressInput } from '../components/FormattedInputs';
 import { toast } from 'sonner';
-import { TraceLoader } from '../components/TraceLoader';
+import { CustomersPageSkeleton } from '../components/PageSkeleton';
+import { MobileFormSheet, MobileFormSection, MobileFormActions } from '../components/MobileFormSheet';
 
 interface Customer {
   id: string;
@@ -232,6 +233,8 @@ export function CustomersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [visibleCount, setVisibleCount] = useState(20);
+
   useEffect(() => {
     if (searchTerm) {
       setFilteredCustomers(
@@ -244,6 +247,7 @@ export function CustomersPage() {
     } else {
       setFilteredCustomers(customers);
     }
+    setVisibleCount(20);
   }, [searchTerm, customers]);
 
   const loadCustomers = async ({ force = false }: { force?: boolean } = {}) => {
@@ -746,15 +750,8 @@ export function CustomersPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <>
-        <div className="flex items-center justify-center h-full">
-          <TraceLoader label="Loading customers..." />
-        </div>
-      </>
-    );
-  }
+  // Removed `if (loading) return <CustomersPageSkeleton />;` to prevent page flicker.
+  // The layout mounts instantly and seamlessly swaps loading states internally.
 
   return (
     <>
@@ -809,200 +806,104 @@ export function CustomersPage() {
             <Button variant="outline" onClick={() => setOutstandingOpen(true)}>
               Outstanding
             </Button>
-            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-              <DialogTrigger asChild>
-                <Button data-tour-id="cta-add-customer">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Customer
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Add New Customer</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCreate} className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Party Name *</Label>
-                      <Input
-                        required
-                        value={formData.name || ''}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="Enter name"
-                      />
-                    </div>
-                    <div>
-                      <Label>Owner Name *</Label>
-                      <Input
-                        required
-                        value={String(formData.ownerName || '')}
-                        onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-                        placeholder="Owner / Proprietor"
-                      />
-                    </div>
-                    <div>
-                      <EmailInput
-                        label="Email"
-                        value={formData.email || ''}
-                        onChange={(v) => setFormData({ ...formData, email: v })}
-                        placeholder="customer@email.com"
-                        error={formErrors.email}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Opening Balance</Label>
-                      <Input
-                        value={String(formData.openingBalance ?? '')}
-                        onChange={(e) => setFormData({ ...formData, openingBalance: Number(e.target.value || 0) })}
-                        placeholder="0"
-                      />
-                    </div>
-                    <div>
-                      <Label>Opening Type</Label>
-                      <Select
-                        value={String(formData.openingBalanceType || 'dr')}
-                        onValueChange={(value) => setFormData({ ...formData, openingBalanceType: value as 'dr' | 'cr' })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="DR" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="dr">DR (Receivable)</SelectItem>
-                          <SelectItem value="cr">CR (Payable)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <PhoneInput
-                    label="Phone"
-                    value={formData.phone || ''}
-                    onChange={(v) => setFormData({ ...formData, phone: v })}
-                    error={formErrors.phone}
-                  />
-                  <GstinInput
-                    label="GSTIN"
-                    value={formData.gstin || ''}
-                    onChange={(v) => setFormData({ ...formData, gstin: v })}
-                    error={formErrors.gstin}
-                    onBlur={() => void handleGstinLookupAutofill('create')}
-                  />
-                </div>
-                {gstinLookupLoading ? (
-                  <div className="text-xs text-muted-foreground -mt-2">Fetching GST details...</div>
-                ) : null}
-                <PanInput
-                  label="PAN"
-                  value={formData.pan || ''}
-                  onChange={(v) => setFormData({ ...formData, pan: v })}
-                />
-                <AddressInput
-                  label="Billing Address"
-                  value={formData.billingAddress || ''}
-                  onChange={(v) => setFormData((p) => ({ ...p, billingAddress: v, shippingAddress: v }))}
-                  rows={2}
-                />
-
-                <div>
-                  <Label>Logo</Label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      id="customer-logo-create"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        try {
-                          const dataUrl = await fileToDataUrl(file);
-                          setFormData((prev) => ({ ...prev, logoDataUrl: dataUrl }));
-                          const url = await uploadLogoToCloudinary(dataUrl);
-                          setFormData((prev) => ({ ...prev, logoUrl: url }));
-                        } catch {
-                          toast.error('Failed to upload logo');
-                        }
-                      }}
-                    />
-                    <Button type="button" variant="outline" asChild>
-                      <label htmlFor="customer-logo-create" style={{ cursor: 'pointer' }}>
-                        {formData.logoUrl || formData.logoDataUrl ? 'Change Logo' : 'Upload Logo'}
-                      </label>
-                    </Button>
-                    {!!(formData.logoUrl || formData.logoDataUrl) && (
-                      <img
-                        src={String(formData.logoUrl || formData.logoDataUrl)}
-                        alt="Logo"
-                        className="h-10 w-10 rounded border object-contain bg-white"
-                      />
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-4">
-                  <div>
-                    <Label>Billing City</Label>
-                    <Input
-                      value={formData.billingCity || ''}
-                      onChange={(e) =>
-                        setFormData((p) => ({
-                          ...p,
-                          billingCity: e.target.value,
-                          shippingCity: e.target.value,
-                        }))
-                      }
-                      placeholder="Bangalore"
-                    />
-                  </div>
-                  <div>
-                    <Label>Billing State</Label>
-                    <Select
-                      value={formData.billingState || ''}
-                      onValueChange={(value) =>
-                        setFormData((p) => ({
-                          ...p,
-                          billingState: value,
-                          shippingState: value,
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select state" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {INDIAN_STATES.map((state) => (
-                          <SelectItem key={state} value={state}>
-                            {state}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Billing Postal Code</Label>
-                    <PostalCodeInput
-                      value={formData.billingPostalCode || ''}
-                      onChange={(v) => setFormData((p) => ({ ...p, billingPostalCode: v, shippingPostalCode: v }))}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="button" variant="secondary" onClick={handleCreateByGstin} disabled={gstinLoading}>
-                    {gstinLoading ? 'Creating...' : 'Create via GSTIN'}
-                  </Button>
-                  <Button type="submit">Add Customer</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+            <Button data-tour-id="cta-add-customer" onClick={() => setShowCreateDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Customer
+              </Button>
           </div>
         </div>
+
+        <MobileFormSheet open={showCreateDialog} onClose={() => setShowCreateDialog(false)} title="Add New Customer">
+          <form onSubmit={handleCreate} className="space-y-4">
+            <MobileFormSection label="Party Info">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>Party Name *</Label>
+                  <Input required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enter name" />
+                </div>
+                <div>
+                  <Label>Owner Name *</Label>
+                  <Input required value={String(formData.ownerName || '')} onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })} placeholder="Owner / Proprietor" />
+                </div>
+              </div>
+              <EmailInput label="Email" value={formData.email || ''} onChange={(v) => setFormData({ ...formData, email: v })} placeholder="customer@email.com" error={formErrors.email} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Opening Balance</Label>
+                  <Input value={String(formData.openingBalance ?? '')} onChange={(e) => setFormData({ ...formData, openingBalance: Number(e.target.value || 0) })} placeholder="0" inputMode="decimal" />
+                </div>
+                <div>
+                  <Label>Opening Type</Label>
+                  <Select value={String(formData.openingBalanceType || 'dr')} onValueChange={(v) => setFormData({ ...formData, openingBalanceType: v as 'dr' | 'cr' })}>
+                    <SelectTrigger><SelectValue placeholder="DR" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dr">DR (Receivable)</SelectItem>
+                      <SelectItem value="cr">CR (Payable)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </MobileFormSection>
+
+            <MobileFormSection label="Contact & Tax">
+              <PhoneInput label="Phone" value={formData.phone || ''} onChange={(v) => setFormData({ ...formData, phone: v })} error={formErrors.phone} />
+              <GstinInput label="GSTIN" value={formData.gstin || ''} onChange={(v) => setFormData({ ...formData, gstin: v })} error={formErrors.gstin} onBlur={() => void handleGstinLookupAutofill('create')} />
+              {gstinLookupLoading && <div className="text-xs text-muted-foreground">Fetching GST details...</div>}
+              <PanInput label="PAN" value={formData.pan || ''} onChange={(v) => setFormData({ ...formData, pan: v })} />
+            </MobileFormSection>
+
+            <MobileFormSection label="Address">
+              <AddressInput label="Billing Address" value={formData.billingAddress || ''} onChange={(v) => setFormData((p) => ({ ...p, billingAddress: v, shippingAddress: v }))} rows={2} />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <Label>City</Label>
+                  <Input value={formData.billingCity || ''} onChange={(e) => setFormData((p) => ({ ...p, billingCity: e.target.value, shippingCity: e.target.value }))} placeholder="Bangalore" />
+                </div>
+                <div>
+                  <Label>State</Label>
+                  <Select value={formData.billingState || ''} onValueChange={(v) => setFormData((p) => ({ ...p, billingState: v, shippingState: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
+                    <SelectContent>{INDIAN_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Postal Code</Label>
+                  <PostalCodeInput value={formData.billingPostalCode || ''} onChange={(v) => setFormData((p) => ({ ...p, billingPostalCode: v, shippingPostalCode: v }))} />
+                </div>
+              </div>
+            </MobileFormSection>
+
+            <MobileFormSection label="Logo">
+              <div className="flex items-center gap-3">
+                <input id="customer-logo-create" type="file" accept="image/*" className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]; if (!file) return;
+                    try {
+                      const dataUrl = await fileToDataUrl(file);
+                      setFormData((prev) => ({ ...prev, logoDataUrl: dataUrl }));
+                      const url = await uploadLogoToCloudinary(dataUrl);
+                      setFormData((prev) => ({ ...prev, logoUrl: url }));
+                    } catch { toast.error('Failed to upload logo'); }
+                  }}
+                />
+                <Button type="button" variant="outline" asChild>
+                  <label htmlFor="customer-logo-create" style={{ cursor: 'pointer' }}>
+                    {formData.logoUrl || formData.logoDataUrl ? 'Change Logo' : 'Upload Logo'}
+                  </label>
+                </Button>
+                {!!(formData.logoUrl || formData.logoDataUrl) && (
+                  <img src={String(formData.logoUrl || formData.logoDataUrl)} alt="Logo" className="h-10 w-10 rounded border object-contain bg-background" />
+                )}
+              </div>
+            </MobileFormSection>
+
+            <MobileFormActions>
+              <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
+              <Button type="button" variant="secondary" onClick={handleCreateByGstin} disabled={gstinLoading}>{gstinLoading ? 'Creating...' : 'Create via GSTIN'}</Button>
+              <Button type="submit">Add Customer</Button>
+            </MobileFormActions>
+          </form>
+        </MobileFormSheet>
 
         <Dialog open={outstandingOpen} onOpenChange={setOutstandingOpen}>
           <DialogContent className="max-w-2xl">
@@ -1060,7 +961,21 @@ export function CustomersPage() {
         </Card>
 
         {/* Customers Grid */}
-        {filteredCustomers.length === 0 ? (
+        {loading && customers.length === 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="animate-pulse bg-card rounded-xl border border-border p-6 h-40">
+                <div className="flex gap-4">
+                  <div className="h-12 w-12 bg-muted rounded-full"></div>
+                  <div className="flex-1 space-y-2 mt-2">
+                    <div className="h-4 w-1/2 bg-muted rounded"></div>
+                    <div className="h-3 w-1/3 bg-muted rounded"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredCustomers.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <User className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
@@ -1081,227 +996,165 @@ export function CustomersPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCustomers.map((customer) => (
-              <Card key={customer.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-center gap-3 justify-between">
-                    <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden border">
-                      {customer.logoUrl || customer.logoDataUrl ? (
-                        <img
-                          src={String(customer.logoUrl || customer.logoDataUrl)}
-                          alt="Logo"
-                          className="h-full w-full object-contain bg-white"
-                        />
-                      ) : (
-                        <User className="h-6 w-6 text-blue-600" />
-                      )}
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{customer.name}</CardTitle>
-                      {customer.gstin && (
-                        <p className="text-xs text-muted-foreground font-mono">{customer.gstin}</p>
-                      )}
-                    </div>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditClick(customer)}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openDeleteDialog(customer)}
-                      className="text-muted-foreground hover:text-destructive"
-                      aria-label="Delete customer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {customer.email && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Mail className="h-4 w-4" />
-                      <span className="truncate">{customer.email}</span>
-                    </div>
-                  )}
-                  {customer.phone && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="h-4 w-4" />
-                      <span>{customer.phone}</span>
-                    </div>
-                  )}
-
-                  {(customer.billingAddress || customer.billingCity || customer.billingState || customer.billingPostalCode) && (
-                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4 mt-0.5" />
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-foreground/80">Billing</div>
-                        {customer.billingAddress && <div className="line-clamp-2">{customer.billingAddress}</div>}
-                        {formatLocation(customer.billingCity, customer.billingState, customer.billingPostalCode) && (
-                          <div className="text-xs text-muted-foreground/80 line-clamp-1">
-                            {formatLocation(customer.billingCity, customer.billingState, customer.billingPostalCode)}
-                          </div>
+          <div className="space-y-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredCustomers.slice(0, visibleCount).map((customer) => (
+                <Card key={customer.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-center gap-3 justify-between">
+                      <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden border">
+                        {customer.logoUrl || customer.logoDataUrl ? (
+                          <img
+                            src={String(customer.logoUrl || customer.logoDataUrl)}
+                            alt="Logo"
+                            className="h-full w-full object-contain bg-white"
+                          />
+                        ) : (
+                          <User className="h-6 w-6 text-blue-600" />
                         )}
                       </div>
-                    </div>
-                  )}
-
-                  {(customer.shippingAddress || customer.shippingCity || customer.shippingState || customer.shippingPostalCode) && (
-                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4 mt-0.5 opacity-70" />
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-foreground/80">Shipping</div>
-                        {customer.shippingAddress && <div className="line-clamp-2">{customer.shippingAddress}</div>}
-                        {formatLocation(customer.shippingCity, customer.shippingState, customer.shippingPostalCode) && (
-                          <div className="text-xs text-muted-foreground/80 line-clamp-1">
-                            {formatLocation(customer.shippingCity, customer.shippingState, customer.shippingPostalCode)}
-                          </div>
+                      <div>
+                        <CardTitle className="text-lg">{customer.name}</CardTitle>
+                        {customer.gstin && (
+                          <p className="text-xs text-muted-foreground font-mono">{customer.gstin}</p>
                         )}
                       </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditClick(customer)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openDeleteDialog(customer)}
+                        className="text-muted-foreground hover:text-destructive"
+                        aria-label="Delete customer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {customer.email && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="h-4 w-4" />
+                        <span className="truncate">{customer.email}</span>
+                      </div>
+                    )}
+                    {customer.phone && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Phone className="h-4 w-4" />
+                        <span>{customer.phone}</span>
+                      </div>
+                    )}
+
+                    {(customer.billingAddress || customer.billingCity || customer.billingState || customer.billingPostalCode) && (
+                      <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4 mt-0.5" />
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-foreground/80">Billing</div>
+                          {customer.billingAddress && <div className="line-clamp-2">{customer.billingAddress}</div>}
+                          {formatLocation(customer.billingCity, customer.billingState, customer.billingPostalCode) && (
+                            <div className="text-xs text-muted-foreground/80 line-clamp-1">
+                              {formatLocation(customer.billingCity, customer.billingState, customer.billingPostalCode)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {(customer.shippingAddress || customer.shippingCity || customer.shippingState || customer.shippingPostalCode) && (
+                      <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <MapPin className="h-4 w-4 mt-0.5 opacity-70" />
+                        <div className="min-w-0">
+                          <div className="text-xs font-semibold text-foreground/80">Shipping</div>
+                          {customer.shippingAddress && <div className="line-clamp-2">{customer.shippingAddress}</div>}
+                          {formatLocation(customer.shippingCity, customer.shippingState, customer.shippingPostalCode) && (
+                            <div className="text-xs text-muted-foreground/80 line-clamp-1">
+                              {formatLocation(customer.shippingCity, customer.shippingState, customer.shippingPostalCode)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            {visibleCount < filteredCustomers.length && (
+              <div className="flex justify-center pt-4">
+                <Button 
+                  variant="outline" 
+                  className="w-full sm:w-auto px-8" 
+                  onClick={() => setVisibleCount(prev => prev + 50)}
+                >
+                  Load More ({visibleCount} of {filteredCustomers.length})
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
-        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Edit Customer</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleUpdateCustomer} className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
+        <MobileFormSheet open={showEditDialog} onClose={() => setShowEditDialog(false)} title="Edit Customer">
+          <form onSubmit={handleUpdateCustomer} className="space-y-4">
+            <MobileFormSection label="Party Info">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label>Party Name *</Label>
-                  <Input
-                    required
-                    value={editFormData.name || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                    placeholder="Enter name"
-                  />
+                  <Input required value={editFormData.name || ''} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} placeholder="Enter name" />
                 </div>
                 <div>
                   <Label>Owner Name *</Label>
-                  <Input
-                    required
-                    value={String(editFormData.ownerName || '')}
-                    onChange={(e) => setEditFormData({ ...editFormData, ownerName: e.target.value })}
-                    placeholder="Owner / Proprietor"
-                  />
-                </div>
-                <div>
-                  <EmailInput
-                    label="Email"
-                    value={editFormData.email || ''}
-                    onChange={(v) => setEditFormData({ ...editFormData, email: v })}
-                    placeholder="customer@email.com"
-                    error={editFormErrors.email}
-                  />
+                  <Input required value={String(editFormData.ownerName || '')} onChange={(e) => setEditFormData({ ...editFormData, ownerName: e.target.value })} placeholder="Owner / Proprietor" />
                 </div>
               </div>
+              <EmailInput label="Email" value={editFormData.email || ''} onChange={(v) => setEditFormData({ ...editFormData, email: v })} placeholder="customer@email.com" error={editFormErrors.email} />
+            </MobileFormSection>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <PhoneInput
-                  label="Phone"
-                  value={editFormData.phone || ''}
-                  onChange={(v) => setEditFormData({ ...editFormData, phone: v })}
-                  error={editFormErrors.phone}
-                />
-                <GstinInput
-                  label="GSTIN"
-                  value={editFormData.gstin || ''}
-                  onChange={(v) => setEditFormData({ ...editFormData, gstin: v })}
-                  error={editFormErrors.gstin}
-                  onBlur={() => void handleGstinLookupAutofill('edit')}
-                />
-              </div>
-              {gstinLookupLoading ? (
-                <div className="text-xs text-muted-foreground -mt-2">Fetching GST details...</div>
-              ) : null}
+            <MobileFormSection label="Contact & Tax">
+              <PhoneInput label="Phone" value={editFormData.phone || ''} onChange={(v) => setEditFormData({ ...editFormData, phone: v })} error={editFormErrors.phone} />
+              <GstinInput label="GSTIN" value={editFormData.gstin || ''} onChange={(v) => setEditFormData({ ...editFormData, gstin: v })} error={editFormErrors.gstin} onBlur={() => void handleGstinLookupAutofill('edit')} />
+              {gstinLookupLoading && <div className="text-xs text-muted-foreground">Fetching GST details...</div>}
+              <PanInput label="PAN" value={editFormData.pan || ''} onChange={(v) => setEditFormData({ ...editFormData, pan: v })} />
+            </MobileFormSection>
 
-              <PanInput
-                label="PAN"
-                value={editFormData.pan || ''}
-                onChange={(v) => setEditFormData({ ...editFormData, pan: v })}
-              />
-
-              <AddressInput
-                label="Billing Address"
-                value={editFormData.billingAddress || ''}
-                onChange={(v) => setEditFormData((p) => ({ ...p, billingAddress: v, shippingAddress: v }))}
-                rows={2}
-              />
-
-              <div className="grid md:grid-cols-3 gap-4">
+            <MobileFormSection label="Address">
+              <AddressInput label="Billing Address" value={editFormData.billingAddress || ''} onChange={(v) => setEditFormData((p) => ({ ...p, billingAddress: v, shippingAddress: v }))} rows={2} />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <Label>Billing City</Label>
-                  <Input
-                    value={editFormData.billingCity || ''}
-                    onChange={(e) =>
-                      setEditFormData((p) => ({
-                        ...p,
-                        billingCity: e.target.value,
-                        shippingCity: e.target.value,
-                      }))
-                    }
-                    placeholder="Bangalore"
-                  />
+                  <Label>City</Label>
+                  <Input value={editFormData.billingCity || ''} onChange={(e) => setEditFormData((p) => ({ ...p, billingCity: e.target.value, shippingCity: e.target.value }))} placeholder="Bangalore" />
                 </div>
                 <div>
-                  <Label>Billing State</Label>
-                  <Select
-                    value={editFormData.billingState || ''}
-                    onValueChange={(value) =>
-                      setEditFormData((p) => ({
-                        ...p,
-                        billingState: value,
-                        shippingState: value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INDIAN_STATES.map((state) => (
-                        <SelectItem key={state} value={state}>
-                          {state}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                  <Label>State</Label>
+                  <Select value={editFormData.billingState || ''} onValueChange={(v) => setEditFormData((p) => ({ ...p, billingState: v, shippingState: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
+                    <SelectContent>{INDIAN_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>Billing Postal Code</Label>
-                  <PostalCodeInput
-                    value={editFormData.billingPostalCode || ''}
-                    onChange={(v) => setEditFormData((p) => ({ ...p, billingPostalCode: v, shippingPostalCode: v }))}
-                  />
+                  <Label>Postal Code</Label>
+                  <PostalCodeInput value={editFormData.billingPostalCode || ''} onChange={(v) => setEditFormData((p) => ({ ...p, billingPostalCode: v, shippingPostalCode: v }))} />
                 </div>
               </div>
+            </MobileFormSection>
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save Changes</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+            <MobileFormActions>
+              <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+              <Button type="submit">Save Changes</Button>
+            </MobileFormActions>
+          </form>
+        </MobileFormSheet>
 
         {/* Summary */}
         {filteredCustomers.length > 0 && (

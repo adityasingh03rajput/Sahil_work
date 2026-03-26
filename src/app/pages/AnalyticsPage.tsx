@@ -17,6 +17,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 import { TraceLoader } from '../components/TraceLoader';
+import { AnalyticsPageSkeleton } from '../components/PageSkeleton';
 
 function readAnalyticsCacheSync(key: string): any | null {
   try {
@@ -197,15 +198,8 @@ export function AnalyticsPage() {
 
   const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
 
-  if (loading) {
-    return (
-      <>
-        <div className="flex items-center justify-center h-full">
-          <TraceLoader label="Loading analytics..." />
-        </div>
-      </>
-    );
-  }
+  // Removed top-level full-page component swap `if (loading) return <AnalyticsPageSkeleton />`
+  // so the page never flickers and maintains its exact React structural identity instantly.
 
   // Prepare monthly revenue chart data
   const monthlyRevenueData = analytics?.monthlyRevenue 
@@ -254,11 +248,11 @@ export function AnalyticsPage() {
               <div className="flex sm:justify-end">
                 <button
                   type="button"
+                  disabled={loading}
                   onClick={applyDateRange}
-                  disabled={applyingRange}
-                  className="h-10 w-full sm:w-auto rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
+                  className="h-10 px-4 rounded-md bg-primary text-primary-foreground font-semibold disabled:opacity-50"
                 >
-                  {applyingRange ? 'Applying...' : 'Apply'}
+                  {loading ? 'Loading...' : 'Apply'}
                 </button>
               </div>
             </div>
