@@ -131,9 +131,11 @@ export function EmployeeLoginPage() {
             </button>
           </form>
           <p style={{ textAlign: 'center', fontSize: 12, color: 'hsl(var(--muted-foreground))', margin: '16px 0 0' }}>Forgot your password? Contact your employer.</p>
-          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusDot, flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{API_URL}</span>
+            <span style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))' }}>
+              {backendOnline === true ? 'Online' : backendOnline === false ? 'Offline' : '…'}
+            </span>
           </div>
         </div>
       </div>

@@ -302,10 +302,7 @@ export function AuthPage() {
           </div>
 
           {/* API status */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, fontSize: 11, color: '#6a6a5a' }}>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '65%' }}>
-              {API_URL}
-            </span>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 14, fontSize: 11, color: '#6a6a5a' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor, display: 'inline-block' }} />
               {statusText}
