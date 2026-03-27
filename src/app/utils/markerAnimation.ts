@@ -1,0 +1,80 @@
+/**
+ * animateMarker — smooth interpolation between two lat/lng points
+ * for Google Maps markers, Zomato-style.
+ *
+ * Usage:
+ *   animateMarker(marker, { lat: 0, lng: 0 }, { lat: 0.001, lng: 0.001 }, 2000)
+ *
+ * Dead reckoning:
+ *   predictNext(last, speedMs, headingRad, deltaMs) → { lat, lng }
+ */
+
+export interface LatLng { lat: number; lng: number }
+
+/**
+ * Smoothly moves a Google Maps marker from `start` → `end` over `durationMs`.
+ * Returns a cancel function — call it to abort mid-animation.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function animateMarker(
+  marker: any,
+  start: LatLng,
+  end: LatLng,
+  durationMs = 2000,
+): () => void {
+  let rafId: number | null = null;
+  const startTime = performance.now();
+
+  function frame(now: number) {
+    const progress = Math.min((now - startTime) / durationMs, 1);
+    // Ease-in-out for natural feel
+    const ease = progress < 0.5
+      ? 2 * progress * progress
+      : -1 + (4 - 2 * progress) * progress;
+
+    const lat = start.lat + (end.lat - start.lat) * ease;
+    const lng = start.lng + (end.lng - start.lng) * ease;
+    marker.setPosition({ lat, lng });
+
+    if (progress < 1) rafId = requestAnimationFrame(frame);
+  }
+
+  rafId = requestAnimationFrame(frame);
+  return () => { if (rafId) cancelAnimationFrame(rafId); };
+}
+
+/**
+ * Dead reckoning — extrapolate position when no update arrives (< 10s)
+ * speedMs   : metres per millisecond
+ * headingRad: direction of travel in radians (0 = North, clockwise)
+ * deltaMs   : time since last known point
+ */
+export function predictNext(
+  last: LatLng,
+  speedMs: number,
+  headingRad: number,
+  deltaMs: number,
+): LatLng {
+  const dist = speedMs * deltaMs;        // metres travelled
+  const R    = 6371000;                  // Earth radius m
+  const dLat = (dist * Math.cos(headingRad)) / R;
+  const dLng = (dist * Math.sin(headingRad)) / (R * Math.cos((last.lat * Math.PI) / 180));
+  return {
+    lat: last.lat + (dLat * 180) / Math.PI,
+    lng: last.lng + (dLng * 180) / Math.PI,
+  };
+}
+
+/**
+ * Compute bearing in radians between two lat/lng points.
+ * Used to feed `headingRad` into predictNext().
+ */
+export function bearing(from: LatLng, to: LatLng): number {
+  const φ1 = (from.lat * Math.PI) / 180;
+  const φ2 = (to.lat  * Math.PI) / 180;
+  const dλ = ((to.lng - from.lng) * Math.PI) / 180;
+  return Math.atan2(
+    Math.sin(dλ) * Math.cos(φ2),
+    Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(dλ),
+  );
+}

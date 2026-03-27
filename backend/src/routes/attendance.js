@@ -231,24 +231,67 @@ attendanceRouter.get('/my/tasks', requireAuth, async (req, res, next) => {
 });
 
 // PATCH /attendance/my/tasks/:taskId — employee updates their own task status
+// Accepts optional { lat, lng } for GPS geofence validation when marking done.
 attendanceRouter.patch('/my/tasks/:taskId', requireAuth, async (req, res, next) => {
   try {
     const tokenUser = req.user;
     if (!tokenUser || tokenUser.userType !== 'employee') {
       return res.status(403).json({ error: 'Only employees can access this' });
     }
-    const { status } = req.body || {};
+    const { status, lat, lng } = req.body || {};
     const allowed = ['pending', 'in_progress', 'done'];
     if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
 
     const date = todayIST();
-    const record = await Attendance.findOneAndUpdate(
+
+    // Load current record to check geofence before writing
+    const record = await Attendance.findOne({ employeeId: req.userId, date })
+      .select('tasks').lean();
+    if (!record) return res.status(404).json({ error: 'No attendance record for today' });
+
+    const task = record.tasks.find((t) => String(t._id) === req.params.taskId);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+
+    // ── GPS geofence check ────────────────────────────────────────────────
+    // Only enforced when: marking done + task has a location + geofenceMeters set
+    if (
+      status === 'done' &&
+      task.geofenceMeters && task.geofenceMeters > 0 &&
+      task.location?.lat != null && task.location?.lng != null
+    ) {
+      if (lat == null || lng == null) {
+        return res.status(400).json({
+          error: 'Your GPS coordinates are required to complete this on-site task.',
+          code: 'GPS_REQUIRED',
+        });
+      }
+      const distKm = haversineKm(
+        Number(lat), Number(lng),
+        task.location.lat, task.location.lng
+      );
+      const distM = distKm * 1000;
+      if (distM > task.geofenceMeters) {
+        return res.status(403).json({
+          error: `You must be within ${task.geofenceMeters}m of the task location. You are ${Math.round(distM)}m away.`,
+          code: 'OUT_OF_RANGE',
+          requiredMeters: task.geofenceMeters,
+          currentMeters: Math.round(distM),
+        });
+      }
+    }
+
+    // Build update — auto-stamp completedAt when done
+    const setFields = { 'tasks.$.status': status };
+    if (status === 'done')    setFields['tasks.$.completedAt'] = new Date();
+    if (status !== 'done')    setFields['tasks.$.completedAt'] = null; // reset if undone
+
+    const updated = await Attendance.findOneAndUpdate(
       { employeeId: req.userId, date, 'tasks._id': req.params.taskId },
-      { $set: { 'tasks.$.status': status } },
+      { $set: setFields },
       { new: true }
     ).select('tasks');
-    if (!record) return res.status(404).json({ error: 'Task not found' });
-    res.json({ ok: true, tasks: record.tasks });
+    if (!updated) return res.status(404).json({ error: 'Task not found' });
+    res.json({ ok: true, tasks: updated.tasks });
   } catch (err) { next(err); }
 });
 
@@ -417,7 +460,7 @@ attendanceRouter.get('/live', requireAuth, async (req, res, next) => {
 // POST /attendance/:id/tasks — owner adds a task to an attendance record
 attendanceRouter.post('/:id/tasks', requireAuth, async (req, res, next) => {
   try {
-    const { title, description, location, startDate, dueDate, startTime, dueTime } = req.body || {};
+    const { title, description, location, startDate, dueDate, startTime, dueTime, checkInTime, checkOutTime, geofenceMeters } = req.body || {};
     if (!title) return res.status(400).json({ error: 'title is required' });
 
     // Build startAt / dueAt — default time 00:00 if not provided
@@ -435,6 +478,9 @@ attendanceRouter.post('/:id/tasks', requireAuth, async (req, res, next) => {
       dueDate: dueDate || null,
       startAt: buildDate(startDate, startTime),
       dueAt:   buildDate(dueDate, dueTime),
+      checkInTime: checkInTime || null,
+      checkOutTime: checkOutTime || null,
+      geofenceMeters: geofenceMeters != null ? Math.max(0, Number(geofenceMeters)) : null,
       status: 'pending',
     };
 
@@ -452,10 +498,39 @@ attendanceRouter.post('/:id/tasks', requireAuth, async (req, res, next) => {
 // PATCH /attendance/:id/tasks/:taskId — update task status
 attendanceRouter.patch('/:id/tasks/:taskId', requireAuth, async (req, res, next) => {
   try {
-    const { status } = req.body || {};
+    const { status, title, description, location, startDate, dueDate, startTime, dueTime, checkInTime, checkOutTime, geofenceMeters } = req.body || {};
+    
+    // Build startAt / dueAt
+    const buildDate = (date, time) => {
+      if (!date) return null;
+      const t = time || '00:00';
+      return new Date(`${date}T${t}:00+05:30`); // IST
+    };
+
+    const setFields = {};
+    if (status) {
+      setFields['tasks.$.status'] = status;
+      if (status === 'done') setFields['tasks.$.completedAt'] = new Date();
+      if (status !== 'done') setFields['tasks.$.completedAt'] = null;
+    }
+    if (title) setFields['tasks.$.title'] = String(title).trim();
+    if (description !== undefined) setFields['tasks.$.description'] = String(description).trim();
+    if (location) setFields['tasks.$.location'] = location;
+    if (startDate !== undefined) {
+      setFields['tasks.$.startDate'] = startDate || null;
+      setFields['tasks.$.startAt'] = buildDate(startDate, startTime);
+    }
+    if (dueDate !== undefined) {
+      setFields['tasks.$.dueDate'] = dueDate || null;
+      setFields['tasks.$.dueAt'] = buildDate(dueDate, dueTime);
+    }
+    if (checkInTime !== undefined) setFields['tasks.$.checkInTime'] = checkInTime || null;
+    if (checkOutTime !== undefined) setFields['tasks.$.checkOutTime'] = checkOutTime || null;
+    if (geofenceMeters !== undefined) setFields['tasks.$.geofenceMeters'] = geofenceMeters != null ? Math.max(0, Number(geofenceMeters)) : null;
+
     const record = await Attendance.findOneAndUpdate(
       { _id: req.params.id, ownerUserId: req.userId, 'tasks._id': req.params.taskId },
-      { $set: { 'tasks.$.status': status } },
+      { $set: setFields },
       { new: true }
     ).select('tasks');
     if (!record) return res.status(404).json({ error: 'Not found' });

@@ -40,6 +40,7 @@ import { employeesRouter } from './routes/employees.js';
 import { rolesRouter } from './routes/roles.js';
 import { attendanceRouter } from './routes/attendance.js';
 import { projectsRouter } from './routes/projects.js';
+import { geocodeRouter } from './routes/geocode.js';
 import twilio from 'twilio';
 import { Document } from './models/Document.js';
 import { BusinessProfile } from './models/BusinessProfile.js';
@@ -71,6 +72,9 @@ app.use(cors({
     if (!origin) return cb(null, true);
     if (origin === 'null') return cb(null, true);
     if (origin === 'capacitor://localhost' || origin === 'http://localhost' || origin === 'https://localhost') {
+      return cb(null, true);
+    }
+    if (origin === 'https://www.billvyapar.com' || origin === 'https://billvyapar.com') {
       return cb(null, true);
     }
     if (allowedOrigins.includes(origin)) return cb(null, true);
@@ -113,6 +117,8 @@ const apiLimiter = rateLimit({
 });
 
 app.use('/auth', authLimiter);
+// Employee login shares the same strict limiter as owner auth (brute-force protection)
+app.use('/employees/login', authLimiter);
 app.use(apiLimiter);
 
 // ── Health check ──────────────────────────────────────────────────────────────
@@ -148,6 +154,7 @@ app.use('/employees', employeesRouter);
 app.use('/roles', rolesRouter);
 app.use('/attendance', attendanceRouter);
 app.use('/projects', projectsRouter);
+app.use('/geocode', geocodeRouter);
 
 // ── Static frontend ───────────────────────────────────────────────────────────
 const distPathCandidates = [
@@ -169,7 +176,7 @@ const API_PREFIXES = [
   '/auth', '/profiles', '/documents', '/customers', '/suppliers', '/items',
   '/subscription', '/analytics', '/payments', '/reports', '/ledger',
   '/extra-expenses', '/uploads', '/health', '/bank-transactions',
-  '/vyapar-khata', '/master-admin', '/employees', '/roles', '/attendance', '/projects',
+  '/vyapar-khata', '/master-admin', '/employees', '/roles', '/attendance', '/projects', '/geocode'
 ];
 
 app.get('*', (req, res, next) => {

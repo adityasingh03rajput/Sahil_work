@@ -5,13 +5,19 @@ const projectTaskSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   assignedTo:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }],
   status:      { type: String, enum: ['pending', 'in_progress', 'done'], default: 'pending' },
-  dueDate:     { type: String, default: null },  // YYYY-MM-DD
+  startDate:   { type: String, default: null }, // YYYY-MM-DD — when to push to attendance
+  dueDate:     { type: String, default: null }, // YYYY-MM-DD
   dueAt:       { type: Date,   default: null },
   location: {
     lat:     { type: Number, default: null },
     lng:     { type: Number, default: null },
     address: { type: String, default: null },
   },
+  // ── Per-task manager controls ───────────────────────────────────────────
+  checkInTime:    { type: String, default: null }, // "HH:MM" IST — expected start
+  checkOutTime:   { type: String, default: null }, // "HH:MM" IST — expected end
+  // Geofence radius in metres (0/null = disabled)
+  geofenceMeters: { type: Number, default: null },
   createdAt: { type: Date, default: Date.now },
 }, { _id: true });
 
@@ -28,3 +34,4 @@ const projectSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 export const Project = mongoose.model('Project', projectSchema);
+

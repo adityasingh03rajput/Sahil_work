@@ -290,9 +290,11 @@ authRouter.post('/forgot-password', async (req, res, next) => {
             subject: 'BillVyapar — Your Password Reset OTP',
             html,
           });
+          // eslint-disable-next-line no-console
+          console.log(`[OTP] Email sent successfully to ${user.email}`);
         } catch (e) {
           // eslint-disable-next-line no-console
-          console.error(`[OTP] Email send failed for ${user.email}`, e);
+          console.error(`[OTP] Email send FAIL for ${user.email}:`, e);
         }
       } else {
         // eslint-disable-next-line no-console

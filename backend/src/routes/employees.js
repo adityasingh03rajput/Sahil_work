@@ -62,7 +62,7 @@ employeesRouter.post('/', requireAuth, async (req, res, next) => {
 // PATCH /employees/:id  — update employee
 employeesRouter.patch('/:id', requireAuth, async (req, res, next) => {
   try {
-    const { name, phone, role, isActive, password, customRoleId } = req.body || {};
+    const { name, phone, role, isActive, password, customRoleId, schedule } = req.body || {};
     const employee = await Employee.findOne({ _id: req.params.id, ownerUserId: req.userId });
     if (!employee) return res.status(404).json({ error: 'Employee not found' });
 
@@ -74,6 +74,31 @@ employeesRouter.patch('/:id', requireAuth, async (req, res, next) => {
     if (password) {
       if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
       employee.passwordHash = await bcrypt.hash(String(password), 10);
+    }
+
+    // ── Manager-controlled attendance schedule ─────────────────────────────
+    if (schedule && typeof schedule === 'object') {
+      if (!employee.schedule) employee.schedule = {};
+      // Validate time format HH:MM
+      const timeRe = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (schedule.checkInTime !== undefined) {
+        if (schedule.checkInTime && !timeRe.test(schedule.checkInTime))
+          return res.status(400).json({ error: 'checkInTime must be in HH:MM format' });
+        employee.schedule.checkInTime = schedule.checkInTime || null;
+      }
+      if (schedule.checkOutTime !== undefined) {
+        if (schedule.checkOutTime && !timeRe.test(schedule.checkOutTime))
+          return res.status(400).json({ error: 'checkOutTime must be in HH:MM format' });
+        employee.schedule.checkOutTime = schedule.checkOutTime || null;
+      }
+      if (schedule.geofenceMeters !== undefined) {
+        employee.schedule.geofenceMeters = schedule.geofenceMeters != null
+          ? Math.max(0, Number(schedule.geofenceMeters))
+          : null;
+      }
+      if (schedule.workLocation !== undefined) {
+        employee.schedule.workLocation = schedule.workLocation || { lat: null, lng: null, address: null };
+      }
     }
 
     await employee.save();

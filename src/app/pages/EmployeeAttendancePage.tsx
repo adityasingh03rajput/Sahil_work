@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { API_URL } from "../config/api";
 import { toast } from "sonner";
-import { io, Socket } from "socket.io-client";
+import { useLocationTracker } from "../hooks/useLocationTracker";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -76,6 +76,7 @@ function getSocketUrl() {
   return (typeof localStorage !== "undefined" && localStorage.getItem("apiUrlOverride")) || API_URL || window.location.origin;
 }
 
+
 // ── SVG Icons ─────────────────────────────────────────────────────────────────
 
 const IcoHome = () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
@@ -143,9 +144,7 @@ export function EmployeeAttendancePage() {
   const [expandedProj, setExpandedProj] = useState<Set<string>>(new Set());
   const [projTaskUpdating, setProjTaskUpdating] = useState<string | null>(null);
 
-  const socketRef = useRef<Socket | null>(null);
-  const watchIdRef = useRef<number | null>(null);
-  const trackingActiveRef = useRef(false);
+  const locationTracker = useLocationTracker();
 
   const hdrs = { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` };
 
@@ -198,34 +197,28 @@ export function EmployeeAttendancePage() {
   }, [tab]);
 
   const startTracking = useCallback((employeeId: string, ownerUserId: string, name: string) => {
-    if (trackingActiveRef.current) return;
-    trackingActiveRef.current = true;
-    const socket = io(getSocketUrl(), { path: "/socket.io", transports: ["websocket", "polling"] });
-    socketRef.current = socket;
-    socket.on("connect", () => { socket.emit("employee-join", { employeeId, ownerUserId }); setTracking(true); });
-    socket.on("disconnect", () => setTracking(false));
-    if (!navigator.geolocation) return;
-    const send = () => navigator.geolocation.getCurrentPosition(
-      pos => socket.emit("employee-location", { employeeId, ownerUserId, name, lat: pos.coords.latitude, lng: pos.coords.longitude, updatedAt: new Date().toISOString() }),
-      err => console.warn("[tracking]", err.message),
-      { enableHighAccuracy: true, maximumAge: 60000, timeout: 15000 }
-    );
-    send();
-    watchIdRef.current = window.setInterval(send, 120_000) as unknown as number;
-  }, []);
+    if (locationTracker.isActive()) return;
+    locationTracker.start(employeeId, ownerUserId, name, getSocketUrl());
+    // Mirror connect/disconnect to local `tracking` state
+    const sock = locationTracker.socket();
+    if (sock) {
+      sock.on("connect",    () => setTracking(true));
+      sock.on("disconnect", () => setTracking(false));
+    }
+    setTracking(true);
+  }, [locationTracker]);
 
   const stopTracking = useCallback(() => {
-    if (watchIdRef.current != null) { clearInterval(watchIdRef.current); watchIdRef.current = null; }
-    if (socketRef.current) { socketRef.current.disconnect(); socketRef.current = null; }
-    trackingActiveRef.current = false; setTracking(false);
-  }, []);
+    locationTracker.stop();
+    setTracking(false);
+  }, [locationTracker]);
 
   useEffect(() => {
-    if (todayRecord?.checkInTime && !todayRecord?.checkOutTime && user?.id && user?.ownerUserId && !trackingActiveRef.current)
+    if (todayRecord?.checkInTime && !todayRecord?.checkOutTime && user?.id && user?.ownerUserId && !locationTracker.isActive())
       startTracking(user.id, user.ownerUserId, user.name || user.email || "Employee");
   }, [todayRecord?.checkInTime, todayRecord?.checkOutTime, user?.id, user?.ownerUserId]);
 
-  useEffect(() => () => stopTracking(), []);
+  useEffect(() => () => locationTracker.stop(), []);
 
   const handleMark = async () => {
     if (marking) return;

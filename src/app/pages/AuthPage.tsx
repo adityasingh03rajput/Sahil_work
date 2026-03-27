@@ -41,7 +41,7 @@ export function AuthPage() {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [otpChannel] = useState<'email'>('email');
+  const [otpChannel] = useState<'both'>('both');
   const [apiEditOpen, setApiEditOpen] = useState(false);
   const [apiDraft, setApiDraft] = useState('');
   const apiOverrideActive = !!getApiUrlOverride();

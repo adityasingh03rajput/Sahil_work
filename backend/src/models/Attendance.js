@@ -24,7 +24,22 @@ const taskSchema = new mongoose.Schema({
   // Task-level time tracking — employee taps Start/Stop on the task itself
   taskCheckIn:  { type: Date, default: null },
   taskCheckOut: { type: Date, default: null },
+  // When the task was marked done (auto-stamped)
+  completedAt:  { type: Date, default: null },
+
+  // ── Project link ─────────────────────────────────────────────────────────
+  // Set when the task was auto-synced from a Project
+  projectId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null },
+  projectTaskId: { type: mongoose.Schema.Types.ObjectId, default: null },
+
+  // ── Per-task manager controls ─────────────────────────────────────────────
+  // Expected time window for this specific task (24h HH:MM IST)
+  checkInTime:  { type: String, default: null }, // must start by this time
+  checkOutTime: { type: String, default: null }, // must finish by this time
+  // GPS geofence for this task — 0/null = disabled
+  geofenceMeters: { type: Number, default: null },
 }, { _id: true });
+
 
 const attendanceSchema = new mongoose.Schema(
   {
