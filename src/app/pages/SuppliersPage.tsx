@@ -242,8 +242,7 @@ export function SuppliersPage() {
     if (cached?.data?.length) {
       setSuppliers(cached.data);
       setLoading(false);
-      if (isFresh) return;
-      // Stale — revalidate in background without spinner
+      if (isFresh && !force) return;
     } else {
       setLoading(true);
     }
@@ -258,7 +257,7 @@ export function SuppliersPage() {
         if (Array.isArray(data)) writeSuppliersCache(data);
       }
     } catch {
-      toast.error('Failed to load suppliers');
+      if (!suppliers.length) toast.error('Failed to load suppliers');
     } finally {
       setLoading(false);
     }

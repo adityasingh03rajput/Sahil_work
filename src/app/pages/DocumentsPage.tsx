@@ -459,7 +459,7 @@ export function DocumentsPage() {
       setHasMore(more);
       writeDocsCache(data);
     } catch {
-      toast.error('Failed to load documents');
+      if (!documents.length) toast.error('Failed to load documents');
     } finally {
       setLoading(false);
     }

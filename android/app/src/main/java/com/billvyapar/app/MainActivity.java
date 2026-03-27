@@ -47,6 +47,17 @@ public class MainActivity extends BridgeActivity {
       // ── Ensure smooth font rendering ─────────────────────────────────────
       settings.setMinimumFontSize(1);
       settings.setMinimumLogicalFontSize(1);
+
+      // ── Fix text scaling on high-DPI / large-font devices ────────────────
+      // Android applies the system font size multiplier to WebView by default.
+      // This makes text appear oversized on devices with accessibility font
+      // scaling enabled. Lock it to 100% so CSS px values are always 1:1.
+      settings.setTextZoom(100);
+
+      // ── Use device DPI for layout — prevents WebView from scaling the
+      // entire page up on high-density screens ─────────────────────────────
+      settings.setUseWideViewPort(true);
+      settings.setLoadWithOverviewMode(false);
     }
   }
 }

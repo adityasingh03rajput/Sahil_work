@@ -123,8 +123,7 @@ export function ItemsPage() {
     if (cached?.data?.length) {
       setItems(cached.data);
       setLoading(false);
-      if (isFresh) return;
-      // Stale — revalidate in background without spinner
+      if (isFresh && !force) return;
     } else {
       setLoading(true);
     }
@@ -139,7 +138,7 @@ export function ItemsPage() {
         if (Array.isArray(data)) writeItemsCache(data);
       }
     } catch (error) {
-      toast.error('Failed to load items');
+      if (!items.length) toast.error('Failed to load items');
     } finally {
       setLoading(false);
     }

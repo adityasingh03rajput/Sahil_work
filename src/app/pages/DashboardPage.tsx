@@ -54,7 +54,8 @@ export function DashboardPage() {
       const raw = localStorage.getItem(dashCacheKey);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (!parsed?.ts || Date.now() - parsed.ts > DASH_CACHE_TTL_MS) return null;
+      if (!parsed?.ts) return null;
+      // No TTL enforcement — serve stale cache when offline
       return parsed as { ts: number; analytics: any; recentDocs: any[] };
     } catch { return null; }
   };

@@ -17,12 +17,49 @@ html, body {
   touch-action: pan-y;                 /* allow vertical scrolling, block zoom */
 }
 
+/* 1b. Native APK type scale — driven by DisplayContext via --native-font-size CSS var.
+   Default medium = 13px (WhatsApp-level density). User can change in Settings. */
+html.native-app {
+  font-size: var(--native-font-size, 13px);
+}
+/* Scale Tailwind text utilities proportionally to root font-size */
+html.native-app .text-xs   { font-size: 0.69rem  !important; }
+html.native-app .text-sm   { font-size: 0.8rem   !important; }
+html.native-app .text-base { font-size: 0.92rem  !important; }
+html.native-app .text-lg   { font-size: 1.05rem  !important; }
+html.native-app .text-xl   { font-size: 1.15rem  !important; }
+html.native-app .text-2xl  { font-size: 1.3rem   !important; }
+html.native-app .text-3xl  { font-size: 1.5rem   !important; }
+html.native-app .text-4xl  { font-size: 1.75rem  !important; }
+
+/* Compact density — tighter padding on cards and containers */
+html.native-app .p-4  { padding: calc(1rem * var(--dp, 0.8))  !important; }
+html.native-app .p-6  { padding: calc(1.5rem * var(--dp, 0.8)) !important; }
+html.native-app .px-4 { padding-left: calc(1rem * var(--dp, 0.8)) !important; padding-right: calc(1rem * var(--dp, 0.8)) !important; }
+html.native-app .py-4 { padding-top: calc(1rem * var(--dp, 0.8)) !important; padding-bottom: calc(1rem * var(--dp, 0.8)) !important; }
+html.native-app .gap-6 { gap: calc(1.5rem * var(--dp, 0.8)) !important; }
+html.native-app .gap-4 { gap: calc(1rem * var(--dp, 0.8)) !important; }
+html.native-app .mb-6  { margin-bottom: calc(1.5rem * var(--dp, 0.8)) !important; }
+html.native-app .mb-4  { margin-bottom: calc(1rem * var(--dp, 0.8)) !important; }
+
 /* 2. Remove 300ms tap delay on every interactive element */
 a, button, input, select, textarea,
 [role="button"], [tabindex] {
   touch-action: manipulation;          /* fastest possible tap response */
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
+}
+
+/* 2b. Cards and list items must NOT block vertical scroll.
+   touch-action: pan-y lets the finger scroll even when it starts on a card/button.
+   The FAB overrides this with touch-action: none via inline style. */
+.card, [data-slot="card"],
+[class*="rounded"], li,
+.flex-col > button,
+.flex-col > a,
+[class*="list"] > *,
+[class*="items"] > * {
+  touch-action: pan-y;
 }
 
 /* 3. Promote scroll containers to GPU compositing layers

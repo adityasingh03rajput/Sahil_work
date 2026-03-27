@@ -3,6 +3,8 @@ const DEFAULT_API_URL = 'https://billvyapar-backend.fly.dev';
 const metaEnv = (import.meta as any)?.env as { [k: string]: any } | undefined;
 const raw = metaEnv?.VITE_API_URL as string | undefined;
 
+const API_URL_OVERRIDE_KEY = 'apiUrlOverride';
+
 const normalizeApiUrl = (value?: string): string => {
   if (!value?.trim()) return DEFAULT_API_URL;
   const trimmed = value.trim();
@@ -14,8 +16,22 @@ const normalizeApiUrl = (value?: string): string => {
   return DEFAULT_API_URL;
 };
 
-// Single source of truth — reads from VITE_API_URL env var, falls back to default
+export const getApiUrlOverride = (): string => {
+  try {
+    return String(window.localStorage.getItem(API_URL_OVERRIDE_KEY) || '').trim();
+  } catch { return ''; }
+};
+
+export const setApiUrlOverride = (value: string): string => {
+  const normalized = normalizeApiUrl(value);
+  try { window.localStorage.setItem(API_URL_OVERRIDE_KEY, normalized); } catch { /* ignore */ }
+  return normalized;
+};
+
+export const clearApiUrlOverride = (): void => {
+  try { window.localStorage.removeItem(API_URL_OVERRIDE_KEY); } catch { /* ignore */ }
+};
+
 export const API_URL = normalizeApiUrl(raw);
 
-// Admin panel uses the same URL
 export const ADMIN_API_URL = API_URL;

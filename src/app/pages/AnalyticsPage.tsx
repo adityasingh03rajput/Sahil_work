@@ -387,28 +387,27 @@ export function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               {monthlyRevenueData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={monthlyRevenueData}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={monthlyRevenueData} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip 
-                      formatter={(value: any) => formatCurrency(value)}
-                    />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="revenue" 
-                      stroke="#3b82f6" 
+                    <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip formatter={(value: any) => formatCurrency(value)} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#3b82f6"
                       strokeWidth={2}
                       name="Revenue"
+                      dot={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                <div className="h-[220px] flex items-center justify-center text-muted-foreground">
                   <div className="text-center">
-                    <Calendar className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                    <Calendar className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
                     <p>No revenue data yet</p>
                   </div>
                 </div>
@@ -424,15 +423,14 @@ export function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               {topItemsData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
                     <Pie
                       data={topItemsData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={(entry) => entry.name}
-                      outerRadius={80}
+                      outerRadius={90}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -441,12 +439,24 @@ export function AnalyticsPage() {
                       ))}
                     </Pie>
                     <Tooltip formatter={(value: any) => formatCurrency(value)} />
+                    <Legend
+                      layout="vertical"
+                      align="right"
+                      verticalAlign="middle"
+                      iconType="circle"
+                      iconSize={8}
+                      formatter={(value) => (
+                        <span style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
+                          {String(value).length > 14 ? String(value).slice(0, 14) + '…' : value}
+                        </span>
+                      )}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                <div className="h-[220px] flex items-center justify-center text-muted-foreground">
                   <div className="text-center">
-                    <FileText className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                    <FileText className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
                     <p>No sales data yet</p>
                   </div>
                 </div>

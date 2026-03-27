@@ -259,8 +259,7 @@ export function CustomersPage() {
     if (cached?.data?.length) {
       setCustomers(cached.data);
       setLoading(false);
-      if (isFresh) return;
-      // Stale — revalidate in background without spinner
+      if (isFresh && !force) return; // fresh — skip network
     } else {
       setLoading(true);
     }
@@ -275,7 +274,7 @@ export function CustomersPage() {
         if (Array.isArray(data)) writeCustomersCache(data);
       }
     } catch (error) {
-      toast.error('Failed to load customers');
+      if (!customers.length) toast.error('Failed to load customers');
     } finally {
       setLoading(false);
     }

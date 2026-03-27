@@ -4,6 +4,7 @@ import { createBrowserRouter, createHashRouter, RouterProvider, Outlet, Navigate
 import { Toaster } from './components/ui/sonner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { DisplayProvider } from './contexts/DisplayContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { OfflineBanner } from './components/OfflineBanner';
 import { useIsNative } from './hooks/useIsNative';
@@ -129,7 +130,9 @@ function App() {
     <ErrorBoundary>
       <AuthProvider>
         <ThemeProvider>
-          <AppInner />
+          <DisplayProvider>
+            <AppInner />
+          </DisplayProvider>
         </ThemeProvider>
       </AuthProvider>
     </ErrorBoundary>

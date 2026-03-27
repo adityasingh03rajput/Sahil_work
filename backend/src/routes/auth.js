@@ -231,12 +231,63 @@ authRouter.post('/forgot-password', async (req, res, next) => {
     }
 
     if (wantEmail && user.email) {
-      const html = `<p>Your password reset OTP is <strong>${otp}</strong>.</p><p>Valid for 10 minutes. Do not share this OTP with anyone.</p>`;
+      const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:system-ui,-apple-system,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" style="max-width:480px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#3b6ef5,#5585ff);padding:32px 40px;text-align:center;">
+            <div style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 14px;margin-bottom:12px;">
+              <span style="font-size:28px;">🔐</span>
+            </div>
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">Password Reset OTP</h1>
+            <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:13px;">BillVyapar · Secure Verification</p>
+          </td>
+        </tr>
+        <!-- Body -->
+        <tr>
+          <td style="padding:36px 40px;">
+            <p style="margin:0 0 20px;color:#374151;font-size:15px;line-height:1.6;">
+              Hi there,<br>We received a request to reset your BillVyapar password.
+              Use the OTP below to proceed.
+            </p>
+            <!-- OTP Box -->
+            <div style="background:#f0f4ff;border:2px dashed #3b6ef5;border-radius:10px;padding:24px;text-align:center;margin:0 0 24px;">
+              <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;">Your OTP</p>
+              <span style="font-size:42px;font-weight:800;letter-spacing:10px;color:#1e3a8a;font-family:monospace;">${otp}</span>
+            </div>
+            <p style="margin:0 0 8px;color:#6b7280;font-size:13px;text-align:center;">
+              ⏱ Valid for <strong>10 minutes</strong>
+            </p>
+            <p style="margin:0;color:#ef4444;font-size:12px;text-align:center;font-weight:600;">
+              🔒 Never share this OTP with anyone, including BillVyapar support.
+            </p>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;">
+            <p style="margin:0;color:#9ca3af;font-size:12px;">
+              If you didn't request this, you can safely ignore this email.<br>
+              © 2025 BillVyapar
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
       if (canSendEmail()) {
         try {
           await sendEmail({
             to: user.email,
-            subject: 'BillVyapar Password Reset OTP',
+            subject: 'BillVyapar — Your Password Reset OTP',
             html,
           });
         } catch (e) {
