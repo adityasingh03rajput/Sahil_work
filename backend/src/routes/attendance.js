@@ -152,8 +152,26 @@ attendanceRouter.post('/mark', requireAuth, async (req, res, next) => {
     const date = todayIST();
     const now = new Date();
     const existing = await Attendance.findOne({ employeeId: req.userId, date });
-
     const location = (lat != null && lng != null) ? { lat: Number(lat), lng: Number(lng) } : null;
+
+    // ── Daily Geofence Check ──────────────────────────────────────────────
+    // If employee has a schedule with geofence + location, enforce it
+    if (
+      employee.schedule?.geofenceMeters && employee.schedule.geofenceMeters > 0 &&
+      employee.schedule.workLocation?.lat != null && employee.schedule.workLocation?.lng != null
+    ) {
+      if (!location) {
+        return res.status(400).json({ error: 'GPS location is required for attendance at this work site.', code: 'GPS_REQUIRED' });
+      }
+      const distKm = haversineKm(location.lat, location.lng, employee.schedule.workLocation.lat, employee.schedule.workLocation.lng);
+      const distM = distKm * 1000;
+      if (distM > employee.schedule.geofenceMeters) {
+        return res.status(403).json({
+          error: `You must be within ${employee.schedule.geofenceMeters}m of your work location. You are ${Math.round(distM)}m away.`,
+          code: 'OUT_OF_RANGE',
+        });
+      }
+    }
 
     if (existing) {
       if (!existing.checkOutTime) {
@@ -319,9 +337,33 @@ attendanceRouter.post('/my/tasks/:taskId/checkout', requireAuth, async (req, res
     const tokenUser = req.user;
     if (!tokenUser || tokenUser.userType !== 'employee') return res.status(403).json({ error: 'Forbidden' });
 
+    const { lat, lng } = req.body || {};
     const date = todayIST();
     const now = new Date();
-    const record = await Attendance.findOneAndUpdate(
+
+    // Load record to check task-specific geofence
+    const record = await Attendance.findOne({ employeeId: req.userId, date }).select('tasks');
+    if (!record) return res.status(404).json({ error: 'No attendance record' });
+
+    const task = record.tasks.find(t => String(t._id) === req.params.taskId);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+
+    // ── Task Geofence Check ───────────────────────────────────────────────
+    if (task.geofenceMeters && task.geofenceMeters > 0 && task.location?.lat != null && task.location?.lng != null) {
+      if (lat == null || lng == null) {
+        return res.status(400).json({ error: 'GPS coordinates required for this on-site task.', code: 'GPS_REQUIRED' });
+      }
+      const distKm = haversineKm(Number(lat), Number(lng), task.location.lat, task.location.lng);
+      const distM = distKm * 1000;
+      if (distM > task.geofenceMeters) {
+        return res.status(403).json({
+          error: `Out of geofence range for this task. (${Math.round(distM)}m away)`,
+          code: 'OUT_OF_RANGE'
+        });
+      }
+    }
+
+    const updated = await Attendance.findOneAndUpdate(
       { employeeId: req.userId, date, 'tasks._id': req.params.taskId },
       { $set: { 'tasks.$.taskCheckOut': now, 'tasks.$.status': 'done' } },
       { new: true }

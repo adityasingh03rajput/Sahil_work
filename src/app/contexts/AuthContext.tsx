@@ -54,13 +54,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const apiUrl = API_URL;
 
-  // Global 402 interceptor — patch window.fetch once per session
+  // Global fetch interceptor — handles 402 subscription expiry + profile ID remapping
   useEffect(() => {
     const original = window.fetch.bind(window);
     window.fetch = async (...args) => {
       const res = await original(...args);
+
+      // If backend remapped the profileId (stale localStorage), update it
+      const remapped = res.headers.get('X-Profile-ID-Remapped');
+      if (remapped) {
+        try {
+          const raw = localStorage.getItem('currentProfile');
+          const current = raw ? JSON.parse(raw) : {};
+          if (current?.id !== remapped) {
+            localStorage.setItem('currentProfile', JSON.stringify({ ...current, id: remapped }));
+          }
+        } catch { /* ignore */ }
+      }
+
       if (res.status === 402) {
         setSubscriptionExpired(true);
+        // Clone so the body can still be read by the caller
+        return res.clone();
       }
       return res;
     };
@@ -129,6 +144,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSubscriptionExpired(false);
     localStorage.setItem('accessToken', data.session.access_token);
     localStorage.setItem('user', JSON.stringify(userData));
+    // Clear any stale subscription token cache so fresh validation runs on next load
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('subscriptionToken:'))
+      .forEach(k => localStorage.removeItem(k));
 
     // Prefetch the dashboard chunk in the background so it's ready on first navigation
     import('../pages/DashboardPageWrapper').catch(() => {});

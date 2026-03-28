@@ -67,11 +67,11 @@ export async function offlineFetch(
       // Server error — try cache
       const cached = readCache(url);
       if (cached !== null) { showOfflineToast(); return cached; }
-      // No cache — return the error response so callers can handle it
-      return res.json();
+      // No cache — parse and return the error body (clone guards against already-used body)
+      try { return await res.clone().json(); } catch { return { error: `HTTP ${res.status}` }; }
     }
 
-    const data = await res.json();
+    const data = await res.clone().json();
     // Only cache successful array/object responses
     if (data && !data.error) writeCache(url, data);
     return data;

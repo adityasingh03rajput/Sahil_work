@@ -17,14 +17,16 @@ interface AttendanceTask {
   status: "pending" | "in_progress" | "done";
   dueDate?: string | null; dueTime?: string | null;
   taskCheckIn?: string | null; taskCheckOut?: string | null;
-  location?: { address?: string | null };
+  geofenceMeters?: number;
+  location?: { lat?: number; lng?: number; address?: string | null };
 }
 interface ProjectTask {
   _id: string; title: string; description?: string;
   status: "pending" | "in_progress" | "done";
   dueDate?: string | null;
   assignedTo: { _id: string; name: string }[];
-  location?: { address?: string | null };
+  geofenceMeters?: number;
+  location?: { lat?: number; lng?: number; address?: string | null };
 }
 interface Project {
   _id: string; name: string; description?: string;
@@ -262,18 +264,39 @@ export function EmployeeAttendancePage() {
   const taskCheckout = async (taskId: string) => {
     setTaskUpdating(taskId);
     try {
-      const res = await fetch(`${API_URL}/attendance/my/tasks/${taskId}/checkout`, { method: "POST", headers: hdrs });
-      const data = await res.json(); if (data.tasks) setTasks(data.tasks); toast.success("Task completed");
-    } catch { toast.error("Failed"); } finally { setTaskUpdating(null); }
+      let lat: number | undefined, lng: number | undefined;
+      try {
+        const pos = await new Promise<GeolocationPosition>((res, rej) =>
+          navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 8000 }));
+        lat = pos.coords.latitude; lng = pos.coords.longitude;
+      } catch { /* GPS unavailable */ }
+      const res = await fetch(`${API_URL}/attendance/my/tasks/${taskId}/checkout`, { method: "POST", headers: hdrs, body: JSON.stringify({ lat, lng }) });
+      const data = await res.json(); 
+      if (data.error) throw new Error(data.error);
+      if (data.tasks) setTasks(data.tasks); 
+      toast.success("Task completed");
+    } catch (err: any) { toast.error(err.message || "Failed"); } 
+    finally { setTaskUpdating(null); }
   };
 
   const updateProjTaskStatus = async (projId: string, taskId: string, current: string) => {
     const next = current === "pending" ? "in_progress" : current === "in_progress" ? "done" : "pending";
     setProjTaskUpdating(taskId);
     try {
-      const res = await fetch(`${API_URL}/projects/${projId}/tasks/${taskId}`, { method: "PATCH", headers: hdrs, body: JSON.stringify({ status: next }) });
-      const data = await res.json(); if (data._id) setProjects(ps => ps.map(p => p._id === projId ? data : p));
-    } catch { toast.error("Failed to update"); } finally { setProjTaskUpdating(null); }
+      let lat: number | undefined, lng: number | undefined;
+      if (next === "done") {
+        try {
+          const pos = await new Promise<GeolocationPosition>((res, rej) =>
+            navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 8000 }));
+          lat = pos.coords.latitude; lng = pos.coords.longitude;
+        } catch { /* GPS unavailable */ }
+      }
+      const res = await fetch(`${API_URL}/projects/${projId}/tasks/${taskId}`, { method: "PATCH", headers: hdrs, body: JSON.stringify({ status: next, lat, lng }) });
+      const data = await res.json(); 
+      if (data.error) throw new Error(data.error);
+      if (data._id) setProjects(ps => ps.map(p => p._id === projId ? data : p));
+    } catch (err: any) { toast.error(err.message || "Failed to update"); } 
+    finally { setProjTaskUpdating(null); }
   };
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -591,18 +614,28 @@ export function EmployeeAttendancePage() {
                         {/* Title row */}
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: "0 0 3px", fontSize: 15, fontWeight: 700,
-                              color: isDone ? "rgba(255,255,255,0.35)" : "#fff",
-                              textDecoration: isDone ? "line-through" : "none",
-                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {task.title}
-                            </p>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 3 }}>
+                              <p style={{ margin: 0, fontSize: 15, fontWeight: 700,
+                                color: isDone ? "rgba(255,255,255,0.35)" : "#fff",
+                                textDecoration: isDone ? "line-through" : "none",
+                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {task.title}
+                              </p>
+                              {((task.geofenceMeters ?? 0) > 0) && (
+                                <div style={{ padding: "1px 6px", borderRadius: 6, 
+                                  background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)",
+                                  fontSize: 8, fontWeight: 800, color: "#818cf8", textTransform: "uppercase" }}>
+                                  📍 {task.geofenceMeters}m
+                                </div>
+                              )}
+                            </div>
                             {task.description && (
                               <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.35)",
                                 overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                 {task.description}
                               </p>
                             )}
+                            {task.location?.address && <p style={{ margin: "4px 0 0", fontSize: 10, color: "rgba(255,255,255,0.25)" }}>🏫 {task.location.address}</p>}
                           </div>
                           <Pill color={isDone ? "green" : isActive ? "yellow" : "indigo"}>
                             {isDone ? "Done" : isActive ? "Active" : "Pending"}

@@ -13,7 +13,13 @@ interface Employee { _id: string; name: string; email: string; role: string; }
 interface ProjectTask {
   _id: string; title: string; description: string;
   assignedTo: Employee[]; status: 'pending' | 'in_progress' | 'done';
-  dueDate: string | null; location?: { address?: string | null };
+  dueDate: string | null;
+  geofenceMeters?: number;
+  location?: { 
+    lat?: number; 
+    lng?: number; 
+    address?: string | null;
+  };
 }
 interface Project {
   _id: string; name: string; description: string;
@@ -34,7 +40,16 @@ const TASK_STATUS_COLORS = {
   done:        'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
 };
 
-const emptyTaskForm = { title: '', description: '', dueDate: '', assignedTo: [] as string[] };
+const emptyTaskForm = { 
+  title: '', 
+  description: '', 
+  dueDate: '', 
+  assignedTo: [] as string[],
+  geofenceMeters: 0,
+  lat: 0,
+  lng: 0,
+  address: ''
+};
 
 export function ProjectsPage() {
   const { accessToken, deviceId } = useAuth();
@@ -106,7 +121,10 @@ export function ProjectsPage() {
         if (data.error) throw new Error(data.error);
         toast.success('Project updated');
       } else {
-        const validTasks = projTasks.filter(t => t.title.trim());
+        const validTasks = projTasks.filter(t => t.title.trim()).map(t => ({
+          ...t,
+          location: t.lat || t.lng || t.address ? { lat: t.lat, lng: t.lng, address: t.address } : undefined
+        }));
         const res = await fetch(`${API_URL}/projects`, { method: 'POST', headers, body: JSON.stringify({ name: projForm.name, description: projForm.description, profileId, members: projForm.members, tasks: validTasks, startDate: projForm.startDate || null, dueDate: projForm.dueDate || null }) });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
@@ -141,7 +159,11 @@ export function ProjectsPage() {
     if (!taskForm.title.trim() || !taskDialog) return toast.error('Title required');
     setTaskSaving(true);
     try {
-      const res = await fetch(`${API_URL}/projects/${taskDialog}/tasks`, { method: 'POST', headers, body: JSON.stringify(taskForm) });
+      const payload = {
+        ...taskForm,
+        location: taskForm.lat || taskForm.lng || taskForm.address ? { lat: taskForm.lat, lng: taskForm.lng, address: taskForm.address } : undefined
+      };
+      const res = await fetch(`${API_URL}/projects/${taskDialog}/tasks`, { method: 'POST', headers, body: JSON.stringify(payload) });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setProjects(ps => ps.map(p => p._id === taskDialog ? data : p));
@@ -337,15 +359,20 @@ export function ProjectsPage() {
                           {employees.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
                         </select>
                       </div>
-                      {task.assignedTo.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {task.assignedTo.map(id => { const emp = employees.find(e => e._id === id); return emp ? (
-                            <span key={id} className="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 px-2 py-0.5 rounded-full">
-                              {emp.name}<button type="button" onClick={() => setProjTasks(ts => ts.map((t, j) => j === i ? { ...t, assignedTo: t.assignedTo.filter(x => x !== id) } : t))}><X className="h-2.5 w-2.5" /></button>
-                            </span>
-                          ) : null; })}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase font-bold text-muted-foreground">Geofence (meters)</Label>
+                          <Input type="number" placeholder="Radius (m)" value={task.geofenceMeters || ''} onChange={e => setProjTasks(ts => ts.map((t, j) => j === i ? { ...t, geofenceMeters: Number(e.target.value) } : t))} />
                         </div>
-                      )}
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase font-bold text-muted-foreground">Address</Label>
+                          <Input placeholder="Site address" value={task.address || ''} onChange={e => setProjTasks(ts => ts.map((t, j) => j === i ? { ...t, address: e.target.value } : t))} />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input type="number" placeholder="Lat" value={task.lat || ''} onChange={e => setProjTasks(ts => ts.map((t, j) => j === i ? { ...t, lat: Number(e.target.value) } : t))} />
+                        <Input type="number" placeholder="Lng" value={task.lng || ''} onChange={e => setProjTasks(ts => ts.map((t, j) => j === i ? { ...t, lng: Number(e.target.value) } : t))} />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -375,6 +402,26 @@ export function ProjectsPage() {
             <div className="space-y-1.5">
               <Label>Due Date</Label>
               <Input type="date" value={taskForm.dueDate} min="2020-01-01" max="2099-12-31" onChange={e => setTaskForm(f => ({ ...f, dueDate: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Geofence Radius (meters)</Label>
+                <Input type="number" placeholder="e.g. 50" value={taskForm.geofenceMeters || ''} onChange={e => setTaskForm(f => ({ ...f, geofenceMeters: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Site Address</Label>
+                <Input placeholder="e.g. Okhla Phase 3" value={taskForm.address || ''} onChange={e => setTaskForm(f => ({ ...f, address: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Latitude</Label>
+                <Input type="number" placeholder="28.XXXX" value={taskForm.lat || ''} onChange={e => setTaskForm(f => ({ ...f, lat: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Longitude</Label>
+                <Input type="number" placeholder="77.XXXX" value={taskForm.lng || ''} onChange={e => setTaskForm(f => ({ ...f, lng: Number(e.target.value) }))} />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>Assign To</Label>

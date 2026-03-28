@@ -77,12 +77,17 @@ export function ExtraExpensesPage() {
   const load = async () => {
     if (!accessToken || !deviceId || !profileId) return;
     const cacheKey = `apicache:${profileId}:extra-expenses`;
-    const TTL = 5 * 60 * 1000;
-    // Show cached immediately
+    
+    // 1. Show cached data immediately to keep UI snappy
     const cached = await idbGet<{ data: ExtraExpenseDto[]; cachedAt: number }>(cacheKey);
-    if (cached?.data) { setRows(cached.data); setLoading(false); }
-    else setLoading(true);
-    if (cached && Date.now() - cached.cachedAt < TTL) return;
+    if (cached?.data) {
+      setRows(cached.data);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    // 2. Always fetch fresh data from the server in the background
     try {
       const res = await fetch(`${API_URL}/extra-expenses`, {
         headers: { Authorization: `Bearer ${accessToken}`, 'X-Device-ID': deviceId, 'X-Profile-ID': profileId },
@@ -93,7 +98,8 @@ export function ExtraExpensesPage() {
       setRows(arr);
       await idbSet(cacheKey, { data: arr, cachedAt: Date.now() });
     } catch (e: any) {
-      toast.error(e?.message || 'Failed to load expenses');
+      console.error('Fetch error:', e);
+      if (!cached?.data) toast.error(e?.message || 'Failed to load expenses');
     } finally {
       setLoading(false);
     }

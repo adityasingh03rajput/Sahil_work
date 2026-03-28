@@ -35,6 +35,16 @@ interface Employee {
   customRoleId?: string;
   isActive: boolean;
   createdAt: string;
+  schedule?: {
+    checkInTime?: string | null;
+    checkOutTime?: string | null;
+    geofenceMeters?: number | null;
+    workLocation?: {
+      lat?: number | null;
+      lng?: number | null;
+      address?: string | null;
+    };
+  };
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -80,7 +90,10 @@ const PERMISSION_GROUPS: { group: string; items: { key: string; label: string }[
   },
 ];
 
-const emptyEmpForm = { name: '', email: '', phone: '', password: '', role: 'salesperson', customRoleId: '' };
+const emptyEmpForm = { 
+  name: '', email: '', phone: '', password: '', role: 'salesperson', customRoleId: '',
+  checkInTime: '', checkOutTime: '', geofenceMeters: 0, lat: 0, lng: 0, address: ''
+};
 const emptyRoleForm = { name: '', permissions: [] as string[] };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -141,22 +154,31 @@ export function EmployeesPage() {
   const loadEmployees = async () => {
     if (!profileId) return;
     const cacheKey = `apicache:${profileId}:employees`;
-    const TTL = 5 * 60 * 1000;
-    // Show cached immediately
-    const cached = await idbGet<{ data: Employee[]; cachedAt: number }>(cacheKey);
-    if (cached?.data) { setEmployees(cached.data); setEmpLoading(false); }
-    else setEmpLoading(true);
-    // Skip network if fresh
-    if (cached && Date.now() - cached.cachedAt < TTL) return;
+
+    setEmpLoading(true);
+
+    // Always fetch fresh from server — don't show stale cached employees
+    // (stale cache can have wrong _ids from a previous backend, causing ghost deletes)
     try {
       const res = await fetch(`${API_URL}/employees?profileId=${profileId}`, { headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (Array.isArray(data)) {
         setEmployees(data);
         await idbSet(cacheKey, { data, cachedAt: Date.now() });
       }
-    } catch { toast.error('Failed to load employees'); }
-    finally { setEmpLoading(false); }
+    } catch (error) {
+      console.error('Fetch error:', error);
+      // Fall back to cache only if network fails
+      const cached = await idbGet<{ data: Employee[]; cachedAt: number }>(cacheKey);
+      if (cached?.data) {
+        setEmployees(cached.data);
+      } else {
+        toast.error('Failed to load employees');
+      }
+    } finally {
+      setEmpLoading(false);
+    }
   };
 
   const loadRoles = async () => {
@@ -177,7 +199,15 @@ export function EmployeesPage() {
     finally { setRolesLoading(false); }
   };
 
-  useEffect(() => { loadEmployees(); loadRoles(); }, [profileId]);
+  useEffect(() => {
+    // Bust any stale cache from previous backend deployments
+    if (profileId) {
+      idbSet(`apicache:${profileId}:employees`, { data: [], cachedAt: 0 }).catch(() => {});
+    }
+    idbSet('apicache:roles', { data: [], cachedAt: 0 }).catch(() => {});
+    loadEmployees();
+    loadRoles();
+  }, [profileId]);
 
   // ── Employee handlers ───────────────────────────────────────────────────────
 
@@ -191,8 +221,14 @@ export function EmployeesPage() {
     setEditEmp(emp);
     setEmpForm({
       name: emp.name, email: emp.email, phone: emp.phone ?? '',
-      password: '', role: emp.customRoleId ? 'custom' : emp.role,
+      password: '', role: emp.customRoleId ? `custom:${emp.customRoleId}` : emp.role,
       customRoleId: emp.customRoleId ?? '',
+      checkInTime: emp.schedule?.checkInTime ?? '',
+      checkOutTime: emp.schedule?.checkOutTime ?? '',
+      geofenceMeters: emp.schedule?.geofenceMeters ?? 0,
+      lat: emp.schedule?.workLocation?.lat ?? 0,
+      lng: emp.schedule?.workLocation?.lng ?? 0,
+      address: emp.schedule?.workLocation?.address ?? '',
     });
     setEmpDialogOpen(true);
   };
@@ -215,8 +251,21 @@ export function EmployeesPage() {
         ? { role: 'custom', customRoleId: finalCustomRoleId }
         : { role: finalRole, customRoleId: null };
 
+      const schedulePayload = {
+        schedule: {
+          checkInTime: empForm.checkInTime || null,
+          checkOutTime: empForm.checkOutTime || null,
+          geofenceMeters: Number(empForm.geofenceMeters) || null,
+          workLocation: (empForm.lat || empForm.lng || empForm.address) ? {
+            lat: Number(empForm.lat) || null,
+            lng: Number(empForm.lng) || null,
+            address: empForm.address || null
+          } : undefined
+        }
+      };
+
       if (editEmp) {
-        const body: any = { name: empForm.name, phone: empForm.phone, ...rolePayload };
+        const body: any = { name: empForm.name, phone: empForm.phone, ...rolePayload, ...schedulePayload };
         if (empForm.password) body.password = empForm.password;
         const res = await fetch(`${API_URL}/employees/${editEmp._id}`, { method: 'PATCH', headers, body: JSON.stringify(body) });
         const data = await res.json();
@@ -225,7 +274,7 @@ export function EmployeesPage() {
       } else {
         const res = await fetch(`${API_URL}/employees`, {
           method: 'POST', headers,
-          body: JSON.stringify({ name: empForm.name, email: empForm.email, phone: empForm.phone, password: empForm.password, profileId, ...rolePayload }),
+          body: JSON.stringify({ name: empForm.name, email: empForm.email, phone: empForm.phone, password: empForm.password, profileId, ...rolePayload, ...schedulePayload }),
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
@@ -535,6 +584,37 @@ export function EmployeesPage() {
             <div className="space-y-1.5">
               <Label>{editEmp ? 'New Password (leave blank to keep)' : 'Password'}</Label>
               <Input type="password" placeholder={editEmp ? 'Leave blank to keep current' : 'Min 6 characters'} value={empForm.password} onChange={(e) => setEmpForm(f => ({ ...f, password: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5 pt-2 border-t border-border">
+              <Label className="text-blue-600 dark:text-blue-400 font-bold text-xs uppercase tracking-wider">Attendance Policy</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground uppercase">Target Check-In</Label>
+                  <Input type="time" value={empForm.checkInTime} onChange={e => setEmpForm(f => ({ ...f, checkInTime: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground uppercase">Target Check-Out</Label>
+                  <Input type="time" value={empForm.checkOutTime} onChange={e => setEmpForm(f => ({ ...f, checkOutTime: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground uppercase">Geofence (meters)</Label>
+                  <Input type="number" placeholder="50" value={empForm.geofenceMeters || ''} onChange={e => setEmpForm(f => ({ ...f, geofenceMeters: Number(e.target.value) }))} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground uppercase">Office Address</Label>
+                  <Input placeholder="Location name" value={empForm.address} onChange={e => setEmpForm(f => ({ ...f, address: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <div className="space-y-1">
+                  <Input type="number" placeholder="Latitude" value={empForm.lat || ''} onChange={e => setEmpForm(f => ({ ...f, lat: Number(e.target.value) }))} />
+                </div>
+                <div className="space-y-1">
+                  <Input type="number" placeholder="Longitude" value={empForm.lng || ''} onChange={e => setEmpForm(f => ({ ...f, lng: Number(e.target.value) }))} />
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>

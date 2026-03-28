@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { Subscription } from '../models/Subscription.js';
 import { User } from '../models/User.js';
+import { LicenseKey } from '../models/LicenseKey.js';
+import { Subscriber } from '../models/Subscriber.js';
 import { ReferralRedemption } from '../models/ReferralRedemption.js';
 import { requireProfile } from '../middleware/profile.js';
 import { signSubscriptionToken } from '../lib/jwt.js';
@@ -58,31 +60,71 @@ function normalizeReferralCode(code) {
 
 subscriptionRouter.get('/validate', requireProfile, async (req, res, next) => {
   try {
-    const sub = await Subscription.findOne({ userId: req.userId });
-    if (!sub) {
-      return res.status(404).json({ error: 'No subscription found' });
+    const now = new Date();
+    const TRIAL_DAYS = 7;
+
+    // ── 1. Active license key ──────────────────────────────────────────────
+    const activeLicense = await LicenseKey.findOne({
+      activatedByUserId: req.userId,
+      status: 'active',
+      expiresAt: { $gt: now },
+    }).lean();
+
+    if (activeLicense) {
+      const token = signSubscriptionToken({
+        userId: req.userId,
+        profileId: req.profileId,
+        plan: 'license',
+        endDate: activeLicense.expiresAt,
+      });
+      return res.json({
+        ok: true,
+        serverNow: now.toISOString(),
+        token,
+        subscription: {
+          userId: String(req.userId),
+          plan: 'license',
+          startDate: activeLicense.activatedAt?.toISOString() ?? now.toISOString(),
+          endDate: activeLicense.expiresAt.toISOString(),
+          active: true,
+        },
+      });
     }
 
-    const token = signSubscriptionToken({
-      userId: req.userId,
-      profileId: req.profileId,
-      plan: sub.plan,
-      endDate: sub.endDate,
-    });
+    // ── 2. Trial window ────────────────────────────────────────────────────
+    const [user, subscriber] = await Promise.all([
+      User.findById(req.userId).lean(),
+      Subscriber.findOne({ ownerUserId: req.userId }).lean(),
+    ]);
 
-    res.json({
-      ok: true,
-      serverNow: new Date().toISOString(),
-      token,
-      subscription: {
-        userId: String(sub.userId),
-        plan: sub.plan,
-        startDate: sub.startDate.toISOString(),
-        endDate: sub.endDate.toISOString(),
-        active: sub.active,
-        previousPlan: sub.previousPlan ?? null,
-      },
-    });
+    if (!user) return res.status(401).json({ error: 'User not found' });
+
+    const extensionDays = Number(subscriber?.trialExtensionDays || 0);
+    const trialEnd = new Date(user.createdAt.getTime() + (TRIAL_DAYS + extensionDays) * 24 * 60 * 60 * 1000);
+
+    if (now <= trialEnd) {
+      const token = signSubscriptionToken({
+        userId: req.userId,
+        profileId: req.profileId,
+        plan: 'trial',
+        endDate: trialEnd,
+      });
+      return res.json({
+        ok: true,
+        serverNow: now.toISOString(),
+        token,
+        subscription: {
+          userId: String(req.userId),
+          plan: 'trial',
+          startDate: user.createdAt.toISOString(),
+          endDate: trialEnd.toISOString(),
+          active: true,
+        },
+      });
+    }
+
+    // ── No valid access ────────────────────────────────────────────────────
+    return res.status(402).json({ error: 'Subscription expired. Please activate a license key to continue.' });
   } catch (err) {
     next(err);
   }

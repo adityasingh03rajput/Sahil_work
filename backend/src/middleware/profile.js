@@ -29,11 +29,26 @@ export async function requireProfile(req, res, next) {
 
     const profile = await BusinessProfile.findOne(
       { _id: profileIdHeader, userId: req.userId },
-      '_id' // only need the ID
+      '_id'
     ).lean();
 
     if (!profile) {
-      return res.status(404).json({ error: 'Business profile not found' });
+      // Profile not found for this ID — fall back to the user's first profile
+      // This handles the case where localStorage has a stale profileId from a previous backend
+      const fallback = await BusinessProfile.findOne(
+        { userId: req.userId },
+        '_id'
+      ).sort({ createdAt: 1 }).lean();
+
+      if (!fallback) {
+        return res.status(404).json({ error: 'Business profile not found' });
+      }
+
+      profileCache.set(`${req.userId}:${String(fallback._id)}`, { profileId: fallback._id, expiresAt: Date.now() + PROFILE_CACHE_TTL_MS });
+      req.profileId = fallback._id;
+      // Signal to client that the profileId was remapped
+      res.setHeader('X-Profile-ID-Remapped', String(fallback._id));
+      return next();
     }
 
     profileCache.set(cacheKey, { profileId: profile._id, expiresAt: Date.now() + PROFILE_CACHE_TTL_MS });

@@ -484,7 +484,14 @@ export function AttendancePage() {
   useEffect(() => {
     if (tab === 'today') loadToday();
     else if (tab === 'history') loadHistory();
-  }, [tab, filterMonth]);
+  }, [tab, filterMonth, loadToday, loadHistory]);
+
+  // Auto-refresh today's data every 30 seconds
+  useEffect(() => {
+    if (tab !== 'today') return;
+    const timer = setInterval(() => loadToday(), 30000);
+    return () => clearInterval(timer);
+  }, [tab, loadToday]);
 
   const handleTasksUpdated = (recordId: string, tasks: Task[]) => {
     setRecords((prev) => prev.map((r) => r._id === recordId ? { ...r, tasks } : r));

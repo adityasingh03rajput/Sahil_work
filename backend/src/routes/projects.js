@@ -6,6 +6,16 @@ import { requireAuth } from '../middleware/auth.js';
 
 export const projectsRouter = Router();
 
+/** Haversine distance in km between two lat/lng points */
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 /**
  * Sync a single project task to each assigned employee's attendance record
  * for the task's startDate (or today if no startDate). Creates the attendance
@@ -204,24 +214,72 @@ projectsRouter.post('/:id/tasks', requireAuth, async (req, res, next) => {
 // Also accepts checkInTime, checkOutTime, geofenceMeters
 projectsRouter.patch('/:id/tasks/:taskId', requireAuth, async (req, res, next) => {
   try {
-    const { status, assignedTo, title, description, dueDate, startDate, checkInTime, checkOutTime, geofenceMeters } = req.body || {};
-    const set = {};
-    if (status)                         set['tasks.$.status']      = status;
-    if (assignedTo)                     set['tasks.$.assignedTo']  = assignedTo;
-    if (title)                          set['tasks.$.title']       = title.trim();
-    if (description !== undefined)      set['tasks.$.description'] = description.trim();
-    if (dueDate !== undefined)        { set['tasks.$.dueDate'] = dueDate; set['tasks.$.dueAt'] = dueDate ? new Date(`${dueDate}T00:00:00+05:30`) : null; }
-    if (startDate !== undefined)        set['tasks.$.startDate']       = startDate;
-    if (checkInTime !== undefined)      set['tasks.$.checkInTime']     = checkInTime || null;
-    if (checkOutTime !== undefined)     set['tasks.$.checkOutTime']    = checkOutTime || null;
-    if (geofenceMeters !== undefined)   set['tasks.$.geofenceMeters']  = geofenceMeters != null ? Math.max(0, Number(geofenceMeters)) : null;
+    const { status, assignedTo, title, description, dueDate, startDate, checkInTime, checkOutTime, geofenceMeters, lat, lng } = req.body || {};
+    
+    // Find project, checking if user is owner OR a member (employee)
+    const project = await Project.findOne({ _id: req.params.id, $or: [{ ownerUserId: req.userId }, { members: req.userId }] });
+    if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    const project = await Project.findOneAndUpdate(
-      { _id: req.params.id, ownerUserId: req.userId, 'tasks._id': req.params.taskId },
+    const taskIndex = project.tasks.findIndex(t => String(t._id) === req.params.taskId);
+    if (taskIndex === -1) return res.status(404).json({ error: 'Task not found' });
+    const task = project.tasks[taskIndex];
+
+    const isOwner = String(project.ownerUserId) === req.userId;
+    const isAssignedEmployee = task.assignedTo.some(a => String(a._id) === req.userId);
+
+    // If it's an employee updating status, they must be assigned and we check geofence
+    if (!isOwner && status && status !== task.status) {
+      if (!isAssignedEmployee) return res.status(403).json({ error: 'You are not assigned to this task' });
+
+      // ── Task Geofence Check (only if marking done) ───────────────────
+      if (status === 'done' && task.geofenceMeters && task.geofenceMeters > 0 && task.location?.lat != null && task.location?.lng != null) {
+        if (lat == null || lng == null) {
+          return res.status(400).json({ error: 'GPS coordinates required for this task.', code: 'GPS_REQUIRED' });
+        }
+        const distKm = haversineKm(Number(lat), Number(lng), task.location.lat, task.location.lng);
+        const distM = distKm * 1000;
+        if (distM > task.geofenceMeters) {
+          return res.status(403).json({ error: `Out of geofence range for this task. (${Math.round(distM)}m away)`, code: 'OUT_OF_RANGE' });
+        }
+      }
+    }
+
+    // Build update
+    const set = {};
+    if (status) {
+      set['tasks.$.status'] = status;
+      if (status === 'done' && !task.completedAt) set['tasks.$.completedAt'] = new Date();
+    }
+    if (isOwner) { // Only owner can change metadata
+      if (assignedTo)                     set['tasks.$.assignedTo']  = assignedTo;
+      if (title)                          set['tasks.$.title']       = title.trim();
+      if (description !== undefined)      set['tasks.$.description'] = description.trim();
+      if (dueDate !== undefined)        { set['tasks.$.dueDate'] = dueDate; set['tasks.$.dueAt'] = dueDate ? new Date(`${dueDate}T00:00:00+05:30`) : null; }
+      if (startDate !== undefined)        set['tasks.$.startDate']       = startDate;
+      if (checkInTime !== undefined)      set['tasks.$.checkInTime']     = checkInTime || null;
+      if (checkOutTime !== undefined)     set['tasks.$.checkOutTime']    = checkOutTime || null;
+      if (geofenceMeters !== undefined)   set['tasks.$.geofenceMeters']  = geofenceMeters != null ? Math.max(0, Number(geofenceMeters)) : null;
+    }
+
+    const updatedProject = await Project.findOneAndUpdate(
+      { _id: req.params.id, 'tasks._id': req.params.taskId },
       { $set: set }, { new: true }
     ).populate('members', 'name email role schedule').populate('tasks.assignedTo', 'name email').lean();
-    if (!project) return res.status(404).json({ error: 'Not found' });
-    res.json(project);
+
+    // ── Sync back to Attendance ───────────────────────────────────────────
+    // If an employee updated their status, sync it to their today's record
+    if (!isOwner && status) {
+      const date = task.startDate || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      const setFields = { 'tasks.$.status': status };
+      if (status === 'done') setFields['tasks.$.completedAt'] = new Date();
+      
+      await Attendance.findOneAndUpdate(
+        { employeeId: req.userId, date, 'tasks.projectTaskId': req.params.taskId },
+        { $set: setFields }
+      ).catch(() => {}); // silent fail if no record exists yet
+    }
+
+    res.json(updatedProject);
   } catch (err) { next(err); }
 });
 
