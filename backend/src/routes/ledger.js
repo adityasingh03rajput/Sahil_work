@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { requireAuth, requireValidDeviceSession } from '../middleware/auth.js';
 import { requireActiveSubscription } from '../middleware/subscription.js';
 import { requireProfile } from '../middleware/profile.js';
+import { getCurrentFiscalYearRange } from '../lib/fiscal.js';
 
 import { LedgerEntry } from '../models/LedgerEntry.js';
 import { Customer } from '../models/Customer.js';
@@ -156,8 +157,9 @@ ledgerRouter.get('/statement', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid partyId' });
     }
 
-    const to = parseDateParam(req.query.to, new Date(), { endOfDay: true });
-    const from = parseDateParam(req.query.from, new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000), { startOfDay: true });
+    const fyDefaults = getCurrentFiscalYearRange();
+    const to = parseDateParam(req.query.to, new Date(fyDefaults.endDate), { endOfDay: true });
+    const from = parseDateParam(req.query.from, new Date(fyDefaults.startDate), { startOfDay: true });
 
     const PartyModel = partyType === 'customer' ? Customer : Supplier;
     const party = await PartyModel.findOne({ _id: partyId, userId: req.userId, profileId: req.profileId }).lean();
@@ -192,11 +194,12 @@ ledgerRouter.get('/statement', async (req, res, next) => {
     const before = beforeAgg?.[0] || { debit: 0, credit: 0 };
     const openingSigned = openingSignedBase + (Number(before.debit || 0) - Number(before.credit || 0));
 
+    const partyObjectId = new mongoose.Types.ObjectId(partyId);
     const entries = await LedgerEntry.find({
-      userId: req.userId,
-      profileId: req.profileId,
+      userId: userObjectId,
+      profileId: profileObjectId,
       partyType,
-      partyId,
+      partyId: partyObjectId,
       date: { $gte: from, $lte: to },
     })
       .sort({ date: 1, createdAt: 1 })

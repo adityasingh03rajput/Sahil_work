@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { LedgerEntry } from '../models/LedgerEntry.js';
 import { Document } from '../models/Document.js';
+import { getFiscalYearFromDate } from './fiscal.js';
 
 function parseBestDate(value, fallback) {
   const d = value ? new Date(String(value)) : null;
@@ -15,10 +16,12 @@ function normalizeDocType(t) {
 
 function computeDocVoucher({ docType, amount, partyType }) {
   const t = normalizeDocType(docType);
-  const amt = Number(amount) || 0;
+  const amt = parseFloat(Number(amount || 0).toFixed(2));
 
   if (partyType === 'customer') {
     if (t === 'invoice' || t === 'billing') return { voucherType: 'GST Sales', debit: amt, credit: 0 };
+    // AUDIT FIX #5: invoice_cancellation reverses the original invoice debit with a credit
+    if (t === 'invoice_cancellation') return { voucherType: 'Invoice Cancellation', debit: 0, credit: amt };
     if (t === 'credit_note') return { voucherType: 'Credit Note', debit: 0, credit: amt };
     if (t === 'debit_note') return { voucherType: 'Debit Note', debit: amt, credit: 0 };
   }
@@ -33,6 +36,7 @@ function computeDocVoucher({ docType, amount, partyType }) {
 
   return null;
 }
+
 
 export async function upsertLedgerForDocument({ userId, profileId, documentId }) {
   if (!mongoose.Types.ObjectId.isValid(String(documentId))) return null;
@@ -57,6 +61,7 @@ export async function upsertLedgerForDocument({ userId, profileId, documentId })
   }
 
   const date = parseBestDate(doc.date, doc.createdAt);
+  const fy = getFiscalYearFromDate(date.toISOString());
   const particulars = String(doc.customerName || '').trim() || null;
 
   const entry = await LedgerEntry.findOneAndUpdate(
@@ -68,8 +73,9 @@ export async function upsertLedgerForDocument({ userId, profileId, documentId })
         partyType,
         partyId,
         date,
+        fiscalYear: fy,
         voucherType: voucher.voucherType,
-        voucherNo: String(doc.documentNumber || '').trim() || null,
+        voucherNo: String(doc.invoiceNo || doc.challanNo || doc.documentNumber || '').trim() || null,
         particulars,
         debit: Number(voucher.debit || 0),
         credit: Number(voucher.credit || 0),
@@ -85,34 +91,52 @@ export async function upsertLedgerForDocument({ userId, profileId, documentId })
   return entry;
 }
 
-export async function createLedgerForPayment({ userId, profileId, payment }) {
+// AUDIT FIX R2: Use upsert keyed on payment._id to prevent duplicate ledger entries
+// when a document or payment is edited. Exported as both names for compatibility.
+export async function upsertLedgerForPayment({ userId, profileId, payment }) {
   const partyType = payment.customerId ? 'customer' : payment.supplierId ? 'supplier' : null;
   const partyId = payment.customerId || payment.supplierId;
   if (!partyType || !partyId) return null;
 
+  if (!payment._id) return null;
+
   const date = parseBestDate(payment.date, payment.createdAt);
-  const amount = Number(payment.amount || 0);
+  const fy = getFiscalYearFromDate(date.toISOString());
+  const amount = parseFloat(Number(payment.amount || 0).toFixed(2));
 
   const voucherType = partyType === 'customer' ? 'Receipt' : 'Payment';
-  const debit = partyType === 'supplier' ? amount : 0;
-  const credit = partyType === 'customer' ? amount : 0;
+  // Receipt: reduces customer receivable (credit on customer side)
+  // Payment: reduces supplier payable (debit on supplier side)
+  const debit  = parseFloat((partyType === 'supplier' ? amount : 0).toFixed(2));
+  const credit = parseFloat((partyType === 'customer' ? amount : 0).toFixed(2));
 
-  const entry = await LedgerEntry.create({
-    userId,
-    profileId,
-    partyType,
-    partyId,
-    date,
-    voucherType,
-    voucherNo: String(payment.reference || '').trim() || null,
-    particulars: String(payment.method || '').trim() || null,
-    debit,
-    credit,
-    sourceType: 'payment',
-    sourceId: payment._id,
-    isReversal: false,
-    reversalOf: null,
-  });
+  const entry = await LedgerEntry.findOneAndUpdate(
+    { sourceType: 'payment', sourceId: payment._id },
+    {
+      $set: {
+        userId,
+        profileId,
+        partyType,
+        partyId,
+        date,
+        fiscalYear: fy,
+        voucherType,
+        voucherNo: String(payment.reference || '').trim() || null,
+        particulars: String(payment.method || '').trim() || null,
+        debit,
+        credit,
+        sourceType: 'payment',
+        sourceId: payment._id,
+        isReversal: false,
+        reversalOf: null,
+      },
+    },
+    { upsert: true, new: true }
+  );
 
   return entry;
 }
+
+// Backward-compatible alias
+export const createLedgerForPayment = upsertLedgerForPayment;
+

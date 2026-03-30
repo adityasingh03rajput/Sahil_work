@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-import { API_URL, clearApiUrlOverride, getApiUrlOverride, setApiUrlOverride } from '../config/api';
+import { API_URL, clearApiUrlOverride, getApiUrlOverride, setApiUrlOverride, getApiUrl } from '../config/api';
 import { useIsNative } from '../hooks/useIsNative';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Label } from '../components/ui/label';
@@ -54,7 +54,7 @@ export function AuthPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) return;
-    try {
+        try {
       const raw = localStorage.getItem('currentProfile');
       if (raw) { const p = typeof raw === 'string' ? JSON.parse(raw) : raw; if (p?.id) { navigate('/dashboard', { replace: true }); return; } }
     } catch {}
@@ -68,7 +68,7 @@ export function AuthPage() {
       try {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 20000);
-        const res = await fetch(`${API_URL}/health`, { signal: ctrl.signal });
+        const res = await fetch(`${getApiUrl()}/health`, { signal: ctrl.signal });
         clearTimeout(t);
         if (!cancelled) setBackendOnline(res.ok);
       } catch { if (!cancelled) setBackendOnline(false); }
@@ -79,7 +79,7 @@ export function AuthPage() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  useEffect(() => { if (apiEditOpen) setApiDraft(API_URL); }, [apiEditOpen]);
+  useEffect(() => { if (apiEditOpen) setApiDraft(getApiUrl()); }, [apiEditOpen]);
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -119,15 +119,19 @@ export function AuthPage() {
       }
       if (mode === 'forgot') {
         const r = await fetch(`${API_URL}/auth/forgot-password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, channel: otpChannel }) });
-        const d = await r.json();
-        if (d.error) throw new Error(d.error);
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          throw new Error(d.error || d.detail || `Server error: ${r.status}`);
+        }
         toast.success('OTP sent (if account exists)');
         setMode('reset'); setLoading(false); return;
       }
       if (mode === 'reset') {
         const r = await fetch(`${API_URL}/auth/reset-password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, otp, newPassword }) });
-        const d = await r.json();
-        if (d.error) throw new Error(d.error);
+        if (!r.ok) {
+          const d = await r.json().catch(() => ({}));
+          throw new Error(d.error || d.detail || `Server error: ${r.status}`);
+        }
         toast.success('Password reset successful. Please sign in.');
         setMode('auth'); setIsSignUp(false); setPassword(''); setNewPassword(''); setOtp('');
         setLoading(false); return;
@@ -171,11 +175,33 @@ export function AuthPage() {
         <div style={{ height: 'env(safe-area-inset-top,20px)' }} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px', position: 'relative', zIndex: 2 }}>
           <span style={{ fontSize: 16, fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.3px' }}>BillVyapar</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, border: 'none', borderRadius: 20, padding: '5px 10px', background: 'rgba(255,255,255,0.06)' }}>
+          <button type="button" onClick={() => setApiEditOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 5, border: 'none', borderRadius: 20, padding: '5px 10px', background: 'rgba(255,255,255,0.06)', cursor: 'pointer' }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusDot }} />
             <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>{backendOnline === true ? 'Online' : backendOnline === false ? 'Offline' : '…'}</span>
-          </div>
+          </button>
         </div>
+
+        {apiEditOpen && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ width: '100%', maxWidth: 320, background: '#1e293b', borderRadius: 24, padding: 24, border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800, color: '#f1f5f9' }}>Server Settings</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Configure your backend API server destination.</p>
+              
+              <div style={{ marginBottom: 20 }}>
+                <MobileFieldLabel>API URL</MobileFieldLabel>
+                <input type="url" value={apiDraft} onChange={e => setApiDraft(e.target.value)} placeholder="https://api.example.com" style={mobileInp} />
+                {apiOverrideActive && (
+                  <button type="button" onClick={() => { clearApiUrlOverride(); setApiEditOpen(false); window.location.reload(); }} style={{ marginTop: 10, background: 'none', border: 'none', color: '#ef4444', fontSize: 12, fontWeight: 600, padding: 0, cursor: 'pointer' }}>Reset to default</button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button type="button" onClick={() => setApiEditOpen(false)} style={{ flex: 1, height: 48, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+                <button type="button" onClick={() => { setApiUrlOverride(apiDraft); setApiEditOpen(false); window.location.reload(); }} style={{ flex: 1, height: 48, borderRadius: 12, border: 'none', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Save</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 20px 0', position: 'relative', zIndex: 2 }}>
           <div style={{ marginBottom: 24, textAlign: 'center' }}>
@@ -303,11 +329,34 @@ export function AuthPage() {
 
           {/* API status */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 14, fontSize: 11, color: '#6a6a5a' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+            <button type="button" onClick={() => setApiEditOpen(true)} title="Change API Server" style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid rgba(0,0,0,0.08)', borderRadius: 20, padding: '4px 10px', background: 'rgba(255,252,240,0.4)', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600, color: '#6a6a5a' }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor, display: 'inline-block' }} />
               {statusText}
-            </span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 2 }}><path d="m6 9 6 6 6-6"/></svg>
+            </button>
           </div>
+
+          {apiEditOpen && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(26,26,20,0.4)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+              <div style={{ width: '100%', maxWidth: 340, background: '#fffcf0', borderRadius: 8, padding: 28, border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}>
+                <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#1a1a14', fontFamily: 'Newsreader, serif' }}>API Configuration</h3>
+                <p style={{ margin: '0 0 20px', fontSize: 13, color: '#5a5a4a', lineHeight: 1.4 }}>Change the server where this application fetches data.</p>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 20 }}>
+                  <label style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a8a7a' }}>Server URL</label>
+                  <input type="url" value={apiDraft} onChange={e => setApiDraft(e.target.value)} placeholder="https://api.example.com" style={webInputStyle} />
+                  {apiOverrideActive && (
+                    <button type="button" onClick={() => { clearApiUrlOverride(); setApiEditOpen(false); window.location.reload(); }} style={{ marginTop: 8, textAlign: 'left', background: 'none', border: 'none', color: '#d946ef', fontSize: 11, fontWeight: 700, padding: 0, cursor: 'pointer' }}>Reset to default</button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button type="button" onClick={() => setApiEditOpen(false)} style={{ flex: 1, padding: '10px', borderRadius: 6, border: '1px solid rgba(0,0,0,0.1)', background: 'transparent', color: '#1a1a14', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                  <button type="button" onClick={() => { setApiUrlOverride(apiDraft); setApiEditOpen(false); window.location.reload(); }} style={{ flex: 1, padding: '10px', borderRadius: 6, border: 'none', background: 'linear-gradient(90deg,#3b6ef5,#5585ff)', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Save Changes</button>
+                </div>
+              </div>
+            </div>
+          )}
 
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

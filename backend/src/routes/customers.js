@@ -11,7 +11,7 @@ export const customersRouter = Router();
 
 customersRouter.use(requireAuth, requireValidDeviceSession, requireActiveSubscription, requireProfile);
 
-customersRouter.post('/', enforceLimit('maxCustomers', (req) => Customer.countDocuments({ userId: req.userId })), async (req, res, next) => {
+customersRouter.post('/', enforceLimit('maxCustomers', (req) => Customer.countDocuments({ userId: req.userId, profileId: req.profileId })), async (req, res, next) => {
   try {
     const data = req.body || {};
     const customer = await Customer.create({ userId: req.userId, profileId: req.profileId, ...data });

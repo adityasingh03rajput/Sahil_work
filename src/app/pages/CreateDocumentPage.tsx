@@ -679,8 +679,34 @@ export function CreateDocumentPage() {
     }
   };
 
-  const currentProfile = readCurrentProfile();
-  const profileId = currentProfile?.id;
+  const [currentProfile, setCurrentProfile] = useState<any>(() => {
+    try {
+      const raw = localStorage.getItem('currentProfile');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed;
+    } catch { return null; }
+  });
+
+  // Keep in sync when AppLayout refreshes the profile from the server on mount
+  useEffect(() => {
+    const onProfileRefreshed = (e: CustomEvent) => {
+      const fresh = e.detail;
+      if (fresh?.id) setCurrentProfile(fresh);
+    };
+    window.addEventListener('profileRefreshed', onProfileRefreshed as EventListener);
+    return () => window.removeEventListener('profileRefreshed', onProfileRefreshed as EventListener);
+  }, []);
+
+  const [profileId, setProfileId] = useState<string>(() => {
+    return String(currentProfile?.id || '').trim();
+  });
+
+  useEffect(() => {
+    if (currentProfile?.id) {
+      setProfileId(String(currentProfile.id).trim());
+    }
+  }, [currentProfile]);
 
   useEffect(() => {
     if (isEdit) {
@@ -852,6 +878,8 @@ export function CreateDocumentPage() {
         'X-Profile-ID': profileId,
       };
 
+      if (!profileId) return; // Wait for profileId to be loaded
+
       const customersUrl = partyKind === 'supplier' ? `${apiUrl}/suppliers` : `${apiUrl}/customers`;
       const [customersRes, itemsRes] = await Promise.all([
         fetch(customersUrl, { headers }),
@@ -898,8 +926,8 @@ export function CreateDocumentPage() {
       if (!itemsData?.error && Array.isArray(itemsData)) {
         setPresetItems(itemsData);
       }
-    } catch {
-      // Non-blocking: page still works with manual input.
+    } catch (err: any) {
+      toast.error('Failed to load customers and items: ' + (err?.message || 'Network error'));
     }
   };
 
@@ -1158,24 +1186,27 @@ export function CreateDocumentPage() {
   };
 
   const calculateItemTotal = (item: DocumentItem) => {
-    const qty = Number(item.quantity || 0);
-    const rate = Number(item.rate || 0);
-    const taxPct = Number(item.cgst || 0) + Number(item.sgst || 0) + Number(item.igst || 0);
+    const qty = parseFloat(Number(item.quantity || 0).toFixed(6));
+    const rate = parseFloat(Number(item.rate || 0).toFixed(6));
     const discountPct = Number(item.discount || 0);
+    const cgstPct = Number(item.cgst || 0);
+    const sgstPct = Number(item.sgst || 0);
+    const igstPct = Number(item.igst || 0);
 
     const gross = qty * rate;
-    const discountAmount = (gross * discountPct) / 100;
-    const grossAfterDiscount = gross - discountAmount;
+    const discountAmt = parseFloat(((gross * discountPct) / 100).toFixed(2));
+    const taxable = parseFloat((gross - discountAmt).toFixed(2));
 
     if (type === 'proforma' && proformaPriceMode === 'with_tax') {
-      return grossAfterDiscount;
+      // rate is tax-inclusive; item.total = gross after discount (inclusive of tax)
+      return parseFloat(taxable.toFixed(2));
     }
 
-    const taxableAmount = grossAfterDiscount;
-    const cgstAmount = (taxableAmount * Number(item.cgst || 0)) / 100;
-    const sgstAmount = (taxableAmount * Number(item.sgst || 0)) / 100;
-    const igstAmount = (taxableAmount * Number(item.igst || 0)) / 100;
-    return taxableAmount + cgstAmount + sgstAmount + igstAmount;
+    // AUDIT FIX #3/#4: item.total = taxable + taxes, all rounded consistently
+    const cgstAmt = parseFloat(((taxable * cgstPct) / 100).toFixed(2));
+    const sgstAmt = parseFloat(((taxable * sgstPct) / 100).toFixed(2));
+    const igstAmt = parseFloat(((taxable * igstPct) / 100).toFixed(2));
+    return parseFloat((taxable + cgstAmt + sgstAmt + igstAmt).toFixed(2));
   };
 
   const formatInr = (value: number) => {
@@ -1555,12 +1586,16 @@ export function CreateDocumentPage() {
     ]);
   };
 
+  // AUDIT FIX #3, #4, #13: Corrected total calculation.
+  // subtotal = sum of taxable values (pre-tax) — used as GSTR taxable base
+  // grandTotal = subtotal + total taxes + roundOff
+  // All amounts rounded to 2dp to prevent float arithmetic drift.
   function calculateTotals() {
     if (type === 'proforma') {
       const rows = items.map(proformaRowComputed);
-      const itemsTotal = rows.reduce((s, r) => s + r.amount, 0);
-      const subtotal = itemsTotal + transportCharges + additionalCharges + packingHandlingCharges + tcs;
-      const grandTotal = subtotal + Number(roundOff || 0);
+      const itemsTotal = parseFloat(rows.reduce((s, r) => s + r.amount, 0).toFixed(2));
+      const subtotal = parseFloat((itemsTotal + transportCharges + additionalCharges + packingHandlingCharges + tcs).toFixed(2));
+      const grandTotal = parseFloat((subtotal + Number(roundOff || 0)).toFixed(2));
 
       const taxBreakup = items.reduce(
         (acc, it) => {
@@ -1568,19 +1603,14 @@ export function CreateDocumentPage() {
           const rate = Number(it.rate || 0);
           const discountPct = Number(it.discount || 0);
           const gross = qty * rate;
-          const discountAmount = (gross * discountPct) / 100;
-          const grossAfterDiscount = gross - discountAmount;
+          const grossAfterDiscount = gross - (gross * discountPct) / 100;
           const taxPct = Number(it.cgst || 0) + Number(it.sgst || 0) + Number(it.igst || 0);
-
           const taxable = proformaPriceMode === 'with_tax'
-            ? (1 + taxPct / 100) > 0
-              ? grossAfterDiscount / (1 + taxPct / 100)
-              : grossAfterDiscount
+            ? (1 + taxPct / 100) > 0 ? grossAfterDiscount / (1 + taxPct / 100) : grossAfterDiscount
             : grossAfterDiscount;
-
-          acc.totalCgst += (taxable * Number(it.cgst || 0)) / 100;
-          acc.totalSgst += (taxable * Number(it.sgst || 0)) / 100;
-          acc.totalIgst += (taxable * Number(it.igst || 0)) / 100;
+          acc.totalCgst += parseFloat(((taxable * Number(it.cgst || 0)) / 100).toFixed(2));
+          acc.totalSgst += parseFloat(((taxable * Number(it.sgst || 0)) / 100).toFixed(2));
+          acc.totalIgst += parseFloat(((taxable * Number(it.igst || 0)) / 100).toFixed(2));
           return acc;
         },
         { totalCgst: 0, totalSgst: 0, totalIgst: 0 }
@@ -1589,32 +1619,44 @@ export function CreateDocumentPage() {
       return { itemsTotal, subtotal, grandTotal, ...taxBreakup };
     }
 
-    const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
-    const subtotal = itemsTotal + transportCharges + additionalCharges + packingHandlingCharges + tcs;
-    const grandTotal = subtotal + roundOff;
+    // For each item: taxableAmount = qty * rate - discount. item.total already includes tax.
+    // subtotal = sum of taxable amounts (pre-tax) + extra charges — this is the GSTR taxable value.
+    // grandTotal = sum of item.total (tax-inclusive) + extra charges + roundOff.
+    const totalCgst = parseFloat(items.reduce((sum, item) => {
+      const taxable = parseFloat(((item.quantity * item.rate) - ((item.quantity * item.rate * item.discount) / 100)).toFixed(2));
+      return sum + parseFloat(((taxable * item.cgst) / 100).toFixed(2));
+    }, 0).toFixed(2));
 
-    const totalCgst = items.reduce((sum, item) => {
-      const taxableAmount = (item.quantity * item.rate) - ((item.quantity * item.rate * item.discount) / 100);
-      return sum + (taxableAmount * item.cgst) / 100;
-    }, 0);
+    const totalSgst = parseFloat(items.reduce((sum, item) => {
+      const taxable = parseFloat(((item.quantity * item.rate) - ((item.quantity * item.rate * item.discount) / 100)).toFixed(2));
+      return sum + parseFloat(((taxable * item.sgst) / 100).toFixed(2));
+    }, 0).toFixed(2));
 
-    const totalSgst = items.reduce((sum, item) => {
-      const taxableAmount = (item.quantity * item.rate) - ((item.quantity * item.rate * item.discount) / 100);
-      return sum + (taxableAmount * item.sgst) / 100;
-    }, 0);
-    const totalIgst = items.reduce((sum, item) => {
-      const taxableAmount = (item.quantity * item.rate) - ((item.quantity * item.rate * item.discount) / 100);
-      return sum + (taxableAmount * item.igst) / 100;
-    }, 0);
+    const totalIgst = parseFloat(items.reduce((sum, item) => {
+      const taxable = parseFloat(((item.quantity * item.rate) - ((item.quantity * item.rate * item.discount) / 100)).toFixed(2));
+      return sum + parseFloat(((taxable * item.igst) / 100).toFixed(2));
+    }, 0).toFixed(2));
+
+    // subtotal = pre-tax item amounts + extra charges (taxable base for GSTR)
+    const itemsTaxableBase = parseFloat(items.reduce((sum, item) => {
+      const taxable = (item.quantity * item.rate) - ((item.quantity * item.rate * item.discount) / 100);
+      return sum + taxable;
+    }, 0).toFixed(2));
+    const subtotal = parseFloat((itemsTaxableBase + transportCharges + additionalCharges + packingHandlingCharges + tcs).toFixed(2));
+
+    // grandTotal = items (tax-inclusive) + extra charges + roundOff
+    const itemsTotal = parseFloat(items.reduce((sum, item) => sum + item.total, 0).toFixed(2));
+    const grandTotal = parseFloat((itemsTotal + transportCharges + additionalCharges + packingHandlingCharges + tcs + roundOff).toFixed(2));
 
     return { itemsTotal, subtotal, grandTotal, totalCgst, totalSgst, totalIgst };
   }
 
   useEffect(() => {
     if (!autoRoundOff) return;
-    const { subtotal } = calculateTotals();
-    const rounded = Math.round(subtotal);
-    const next = parseFloat((rounded - subtotal).toFixed(2));
+    // AUDIT FIX N2: Round grandTotal (what customer pays), not subtotal (pre-tax base)
+    const { grandTotal } = calculateTotals();
+    const rounded = Math.round(grandTotal);
+    const next = parseFloat((rounded - grandTotal).toFixed(2));
     setRoundOff(next);
   }, [autoRoundOff, items, transportCharges, additionalCharges, packingHandlingCharges, tcs]);
   const shouldShowPaymentMode = true;
@@ -1738,7 +1780,8 @@ export function CreateDocumentPage() {
         tcs,
         roundOff,
         notes,
-        internalNotes: internalNotes || notes,
+        // AUDIT FIX #18: Do not leak customer-visible notes into internalNotes
+        internalNotes: internalNotes || '',
         termsConditions,
 
         paymentTerms,
@@ -2117,6 +2160,18 @@ export function CreateDocumentPage() {
                     </CardHeader>
                     <CardContent className="p-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Status</Label>
+                          <Select value={status} onValueChange={(val: 'draft' | 'final') => setStatus(val)}>
+                            <SelectTrigger className="bg-white">
+                              <SelectValue placeholder="Select Status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="draft">Draft</SelectItem>
+                              <SelectItem value="final">Final Document</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                         <div className="space-y-2">
                           <Label>Ref No.</Label>
                           <Input

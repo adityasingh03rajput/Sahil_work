@@ -131,14 +131,18 @@ paymentsRouter.get('/', async (req, res, next) => {
   try {
     const { documentId, customerId, bankAccountId } = req.query || {};
 
-    const filter = { userId: req.userId, profileId: req.profileId };
+    const filter = {
+      userId: new mongoose.Types.ObjectId(String(req.userId)),
+      profileId: new mongoose.Types.ObjectId(String(req.profileId)),
+    };
 
     if (documentId) {
       const id = String(documentId);
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid documentId' });
       }
-      filter.documentId = id;
+      // AUDIT FIX R1: Must use ObjectId to match stored reference type
+      filter.documentId = new mongoose.Types.ObjectId(id);
     }
 
     if (customerId) {
@@ -146,7 +150,8 @@ paymentsRouter.get('/', async (req, res, next) => {
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ error: 'Invalid customerId' });
       }
-      filter.customerId = id;
+      // AUDIT FIX R1: Must use ObjectId to match stored reference type
+      filter.customerId = new mongoose.Types.ObjectId(id);
     }
 
     if (bankAccountId) {
@@ -157,7 +162,8 @@ paymentsRouter.get('/', async (req, res, next) => {
         if (!mongoose.Types.ObjectId.isValid(id)) {
           return res.status(400).json({ error: 'Invalid bankAccountId' });
         }
-        filter.bankAccountId = id;
+        // AUDIT FIX R1: Must use ObjectId to match stored reference type
+        filter.bankAccountId = new mongoose.Types.ObjectId(id);
       }
     }
 

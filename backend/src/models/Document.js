@@ -45,10 +45,11 @@ const reminderLogSchema = new mongoose.Schema(
 const documentSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    profileId: { type: mongoose.Schema.Types.ObjectId, ref: 'BusinessProfile', required: false, index: true, default: null },
+    profileId: { type: mongoose.Schema.Types.ObjectId, ref: 'BusinessProfile', required: true, index: true },
 
     documentNumber: { type: String, required: true, index: true },
     type: { type: String, required: true },
+    fiscalYear: { type: String, index: true, default: null }, // e.g. "2024-25"
 
     referenceDocumentId: { type: String, default: null },
     referenceDocumentNumber: { type: String, default: null },
@@ -161,5 +162,9 @@ documentSchema.index({ userId: 1, profileId: 1, paymentStatus: 1 });
 documentSchema.index({ userId: 1, profileId: 1, status: 1 });
 // For auto-reminder job
 documentSchema.index({ type: 1, paymentStatus: 1, updatedAt: -1 });
+// AUDIT FIX #15: Prevent duplicate custom invoice numbers within the same profile
+// sparse: true allows multiple documents with no invoiceNo (null/undefined)
+documentSchema.index({ profileId: 1, invoiceNo: 1 }, { unique: true, sparse: true });
 
 export const Document = mongoose.model('Document', documentSchema);
+

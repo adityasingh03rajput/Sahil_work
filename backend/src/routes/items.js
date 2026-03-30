@@ -9,7 +9,7 @@ export const itemsRouter = Router();
 
 itemsRouter.use(requireAuth, requireValidDeviceSession, requireActiveSubscription, requireProfile);
 
-itemsRouter.post('/', enforceLimit('maxItems', (req) => Item.countDocuments({ userId: req.userId })), async (req, res, next) => {
+itemsRouter.post('/', enforceLimit('maxItems', (req) => Item.countDocuments({ userId: req.userId, profileId: req.profileId })), async (req, res, next) => {
   try {
     const data = req.body || {};
     const item = await Item.create({ userId: req.userId, profileId: req.profileId, ...data });

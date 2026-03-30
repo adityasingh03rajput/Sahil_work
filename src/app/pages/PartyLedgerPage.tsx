@@ -9,6 +9,7 @@ import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 import { exportHtmlPagesToPdf } from '../pdf';
 import { useRef } from 'react';
+import { getCurrentFiscalYearRange } from '../utils/fiscal';
 
 type PartyType = 'customer' | 'supplier';
 
@@ -101,12 +102,8 @@ export function PartyLedgerPage() {
   const [parties, setParties] = useState<Party[]>([]);
   const [partyId, setPartyId] = useState<string>('');
 
-  const [from, setFrom] = useState<string>(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 1);
-    return toYmd(d);
-  });
-  const [to, setTo] = useState<string>(() => toYmd(new Date()));
+  const [from, setFrom] = useState<string>(() => getCurrentFiscalYearRange().startDate);
+  const [to, setTo] = useState<string>(() => getCurrentFiscalYearRange().endDate);
 
   const [loadingParties, setLoadingParties] = useState(true);
   const [loadingStatement, setLoadingStatement] = useState(false);

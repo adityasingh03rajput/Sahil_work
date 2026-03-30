@@ -62,8 +62,8 @@ self.addEventListener('fetch', e => {
         if (cached) return cached;
         return fetch(request).then(res => {
           if (res.ok) {
-            // Clone BEFORE consuming — fixes "body already used" error
-            caches.open(CACHE).then(c => c.put(request, res.clone()));
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(request, clone));
           }
           return res;
         });
@@ -97,7 +97,10 @@ self.addEventListener('fetch', e => {
 
         // Try network — update cache on success
         const networkPromise = fetch(request).then(res => {
-          if (res.ok) cache.put(request, res.clone());
+          if (res.ok) {
+            const clone = res.clone();
+            cache.put(request, clone);
+          }
           return res;
         }).catch(() => null); // null = offline
 
@@ -125,8 +128,8 @@ self.addEventListener('fetch', e => {
       fetch(request)
         .then(res => {
           if (res.ok) {
-            // Clone BEFORE consuming
-            caches.open(CACHE).then(c => c.put(request, res.clone()));
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(request, clone));
           }
           return res;
         })

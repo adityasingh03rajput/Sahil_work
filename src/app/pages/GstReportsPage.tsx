@@ -6,6 +6,7 @@ import { Label } from '../components/ui/label';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
+import { getCurrentFiscalYearRange } from '../utils/fiscal';
 
 type GstReport = {
   range: { from: string | null; to: string | null };
@@ -31,20 +32,6 @@ type GstReport = {
   }>;
 };
 
-function todayStr() {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function monthStartStr() {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  return `${yyyy}-${mm}-01`;
-}
 
 export function GstReportsPage() {
   const { accessToken, deviceId } = useAuth();
@@ -52,8 +39,9 @@ export function GstReportsPage() {
   const currentProfile = JSON.parse(localStorage.getItem('currentProfile') || '{}');
   const profileId = currentProfile?.id;
 
-  const [from, setFrom] = useState(monthStartStr());
-  const [to, setTo] = useState(todayStr());
+  const { startDate: initialFrom, endDate: initialTo } = getCurrentFiscalYearRange();
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(initialTo);
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<GstReport | null>(null);
 

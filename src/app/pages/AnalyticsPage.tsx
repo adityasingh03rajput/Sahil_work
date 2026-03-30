@@ -18,6 +18,7 @@ import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 import { TraceLoader } from '../components/TraceLoader';
 import { AnalyticsPageSkeleton } from '../components/PageSkeleton';
+import { getCurrentFiscalYearRange } from '../utils/fiscal';
 
 function readAnalyticsCacheSync(key: string): any | null {
   try {
@@ -37,8 +38,9 @@ export function AnalyticsPage() {
   const _initAnalytics = ANALYTICS_CACHE_KEY ? readAnalyticsCacheSync(ANALYTICS_CACHE_KEY) : null;
   const [analytics, setAnalytics] = useState<any>(_initAnalytics);
   const [loading, setLoading] = useState(!_initAnalytics);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const { startDate: initialSD, endDate: initialED } = getCurrentFiscalYearRange();
+  const [startDate, setStartDate] = useState(initialSD);
+  const [endDate, setEndDate] = useState(initialED);
   const [applyingRange, setApplyingRange] = useState(false);
   const { accessToken, deviceId } = useAuth();
 

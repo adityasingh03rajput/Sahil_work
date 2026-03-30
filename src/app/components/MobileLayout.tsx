@@ -11,7 +11,7 @@ import {
   AlertCircle, ShoppingCart, Truck, ChevronRight, WifiOff,
   UserCog, Sun, Moon, Settings, Palette,
 } from 'lucide-react';
-import logoImg from '../../../public/logo.png';
+const logoImg = '/logo.png';
 import { useTheme, type ThemeMode } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useDisplay, type DisplayScale } from '../contexts/DisplayContext';

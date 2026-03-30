@@ -5,8 +5,11 @@ import { requireProfile } from '../middleware/profile.js';
 import { enforceFeature } from '../middleware/subscriberEnforcement.js';
 import { Document } from '../models/Document.js';
 import mongoose from 'mongoose';
+import { getCurrentFiscalYearRange } from '../lib/fiscal.js';
 
 export const analyticsRouter = Router();
+
+
 
 analyticsRouter.use(
   requireAuth,
@@ -18,15 +21,20 @@ analyticsRouter.use(
 
 analyticsRouter.get('/', async (req, res, next) => {
   try {
-    const { startDate: startDateRaw, endDate: endDateRaw } = req.query || {};
+    const fyDefaults = getCurrentFiscalYearRange();
+    const { 
+      startDate: startDateRaw = fyDefaults.startDate, 
+      endDate: endDateRaw = fyDefaults.endDate 
+    } = req.query || {};
+
     const startDate = typeof startDateRaw === 'string' && startDateRaw.trim() ? startDateRaw.trim() : null;
     const endDate   = typeof endDateRaw   === 'string' && endDateRaw.trim()   ? endDateRaw.trim()   : null;
 
     const userId    = new mongoose.Types.ObjectId(req.userId);
     const profileId = new mongoose.Types.ObjectId(req.profileId);
 
-    // ── Base match — always filter by user + profile ──────────────────────────
-    const baseMatch = { userId, profileId };
+    // ── AUDIT FIX #7: Exclude drafts from all financial aggregations ──────────
+    const baseMatch = { userId, profileId, status: { $ne: 'draft' } };
 
     // ── Date range filter on the `date` string field ──────────────────────────
     if (startDate || endDate) {

@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const customerSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    profileId: { type: mongoose.Schema.Types.ObjectId, ref: 'BusinessProfile', required: false, index: true, default: null },
+    profileId: { type: mongoose.Schema.Types.ObjectId, ref: 'BusinessProfile', required: true, index: true },
 
     name: { type: String, required: true },
     ownerName: { type: String, default: null },

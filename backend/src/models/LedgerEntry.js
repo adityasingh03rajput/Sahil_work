@@ -9,6 +9,7 @@ const ledgerEntrySchema = new mongoose.Schema(
     partyId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
 
     date: { type: Date, required: true, index: true },
+    fiscalYear: { type: String, index: true, default: null }, // e.g. "2024-25"
 
     voucherType: { type: String, required: true },
     voucherNo: { type: String, default: null },

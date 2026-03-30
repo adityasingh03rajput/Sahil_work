@@ -30,7 +30,7 @@ import {
   UserCog,
   HelpCircle,
 } from 'lucide-react';
-import logoImg from '../../../public/logo.png';
+const logoImg = '/logo.png';
 import { useAuth } from '../contexts/AuthContext';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { API_URL } from '../config/api';
@@ -116,7 +116,32 @@ export function AppLayout({ children }: AppLayoutProps) {
     }
   };
 
-  const currentProfile = readCurrentProfile();
+  const [currentProfile, setCurrentProfile] = useState<any>(() => readCurrentProfile());
+
+  // On every mount (app start / page refresh): silently re-fetch the stored profile
+  // from the backend and update localStorage so stale data is never shown.
+  useEffect(() => {
+    const profileId = readCurrentProfile()?.id;
+    if (!profileId || !accessToken || !deviceId) return;
+
+    fetch(`${API_URL}/profiles/${profileId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'X-Device-ID': deviceId,
+        'X-Profile-ID': profileId,
+      },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && data.id && !data.error) {
+          localStorage.setItem('currentProfile', JSON.stringify(data));
+          setCurrentProfile(data);
+          // Notify same-tab components that the profile has been refreshed
+          window.dispatchEvent(new CustomEvent('profileRefreshed', { detail: data }));
+        }
+      })
+      .catch(() => { /* ignore — keep localStorage value */ });
+  }, [accessToken, deviceId]);
 
   const ThemeSwitcher = ({ compact }: { compact?: boolean }) => {
     const icon =

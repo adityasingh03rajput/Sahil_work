@@ -14,7 +14,10 @@ bankTransactionsRouter.get('/', enforceFeature('allowBankAccounts'), async (req,
   try {
     const { bankAccountId } = req.query || {};
 
-    const filter = { userId: req.userId, profileId: req.profileId };
+    const filter = {
+      userId: new mongoose.Types.ObjectId(String(req.userId)),
+      profileId: new mongoose.Types.ObjectId(String(req.profileId)),
+    };
 
     if (bankAccountId) {
       const id = String(bankAccountId);
