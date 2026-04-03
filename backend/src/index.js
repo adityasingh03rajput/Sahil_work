@@ -154,7 +154,7 @@ app.use("/employees/login", authLimiter);
 app.use(apiLimiter);
 
 // ── Health check ──────────────────────────────────────────────────────────────
-const BACKEND_VERSION = "1.0.2"; // increment this on every backend deploy
+const BACKEND_VERSION = "v1.0.5"; // increment this on every backend deploy
 
 app.get("/health", (_req, res) => {
   const dbState = mongoose.connection.readyState;

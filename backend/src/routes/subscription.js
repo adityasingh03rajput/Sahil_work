@@ -63,9 +63,11 @@ subscriptionRouter.get('/validate', requireProfile, async (req, res, next) => {
     const now = new Date();
     const TRIAL_DAYS = 7;
 
+    const checkId = req.user?.ownerUserId || req.userId;
+
     // ── 1. Active license key ──────────────────────────────────────────────
     const activeLicense = await LicenseKey.findOne({
-      activatedByUserId: req.userId,
+      activatedByUserId: checkId,
       status: 'active',
       expiresAt: { $gt: now },
     }).lean();
@@ -93,8 +95,8 @@ subscriptionRouter.get('/validate', requireProfile, async (req, res, next) => {
 
     // ── 2. Trial window ────────────────────────────────────────────────────
     const [user, subscriber] = await Promise.all([
-      User.findById(req.userId).lean(),
-      Subscriber.findOne({ ownerUserId: req.userId }).lean(),
+      User.findById(checkId).lean(),
+      Subscriber.findOne({ ownerUserId: checkId }).lean(),
     ]);
 
     if (!user) return res.status(401).json({ error: 'User not found' });

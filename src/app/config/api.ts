@@ -58,4 +58,4 @@ export function mkCacheKey(resource: string, profileId: string): string {
 }
 
 /** Frontend app version — increment on every meaningful release */
-export const FRONTEND_VERSION = '1.0.4';
+export const FRONTEND_VERSION = 'v1.0.5';
