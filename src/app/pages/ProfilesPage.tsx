@@ -132,6 +132,8 @@ export function ProfilesPage() {
     } catch {
       // ignore
     }
+    // Signal all pages to clear their local state
+    window.dispatchEvent(new CustomEvent('profileChanged', { detail: { profileId: profile.id } }));
     navigate('/dashboard');
   };
 

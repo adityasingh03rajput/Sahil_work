@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/
 import { Plus, Search, Building2, Mail, Phone, MapPin, Edit, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL, mkCacheKey } from '../config/api';
+import { usePageRefresh } from '../hooks/usePageRefresh';
 import {
   hasContactErrors,
   normalizeEmail,
@@ -185,6 +186,12 @@ export function SuppliersPage() {
     loadSuppliers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, deviceId, profileId]);
+
+  usePageRefresh({
+    onRefresh: () => { if (accessToken && deviceId && profileId) loadSuppliers({ force: true }); },
+    staleTtlMs: 30_000,
+    enabled: !!profileId && !!accessToken,
+  });
 
   useEffect(() => {
     const st: any = (location as any)?.state;

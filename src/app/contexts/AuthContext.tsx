@@ -146,6 +146,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('user', JSON.stringify(userData));
     // Wipe data caches but keep currentProfile so user lands back on their last profile
     await clearApiCache();
+    // Signal all pages to clear their local state (prevents stale data flash)
+    window.dispatchEvent(new CustomEvent('appSignIn', { detail: { userId: userData.id } }));
 
     // Prefetch the dashboard chunk in the background so it's ready on first navigation
     import('../pages/DashboardPageWrapper').catch(() => {});

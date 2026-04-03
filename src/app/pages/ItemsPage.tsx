@@ -8,6 +8,7 @@ import { Plus, Search, Package, Tag, Edit } from 'lucide-react';
 import { MobileFormSheet, MobileFormSection, MobileFormActions } from '../components/MobileFormSheet';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL, mkCacheKey } from '../config/api';
+import { usePageRefresh } from '../hooks/usePageRefresh';
 import { TraceLoader } from '../components/TraceLoader';
 import { ItemsPageSkeleton } from '../components/PageSkeleton';
 import { useCurrentProfile } from '../hooks/useCurrentProfile';
@@ -83,6 +84,12 @@ export function ItemsPage() {
     loadItems();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, deviceId, profileId]);
+
+  usePageRefresh({
+    onRefresh: () => { if (accessToken && deviceId && profileId) loadItems({ force: true }); },
+    staleTtlMs: 30_000,
+    enabled: !!profileId && !!accessToken,
+  });
   const [visibleCount, setVisibleCount] = useState(20);
 
   useEffect(() => {

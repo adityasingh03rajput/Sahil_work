@@ -54,6 +54,8 @@ function readDocsCacheSync(): any[] {
   return [];
 }
 
+import { usePageRefresh } from '../hooks/usePageRefresh';
+
 export function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([]);
   const [filteredDocs, setFilteredDocs] = useState<any[]>([]);
@@ -431,6 +433,13 @@ export function DocumentsPage() {
   useEffect(() => {
     loadDocuments({ skip: 0 });
   }, [loadDocuments]);
+
+  // Auto-refresh on tab focus (if data is >30s old) and on profile/sign-in changes
+  usePageRefresh({
+    onRefresh: () => loadDocuments({ skip: 0, force: true }),
+    staleTtlMs: 30_000,
+    enabled: !!profileId && !!accessToken,
+  });
 
   const loadMoreDocuments = async () => {
     if (!accessToken || !deviceId || !profileId || loadingMore || !hasMore) return;

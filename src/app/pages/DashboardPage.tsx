@@ -17,6 +17,7 @@ import { TraceLoader } from '../components/TraceLoader';
 import { GenericPageSkeleton } from '../components/PageSkeleton';
 import { prefetchRoutesOnIdle } from '../hooks/usePrefetch';
 import { DateRangePicker, DateRange } from '../components/ui/date-range-picker';
+import { usePageRefresh } from '../hooks/usePageRefresh';
 import { useCurrentProfile } from '../hooks/useCurrentProfile';
 
 export function DashboardPage() {
@@ -50,6 +51,12 @@ export function DashboardPage() {
     window.addEventListener('dashboardRefresh', onDashboardRefresh);
     return () => window.removeEventListener('dashboardRefresh', onDashboardRefresh);
   }, [profileId, accessToken]);
+
+  usePageRefresh({
+    onRefresh: () => { if (profileId) loadDashboardData(profileId, dateRange); },
+    staleTtlMs: 60_000, // dashboard refreshes every 60s on tab focus
+    enabled: !!profileId && !!accessToken,
+  });
 
   const loadDashboardData = async (pid: string, range: DateRange) => {
     if (!pid || !accessToken) { setLoading(false); return; }

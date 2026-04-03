@@ -112,13 +112,19 @@ const authLimiter = rateLimit({
   skip: (req) => req.path === '/verify-session', // don't throttle session checks
 });
 
-// General API limiter — generous but prevents abuse
+// General API limiter — generous, keyed per user token to prevent abuse
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 300,
+  max: 600,            // 10 req/sec per IP — enough for normal use
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' },
+  message: { error: 'Too many requests, please slow down.' },
+  // Key by Authorization header (per-user) rather than IP (shared office/NAT)
+  keyGenerator: (req) => {
+    const auth = req.header('Authorization') || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7, 47) : ''; // first 40 chars of token
+    return token || req.ip;
+  },
 });
 
 app.use('/auth', authLimiter);
