@@ -133,21 +133,14 @@ export async function validateSubscriptionOffline(profileId: string): Promise<Su
   }
 
   if (cached.profileId !== profileId) {
-    return {
-      status: 'profile_mismatch',
-      endDateSec: null,
-      daysRemaining: null,
-      message: 'Subscription cache mismatch. Please reconnect to internet.',
-    };
+    // Stale token from different profile — clear it and allow access while online revalidation runs
+    localStorage.removeItem(storageKey(profileId));
+    return { status: 'no_cache_allow', endDateSec: null, daysRemaining: null };
   }
 
   if (detectTimeRollback(profileId)) {
-    return {
-      status: 'time_tamper',
-      endDateSec: null,
-      daysRemaining: null,
-      message: 'Device time changed unexpectedly. Please reconnect to internet.',
-    };
+    // Clock issue — allow access, let online revalidation sort it out
+    return { status: 'no_cache_allow', endDateSec: null, daysRemaining: null };
   }
 
   let payload: SubscriptionTokenPayload | null = null;
@@ -158,21 +151,15 @@ export async function validateSubscriptionOffline(profileId: string): Promise<Su
   }
 
   if (!payload) {
-    return {
-      status: 'token_invalid',
-      endDateSec: null,
-      daysRemaining: null,
-      message: 'Subscription token invalid. Please reconnect to internet.',
-    };
+    // Invalid token — clear it and allow access while online revalidation runs
+    localStorage.removeItem(storageKey(profileId));
+    return { status: 'no_cache_allow', endDateSec: null, daysRemaining: null };
   }
 
   if (payload.profileId !== profileId) {
-    return {
-      status: 'profile_mismatch',
-      endDateSec: null,
-      daysRemaining: null,
-      message: 'Subscription token is for a different profile. Please reconnect to internet.',
-    };
+    // Token belongs to different profile — clear and allow
+    localStorage.removeItem(storageKey(profileId));
+    return { status: 'no_cache_allow', endDateSec: null, daysRemaining: null };
   }
 
   const localElapsed = nowSec() - cached.cachedAtLocalSec;

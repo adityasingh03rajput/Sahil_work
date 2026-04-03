@@ -35,9 +35,16 @@ export const clearApiUrlOverride = (): void => {
 };
 
 // Get the effective API URL factoring in an optional local override
+// Auto-clear localhost overrides in production builds (VITE_API_URL is set)
 export const getApiUrl = (): string => {
   const override = getApiUrlOverride();
-  return override && override.trim() ? override : staticApiUrl;
+  if (!override || !override.trim()) return staticApiUrl;
+  // If running against production default and override is localhost, clear it
+  if (override.includes('localhost') && staticApiUrl.includes('fly.dev')) {
+    try { window.localStorage.removeItem(API_URL_OVERRIDE_KEY); } catch { /* ignore */ }
+    return staticApiUrl;
+  }
+  return override;
 };
 
 export const API_URL = getApiUrl();

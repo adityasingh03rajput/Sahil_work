@@ -60,7 +60,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const original = window.fetch.bind(window);
     window.fetch = async (...args) => {
+      // Cache-busting for API GET requests to ensure fresh data when switching profiles
+      if (typeof args[0] === 'string' && args[0].startsWith(API_URL)) {
+        const method = (args[1]?.method || 'GET').toUpperCase();
+        if (method === 'GET') {
+          try {
+            const urlObj = new URL(args[0]);
+            urlObj.searchParams.set('_t', Date.now().toString());
+            args[0] = urlObj.toString();
+            
+            args[1] = args[1] || {};
+            const oldHeaders = args[1].headers || {};
+            if (oldHeaders instanceof Headers) {
+              oldHeaders.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+              oldHeaders.set('Pragma', 'no-cache');
+              oldHeaders.set('Expires', '0');
+            } else {
+              args[1].headers = {
+                ...oldHeaders,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+              };
+            }
+          } catch (e) { /* ignore url parsing errors */ }
+        }
+      }
+
+      let requestProfileId: string | null = null;
+      try {
+        if (args[1]?.headers) {
+          if (args[1].headers instanceof Headers) {
+            requestProfileId = args[1].headers.get('X-Profile-ID');
+          } else {
+            requestProfileId = (args[1].headers as any)['X-Profile-ID'];
+          }
+        }
+      } catch (e) { /* ignore */ }
+
       const res = await original(...args);
+
+      if (requestProfileId) {
+         try {
+           const raw = localStorage.getItem('currentProfile');
+           const currentProfileId = raw ? JSON.parse(raw)?.id : null;
+           // If request profile ID doesn't match the current standard profile ID,
+           // this is a stale fetch caused by race condition.
+           // Return a never-resolving promise to prevent it from executing .then/.catch blocks
+           // and corrupting the state of the new profile.
+           if (currentProfileId && requestProfileId !== currentProfileId) {
+             return new Promise(() => {});
+           }
+         } catch (e) { /* ignore */ }
+      }
 
       // If backend remapped the profileId (stale localStorage), update it
       const remapped = res.headers.get('X-Profile-ID-Remapped');

@@ -13,6 +13,7 @@ import { AppLayout } from './components/AppLayout';
 import { prefetchRoutesOnIdle } from './hooks/usePrefetch';
 import { EmployeeLoginPage } from './pages/EmployeeLoginPage';
 import { EmployeeAttendancePage } from './pages/EmployeeAttendancePage';
+import { useCurrentProfile } from './hooks/useCurrentProfile';
 
 // Lazy-load all heavy pages
 const WelcomePageWrapper        = lazy(() => import('./pages/WelcomePageWrapper').then(m => ({ default: m.WelcomePageWrapper })));
@@ -64,6 +65,7 @@ function wrap(Component: React.ComponentType) {
 /** Persistent layout — never unmounts during navigation, preloads top routes on idle */
 function LayoutRoute() {
   const { isEmployee, sessionKey } = useAuth();
+  const { profileId } = useCurrentProfile();
 
   useEffect(() => {
     if (!isEmployee) {
@@ -76,9 +78,9 @@ function LayoutRoute() {
   }
 
   return (
-    // key=sessionKey forces full remount of AppLayout + all child pages on sign-in/sign-out
-    // This guarantees zero stale state from previous user
-    <AppLayout key={sessionKey}>
+    // key=sessionKey-profileId forces full remount of AppLayout + all child pages on sign-in/out AND profile switch
+    // This perfectly isolates profiles like Instagram account switching
+    <AppLayout key={`${sessionKey}-${profileId || 'unselected'}`}>
       <Outlet />
     </AppLayout>
   );

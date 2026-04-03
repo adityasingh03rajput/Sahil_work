@@ -39,11 +39,7 @@ export function usePageRefresh({ onRefresh, staleTtlMs = 30_000, enabled = true 
       }
     };
 
-    // Re-fetch when profile changes
-    const onProfileChanged = () => {
-      lastFetchRef.current = 0; // force stale
-      refresh();
-    };
+
 
     // Re-fetch on sign-in
     const onSignIn = () => {
@@ -52,12 +48,10 @@ export function usePageRefresh({ onRefresh, staleTtlMs = 30_000, enabled = true 
     };
 
     document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('profileChanged', onProfileChanged);
     window.addEventListener('appSignIn', onSignIn);
 
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('profileChanged', onProfileChanged);
       window.removeEventListener('appSignIn', onSignIn);
     };
   }, [enabled, staleTtlMs, refresh]);
