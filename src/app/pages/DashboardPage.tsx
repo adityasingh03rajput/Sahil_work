@@ -49,12 +49,11 @@ export function DashboardPage() {
       const newId = (e as CustomEvent)?.detail?.id;
       if (newId && newId !== profileId) {
         setProfileId(newId);
-        loadDashboardData(newId, dateRange);
       }
     };
     window.addEventListener('profileRefreshed', onProfileRefreshed);
     return () => window.removeEventListener('profileRefreshed', onProfileRefreshed);
-  }, [profileId, accessToken, dateRange]);
+  }, [profileId, accessToken]);
 
   const loadDashboardData = async (pid: string, range: DateRange) => {
     if (!pid || !accessToken) { setLoading(false); return; }
@@ -130,7 +129,7 @@ export function DashboardPage() {
             <p className="text-muted-foreground mt-1">Overview of your business metrics</p>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mt-4 md:mt-0">
-            <DateRangePicker range={dateRange} onRangeChange={setDateRange} />
+            <DateRangePicker range={dateRange} onRangeChange={(r) => { setDateRange(r); if (profileId) loadDashboardData(profileId, r); }} />
             <Button
               disabled={!isSubscriptionActive}
               onClick={() => navigate('/documents/create')}

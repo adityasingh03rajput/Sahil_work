@@ -136,8 +136,9 @@ export function PartyLedgerPage() {
           ? data.map((p: any) => ({ id: String(p?.id || p?._id), name: String(p?.name || '') })).filter((p: Party) => p.id && p.name)
           : [];
         setParties(rows);
-        if (!rows.some((p) => p.id === partyId)) {
-          setPartyId(rows[0]?.id || '');
+        // Auto-select "All" when parties load so user sees combined ledger immediately
+        if (!partyId || (!rows.some((p) => p.id === partyId) && partyId !== '__all__')) {
+          setPartyId(rows.length > 0 ? '__all__' : '');
         }
       } catch (e: any) {
         toast.error(e?.message || 'Failed to load parties');
@@ -163,6 +164,48 @@ export function PartyLedgerPage() {
     try {
       const from = dateRange.from;
       const to = dateRange.to;
+
+      if (partyId === '__all__') {
+        // Fetch all parties' statements in parallel and merge
+        if (parties.length === 0) { setStatement(null); return; }
+        const results = await Promise.allSettled(
+          parties.map(async (p) => {
+            const qs = new URLSearchParams({ partyType, partyId: p.id, from, to }).toString();
+            const res = await fetch(`${apiUrl}/ledger/statement?${qs}`, { headers });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) return null;
+            return { party: p, data: data as LedgerStatementDto };
+          })
+        );
+
+        // Merge all rows into a combined statement
+        const allRows: any[] = [];
+        let totalDebit = 0, totalCredit = 0;
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value?.data?.rows) {
+            const partyName = r.value.party.name;
+            for (const row of r.value.data.rows) {
+              allRows.push({ ...row, particulars: `[${partyName}] ${row.particulars || ''}` });
+            }
+            totalDebit += r.value.data.periodTotals?.debit || 0;
+            totalCredit += r.value.data.periodTotals?.credit || 0;
+          }
+        }
+        // Sort by date
+        allRows.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+
+        const combined: LedgerStatementDto = {
+          party: { id: '__all__', name: `All ${partyLabel}s`, address: null, billingAddress: null, shippingAddress: null, gstin: null, phone: null, email: null, logoUrl: null, logoDataUrl: null },
+          range: { from: from || null, to: to || null },
+          openingBalance: { amount: 0, type: 'dr' },
+          periodTotals: { debit: totalDebit, credit: totalCredit },
+          closingBalance: { amount: Math.abs(totalDebit - totalCredit), type: totalDebit >= totalCredit ? 'dr' : 'cr' },
+          rows: allRows,
+        };
+        setStatement(combined);
+        return;
+      }
+
       const qs = new URLSearchParams({ partyType, partyId, from, to }).toString();
       const res = await fetch(`${apiUrl}/ledger/statement?${qs}`, { headers });
       const data = await res.json().catch(() => ({}));
@@ -219,7 +262,8 @@ export function PartyLedgerPage() {
   useEffect(() => {
     if (!partyId) return;
     void loadStatement();
-    void loadRanges();
+    if (partyId !== '__all__') void loadRanges();
+    else { setQuickRanges([]); setQuickRangeKey(''); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partyId, partyType]);
 
@@ -285,7 +329,9 @@ export function PartyLedgerPage() {
     }
   };
 
-  const selectedPartyName = parties.find((p) => p.id === partyId)?.name || statement?.party?.name || '';
+  const selectedPartyName = partyId === '__all__'
+    ? `All ${partyLabel}s`
+    : parties.find((p) => p.id === partyId)?.name || statement?.party?.name || '';
 
   if (loadingParties && parties.length === 0) {
     return (
@@ -378,6 +424,7 @@ export function PartyLedgerPage() {
                     <SelectValue placeholder={`Select ${partyLabel.toLowerCase()}`} />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__all__">All {partyLabel}s</SelectItem>
                     {parties.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name}

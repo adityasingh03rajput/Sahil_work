@@ -45,8 +45,9 @@ analyticsRouter.get('/', async (req, res, next) => {
     const userId    = new mongoose.Types.ObjectId(req.userId);
     const profileId = new mongoose.Types.ObjectId(req.profileId);
 
-    // ── AUDIT FIX #7: Exclude drafts from all financial aggregations ──────────
-    const baseMatch = { userId, profileId, status: { $ne: 'draft' } };
+    // Count all documents regardless of draft/final status for dashboard metrics
+    // Users want to see their invoices even if saved as draft
+    const baseMatch = { userId, profileId };
 
     // ── Date range filter on the `date` string field ──────────────────────────
     if (startDate || endDate) {
