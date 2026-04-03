@@ -447,7 +447,7 @@ export function CustomersPage() {
       const docs: any[] = Array.isArray(data?.documents) ? data.documents : [];
       const grouped = new Map<string, number>();
       for (const d of docs) {
-        const name = String(d?.customerName || 'Unknown');
+        const name = String(d?.party?.name || d?.customerName || 'Unknown');
         const remaining = Number(d?.remaining || 0);
         grouped.set(name, (grouped.get(name) || 0) + remaining);
       }

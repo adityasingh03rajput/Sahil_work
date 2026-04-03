@@ -638,7 +638,8 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
       {subscriptionExpired &&
         location.pathname !== '/subscription' &&
         location.pathname !== '/dashboard' &&
-        location.pathname !== '/welcome' && (
+        location.pathname !== '/welcome' &&
+        location.pathname !== '/profiles' && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 50,
             background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
             display: 'flex', alignItems: 'flex-end' }}>

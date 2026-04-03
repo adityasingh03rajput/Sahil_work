@@ -835,7 +835,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </Button>
               </div>
             )}
-            {subscriptionExpired && location.pathname !== '/subscription' && location.pathname !== '/dashboard' && location.pathname !== '/welcome' && (
+            {subscriptionExpired && location.pathname !== '/subscription' && location.pathname !== '/dashboard' && location.pathname !== '/welcome' && location.pathname !== '/profiles' && (
               <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="w-full max-w-md bg-card text-card-foreground rounded-xl shadow-xl border border-border p-6">
                   <div className="flex items-start gap-3">

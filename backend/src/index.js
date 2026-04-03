@@ -170,9 +170,7 @@ app.get("/health", (_req, res) => {
 });
 
 // ── Version endpoint (public, no auth) ───────────────────────────────────────
-app.get("/version", (_req, res) => {
-  res.json({ backend: BACKEND_VERSION });
-});
+app.get('/version', (req, res) => res.json({ backend: '1.0.3' }));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/auth", authRouter);

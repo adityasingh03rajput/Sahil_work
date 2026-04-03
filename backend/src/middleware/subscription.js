@@ -115,7 +115,7 @@ async function checkAccess(userId) {
 // ── Drop-in replacement for requireActiveSubscription ─────────────────────────
 export async function requireActiveSubscription(req, res, next) {
   try {
-    const result = await checkAccess(req.userId);
+    const result = await checkAccess(req.ownerUserId || req.userId);
     if (!result.ok) {
       return res.status(result.status).json({ error: result.message, code: result.code });
     }
@@ -133,7 +133,7 @@ export async function requireActiveSubscription(req, res, next) {
 export function requireActiveSubscriptionOrAllowReadonlyGet(allowBaseUrls = []) {
   return async function (req, res, next) {
     try {
-      const result = await checkAccess(req.userId);
+      const result = await checkAccess(req.ownerUserId || req.userId);
       if (!result.ok) {
         // Allow GET on whitelisted base URLs even when expired
         if (req.method === 'GET' && allowBaseUrls.includes(req.baseUrl)) {

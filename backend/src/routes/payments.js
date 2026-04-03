@@ -252,13 +252,16 @@ paymentsRouter.get('/outstanding', async (req, res, next) => {
       remaining: d.remaining,
       party: {
         id: partyId || (d.customerId || d.supplierId || '').toString(),
-        name: partyType === 'customer' ? d.customerName : d.supplierName,
+        name: d.customerName || d.supplierName || 'Unknown',
       },
     }));
 
     const totalOutstanding = results.reduce((sum, r) => sum + r.remaining, 0);
 
-    res.json(results);
+    res.json({
+      documents: results,
+      totalOutstanding
+    });
   } catch (err) {
     next(err);
   }
