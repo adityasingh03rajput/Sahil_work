@@ -144,7 +144,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSubscriptionExpired(false);
     localStorage.setItem('accessToken', data.session.access_token);
     localStorage.setItem('user', JSON.stringify(userData));
-    // Wipe data caches but keep currentProfile so user lands back on their last profile
+    // Clear currentProfile — AppLayout will resolve the correct one for this user
+    // This prevents user A's profile from flashing when user B logs in
+    localStorage.removeItem('currentProfile');
     await clearApiCache();
     // Signal all pages to clear their local state (prevents stale data flash)
     window.dispatchEvent(new CustomEvent('appSignIn', { detail: { userId: userData.id } }));

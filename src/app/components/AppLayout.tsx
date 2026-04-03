@@ -155,15 +155,18 @@ export function AppLayout({ children }: AppLayoutProps) {
           setCurrentProfile(match);
           window.dispatchEvent(new CustomEvent('profileRefreshed', { detail: match }));
         } else if (profiles.length > 0) {
-          // Stored profile no longer exists — auto-select first available
+          // Stored profile no longer exists (or belongs to different user) — auto-select first
           const first = profiles[0];
           localStorage.setItem('currentProfile', JSON.stringify(first));
           setCurrentProfile(first);
+          // Dispatch profileChanged first to clear stale data, then profileRefreshed with new data
+          window.dispatchEvent(new CustomEvent('profileChanged', { detail: { profileId: first.id } }));
           window.dispatchEvent(new CustomEvent('profileRefreshed', { detail: first }));
         } else {
           // No profiles at all — redirect to create one
           localStorage.removeItem('currentProfile');
           setCurrentProfile({});
+          window.dispatchEvent(new CustomEvent('profileChanged', { detail: { profileId: null } }));
           navigate('/profiles');
         }
       } catch {

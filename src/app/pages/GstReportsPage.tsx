@@ -8,6 +8,7 @@ import { API_URL } from '../config/api';
 import { toast } from 'sonner';
 import { getCurrentFiscalYearRange } from '../utils/fiscal';
 import { DateRangePicker, DateRange } from '../components/ui/date-range-picker';
+import { useCurrentProfile } from '../hooks/useCurrentProfile';
 
 type GstReport = {
   range: { from: string | null; to: string | null };
@@ -37,8 +38,7 @@ type GstReport = {
 export function GstReportsPage() {
   const { accessToken, deviceId } = useAuth();
   const apiUrl = API_URL;
-  const currentProfile = JSON.parse(localStorage.getItem('currentProfile') || '{}');
-  const profileId = currentProfile?.id;
+  const { profileId } = useCurrentProfile();
 
   const [dateRange, setDateRange] = useState<DateRange>({ from: '', to: '' });
   const [loading, setLoading] = useState(false);
@@ -86,9 +86,10 @@ export function GstReportsPage() {
   };
 
   useEffect(() => {
-    load();
+    setReport(null); // clear on profile change
+    if (profileId) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange]);
+  }, [dateRange, profileId]);
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto pb-8">
