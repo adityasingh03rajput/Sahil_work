@@ -208,7 +208,7 @@ export function DashboardPage() {
 
                 <DropdownMenuSeparator />
                 <div className="p-2 text-[10px] text-muted-foreground text-center">
-                  v1.0.4 - Premium Edition
+                  v1.0.5 - Premium Edition
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>

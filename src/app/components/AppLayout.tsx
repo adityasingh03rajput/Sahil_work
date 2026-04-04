@@ -218,7 +218,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="flex items-center justify-between">
             <span>Utility Menu</span>
-            <span className="text-[10px] font-normal px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">v1.0.4</span>
+            <span className="text-[10px] font-normal px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">v1.0.5</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           
