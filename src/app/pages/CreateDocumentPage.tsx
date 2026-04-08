@@ -39,6 +39,7 @@ import {
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../components/ui/accordion';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/ui/collapsible';
 import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Plus, Save, Trash2, ArrowLeft, Info } from 'lucide-react';
+import QRCode from 'qrcode';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
@@ -2459,7 +2460,7 @@ export function CreateDocumentPage() {
                         <div className="space-y-2">
                           <Label>Status</Label>
                           <Select value={status} onValueChange={(val: 'draft' | 'final') => setStatus(val)}>
-                            <SelectTrigger className="bg-white">
+                            <SelectTrigger className="bg-background">
                               <SelectValue placeholder="Select Status" />
                             </SelectTrigger>
                             <SelectContent>
@@ -2585,9 +2586,10 @@ export function CreateDocumentPage() {
               <CardContent className="p-0">
                 <div className="w-full max-h-[70vh] overflow-x-auto overflow-y-auto !touch-pan-x !touch-pan-y scrollbar-thin scrollbar-thumb-indigo-500/20 scrollbar-track-transparent rounded-2xl border border-border/30 bg-background/30 backdrop-blur-3xl">
                   <div className="min-w-[1600px] item-table-header p-4" data-tour-id="item-table-header">
-                    <div className="grid grid-cols-[40px_2.5fr_100px_100px_180px_80px_120px_80px_120px_180px_50px] sticky top-0 z-[20] bg-muted/60 backdrop-blur-2xl text-[10px] uppercase font-black tracking-widest text-muted-foreground border border-border/10 rounded-xl mb-4 !touch-pan-x !touch-pan-y">
+                    <div className="grid grid-cols-[40px_2fr_90px_80px_90px_160px_80px_110px_100px_110px_160px_40px] sticky top-0 z-[20] bg-muted/60 backdrop-blur-2xl text-[10px] uppercase font-black tracking-widest text-muted-foreground border border-border/10 rounded-xl mb-4 !touch-pan-x !touch-pan-y">
                       <div className="px-2 py-2">#</div>
                       <div className="px-2 py-2">ITEM</div>
+                      <div className="px-2 py-2">HSN/SAC</div>
                       <div className="px-2 py-2">QTY</div>
                       <div className="px-2 py-2">UNIT</div>
                       <div className="px-2 py-2">
@@ -2645,7 +2647,7 @@ export function CreateDocumentPage() {
                     {items.map((it, idx) => {
                       const row = proformaRowComputed(it);
                       return (
-                        <div key={idx} className="grid grid-cols-[40px_2fr_80px_90px_160px_70px_110px_70px_110px_160px_40px] border-b bg-background !touch-pan-x !touch-pan-y">
+                        <div key={idx} className="grid grid-cols-[40px_2fr_90px_80px_90px_160px_80px_110px_100px_110px_160px_40px] border-b bg-background !touch-pan-x !touch-pan-y">
                           <div className="px-2 py-2 text-xs text-muted-foreground">{idx + 1}</div>
                           <div className="px-2 py-2 !touch-pan-x !touch-pan-y">
                             <Popover
@@ -2717,7 +2719,10 @@ export function CreateDocumentPage() {
                             </Popover>
                           </div>
                           <div className="px-2 py-2 !touch-pan-x !touch-pan-y">
-                            <Input type="number" value={it.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value || 0))} />
+                            <Input placeholder="HSN" value={it.hsnSac || ''} onChange={(e) => updateItem(idx, 'hsnSac', e.target.value)} />
+                          </div>
+                          <div className="px-2 py-2 !touch-pan-x !touch-pan-y">
+                            <Input type="number" min="0" onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }} value={it.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value || 0))} />
                           </div>
                           <div className="px-2 py-2 !touch-pan-x !touch-pan-y">
                             <Select value={String(it.unit || 'NONE')} onValueChange={(v) => updateItem(idx, 'unit', v)}>
@@ -2736,14 +2741,16 @@ export function CreateDocumentPage() {
                             </Select>
                           </div>
                           <div className="px-2 py-2 !touch-pan-x !touch-pan-y">
-                            <Input type="number" value={it.rate} onChange={(e) => updateItem(idx, 'rate', Number(e.target.value || 0))} />
+                            <Input type="number" min="0" onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }} value={it.rate} onChange={(e) => updateItem(idx, 'rate', Number(e.target.value || 0))} />
                           </div>
                           <div className="px-2 py-2 !touch-pan-x !touch-pan-y">
-                            <Input type="number" value={it.discount} onChange={(e) => updateItem(idx, 'discount', Number(e.target.value || 0))} />
+                            <Input type="number" min="0" onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }} value={it.discount} onChange={(e) => updateItem(idx, 'discount', Number(e.target.value || 0))} />
                           </div>
                           <div className="px-2 py-2 !touch-pan-x !touch-pan-y">
                             <Input
                               type="number"
+                              min="0"
+                              onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
                               value={Number.isFinite(row.discountAmount) ? Number(row.discountAmount || 0).toFixed(2) : '0.00'}
                               onChange={(e) => {
                                 const nextAmount = Number(e.target.value || 0);
@@ -2842,14 +2849,14 @@ export function CreateDocumentPage() {
                       );
                     })}
 
-                    <div className="grid grid-cols-[40px_2fr_80px_90px_160px_70px_110px_70px_110px_160px_40px] bg-background">
+                    <div className="grid grid-cols-[40px_2fr_90px_80px_90px_160px_80px_110px_100px_110px_160px_40px] bg-background">
                       <div className="px-2 py-2 col-span-2">
                         <Button type="button" variant="outline" size="sm" onClick={handleAddRow}>
                           Add Row
                         </Button>
                       </div>
-                      <div className="px-2 py-2 text-xs text-muted-foreground">TOTAL</div>
-                      <div className="px-2 py-2 text-xs text-muted-foreground text-right">
+                      <div className="px-2 py-2 text-xs text-muted-foreground text-right w-full flex items-center justify-end">TOTAL</div>
+                      <div className="px-2 py-2 text-xs text-muted-foreground flex items-center">
                         {items.reduce((s, x) => s + Number(x.quantity || 0), 0)}
                       </div>
                       <div className="px-2 py-2" />
@@ -2857,7 +2864,8 @@ export function CreateDocumentPage() {
                       <div className="px-2 py-2" />
                       <div className="px-2 py-2" />
                       <div className="px-2 py-2" />
-                      <div className="px-2 py-2 text-right font-semibold">
+                      <div className="px-2 py-2" />
+                      <div className="px-2 py-2 text-right font-semibold flex items-center justify-end">
                         {formatInr(type === 'proforma' ? proformaTotals().grandTotal : calculateTotals().grandTotal)}
                       </div>
                       <div className="px-2 py-2" />

@@ -1,45 +1,26 @@
 /**
- * MobileFormSheet — a bottom-sheet style form container for mobile.
- *
- * On mobile (isNative / small screen): slides up from bottom, full-width,
- * rounded top corners, drag-handle indicator, scrollable body.
- *
- * On desktop: renders as a normal centered Dialog.
- *
- * Usage:
- *   <MobileFormSheet open={open} onClose={() => setOpen(false)} title="Add Item">
- *     <form>...</form>
- *   </MobileFormSheet>
+ * MobileFormSheet — bottom-sheet form container for mobile APK.
+ * Uses 100% inline styles to ensure correct rendering in Android WebView.
  */
 
-import { ReactNode, useEffect, useRef } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { cn } from './ui/utils';
 
 interface MobileFormSheetProps {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
-  /** Extra class on the sheet panel */
   className?: string;
 }
 
-export function MobileFormSheet({ open, onClose, title, children, className }: MobileFormSheetProps) {
-  const overlayRef = useRef<HTMLDivElement>(null);
-
-  // Lock body scroll while open
+export function MobileFormSheet({ open, onClose, title, children }: MobileFormSheetProps) {
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  // Close on Escape
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -49,56 +30,51 @@ export function MobileFormSheet({ open, onClose, title, children, className }: M
 
   if (!open) return null;
 
-  return createPortal(
-    <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-      aria-modal="true"
-      role="dialog"
-      aria-label={title}
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
-        onClick={onClose}
-      />
+  const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 640;
 
-      {/* Sheet panel */}
-      <div
-        className={cn(
-          // Mobile: full-width bottom sheet
-          'relative w-full bg-background',
-          'rounded-t-2xl sm:rounded-xl',
-          // Desktop: centered modal
-          'sm:max-w-lg sm:mx-4',
-          // Height: on mobile fill up to 92dvh, scroll inside
-          'max-h-[92dvh] sm:max-h-[88dvh]',
-          'flex flex-col',
-          // Slide-up animation
-          'animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200',
-          className,
+  return createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex',
+      alignItems: isDesktop ? 'center' : 'flex-end', justifyContent: 'center' }}
+      role="dialog" aria-modal="true" aria-label={title}>
+      {/* Backdrop */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+        onClick={onClose} />
+
+      {/* Sheet */}
+      <div style={{
+        position: 'relative', width: '100%', maxWidth: 560,
+        backgroundColor: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: isDesktop ? 16 : '24px 24px 0 0',
+        maxHeight: isDesktop ? '85dvh' : '92dvh',
+        margin: isDesktop ? '0 16px' : 0,
+        display: 'flex', flexDirection: 'column' as const,
+        boxShadow: '0 25px 60px rgba(0,0,0,0.4)',
+        paddingBottom: isDesktop ? 0 : 'env(safe-area-inset-bottom, 0px)',
+      }}>
+        {/* Drag handle — mobile only */}
+        {!isDesktop && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--muted-foreground)', opacity: 0.2 }} />
+          </div>
         )}
-      >
-        {/* Drag handle (mobile only) */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden">
-          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
-        </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-          <h2 className="text-base font-semibold text-foreground">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-8 w-8 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: isDesktop ? '16px 20px' : '8px 20px 12px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--card-foreground)',
+            fontFamily: 'system-ui,-apple-system,sans-serif' }}>{title}</h2>
+          <button type="button" onClick={onClose}
+            style={{ width: 36, height: 36, borderRadius: 12, border: 'none', cursor: 'pointer',
+              background: 'var(--muted)', color: 'var(--muted-foreground)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            aria-label="Close">
+            <X style={{ width: 18, height: 18 }} />
           </button>
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+        <div style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain', padding: '16px 20px' }}>
           {children}
         </div>
       </div>
@@ -107,42 +83,37 @@ export function MobileFormSheet({ open, onClose, title, children, className }: M
   );
 }
 
-/**
- * MobileFormSection — a labeled section divider inside a MobileFormSheet.
- * Groups related fields visually.
- */
 interface MobileFormSectionProps {
   label: string;
   children: ReactNode;
   className?: string;
 }
 
-export function MobileFormSection({ label, children, className }: MobileFormSectionProps) {
+export function MobileFormSection({ label, children }: MobileFormSectionProps) {
   return (
-    <div className={cn('space-y-3', className)}>
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
-        <div className="flex-1 h-px bg-border" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
+          color: 'var(--muted-foreground)', fontFamily: 'system-ui,sans-serif', whiteSpace: 'nowrap' }}>
+          {label}
+        </span>
+        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
       </div>
       {children}
     </div>
   );
 }
 
-/**
- * MobileFormActions — sticky bottom action bar inside a sheet.
- */
 interface MobileFormActionsProps {
   children: ReactNode;
   className?: string;
 }
 
-export function MobileFormActions({ children, className }: MobileFormActionsProps) {
+export function MobileFormActions({ children }: MobileFormActionsProps) {
   return (
-    <div className={cn(
-      'shrink-0 flex flex-wrap items-center justify-end gap-2',
-      'px-4 py-3 border-t border-border bg-background',
-    )}>
+    <div style={{ flexShrink: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'center',
+      justifyContent: 'flex-end', gap: 10, padding: '12px 20px',
+      borderTop: '1px solid var(--border)', background: 'var(--card)' }}>
       {children}
     </div>
   );

@@ -9,9 +9,10 @@ import { TraceLoader } from '../components/TraceLoader';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
 import { MobileFormSheet, MobileFormSection, MobileFormActions } from '../components/MobileFormSheet';
 import { FeatureInfo } from '../components/FeatureInfo';
+import { useCurrentProfile } from '../hooks/useCurrentProfile';
 
 function formatInr(amount: number) {
   const val = Number(amount || 0);
@@ -33,18 +34,7 @@ export function BankAccountsPage() {
     return `${yyyy}-${mm}-${dd}`;
   }, []);
 
-  const readProfile = () => {
-    const raw = localStorage.getItem('currentProfile');
-    if (!raw) return {} as any;
-    try {
-      const parsed = JSON.parse(raw);
-      return (typeof parsed === 'string' ? JSON.parse(parsed) : parsed) || ({} as any);
-    } catch { return {} as any; }
-  };
-
-  const [profileSnapshot, setProfileSnapshot] = useState<any>(() => readProfile());
-
-  const currentProfile = profileSnapshot;
+  const { profile: currentProfile } = useCurrentProfile();
   const accounts: any[] = Array.isArray(currentProfile?.bankAccounts) ? currentProfile.bankAccounts : [];
 
   const legacy = useMemo(() => {
@@ -61,7 +51,16 @@ export function BankAccountsPage() {
   const fallbackDefault = accounts.find((a: any) => a?.isDefault && a?._id) || null;
   const resolvedDefaultId = defaultId || String(fallbackDefault?._id || '').trim();
 
-  const [selectedBankAccountId, setSelectedBankAccountId] = useState<string>(resolvedDefaultId || (legacy.hasLegacy ? '__null__' : ''));
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState<string>('');
+  
+  // Initialize selection when profile loads or switches
+  useEffect(() => {
+    if (resolvedDefaultId || legacy.hasLegacy) {
+      setSelectedBankAccountId(resolvedDefaultId || "__null__");
+    } else {
+      setSelectedBankAccountId("");
+    }
+  }, [currentProfile?.id, resolvedDefaultId, legacy.hasLegacy]);
   const [loading, setLoading] = useState(false);
   const [payments, setPayments] = useState<any[]>([]);
   const [manualCredits, setManualCredits] = useState<any[]>([]);
@@ -129,7 +128,8 @@ export function BankAccountsPage() {
       // Update localStorage so the page reflects immediately
       const updated = { ...currentProfile, bankAccounts: data.bankAccounts ?? next };
       localStorage.setItem('currentProfile', JSON.stringify(updated));
-      setProfileSnapshot(updated);
+      // Notify other tabs and components that profile changed
+      window.dispatchEvent(new CustomEvent('profileRefreshed', { detail: updated }));
       setDialogOpen(false);
       toast.success(editIndex !== null ? 'Bank account updated' : 'Bank account added');
     } catch (e: any) { toast.error(e.message || 'Failed to save bank account'); }
@@ -150,58 +150,59 @@ export function BankAccountsPage() {
       if (!res.ok) throw new Error(data?.error || 'Failed to delete');
       const updated = { ...currentProfile, bankAccounts: data.bankAccounts ?? next };
       localStorage.setItem('currentProfile', JSON.stringify(updated));
-      setProfileSnapshot(updated);
+      window.dispatchEvent(new CustomEvent('profileRefreshed', { detail: updated }));
       toast.success('Bank account removed');
     } catch (e: any) { toast.error(e.message || 'Failed to remove'); }
   };
 
+  const loadTransactions = async () => {
+    if (!accessToken || !deviceId) return;
+    const profileId = String(currentProfile?.id || '').trim();
+    if (!profileId) return;
+    const bankAccountId = String(selectedBankAccountId || '').trim();
+    if (!bankAccountId) {
+      setPayments([]);
+      setManualCredits([]);
+      return;
+    }
+
+    setLoading(true);
+    
+    // Separate fetch for payments to avoid blocking bank transactions on failure
+    try {
+      const payRes = await fetch(`${apiUrl}/payments?bankAccountId=${encodeURIComponent(bankAccountId)}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Device-ID': deviceId,
+          'X-Profile-ID': profileId,
+        },
+      });
+      const payData = await payRes.json().catch(() => []);
+      if (payRes.ok) setPayments(Array.isArray(payData) ? payData : []);
+    } catch {
+      setPayments([]);
+    }
+
+    // Separate fetch for manual credits (bank transactions)
+    try {
+      const manualRes = await fetch(`${apiUrl}/bank-transactions?bankAccountId=${encodeURIComponent(bankAccountId)}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Device-ID': deviceId,
+          'X-Profile-ID': profileId,
+        },
+      });
+      const manualData = await manualRes.json().catch(() => []);
+      if (manualRes.ok) setManualCredits(Array.isArray(manualData) ? manualData : []);
+    } catch {
+      setManualCredits([]);
+    }
+
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const run = async () => {
-      if (!accessToken || !deviceId) return;
-      const profileId = String(currentProfile?.id || '').trim();
-      if (!profileId) return;
-      const bankAccountId = String(selectedBankAccountId || '').trim();
-      if (!bankAccountId) {
-        setPayments([]);
-        setManualCredits([]);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const [payRes, manualRes] = await Promise.all([
-          fetch(`${apiUrl}/payments?bankAccountId=${encodeURIComponent(bankAccountId)}`, {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'X-Device-ID': deviceId,
-              'X-Profile-ID': profileId,
-            },
-          }),
-          fetch(`${apiUrl}/bank-transactions?bankAccountId=${encodeURIComponent(bankAccountId)}`, {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'X-Device-ID': deviceId,
-              'X-Profile-ID': profileId,
-            },
-          }),
-        ]);
-
-        const payData = await payRes.json().catch(() => []);
-        const manualData = await manualRes.json().catch(() => []);
-
-        if (!payRes.ok) throw new Error(payData?.error || 'Failed to load payments');
-        if (!manualRes.ok) throw new Error(manualData?.error || 'Failed to load bank transactions');
-
-        setPayments(Array.isArray(payData) ? payData : []);
-        setManualCredits(Array.isArray(manualData) ? manualData : []);
-      } catch {
-        setPayments([]);
-        setManualCredits([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    void run();
+    void loadTransactions();
   }, [accessToken, apiUrl, currentProfile?.id, deviceId, selectedBankAccountId]);
 
   const handleAddManualCredit = async () => {
@@ -304,7 +305,7 @@ export function BankAccountsPage() {
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-4 pb-48 md:pb-10">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
@@ -467,7 +468,11 @@ export function BankAccountsPage() {
                     <Input value={manualDescription} onChange={(e) => setManualDescription(e.target.value)} placeholder="Optional" />
                   </div>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={loadTransactions} disabled={loading}>
+                    <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+                    Show Credits
+                  </Button>
                   <Button type="button" onClick={handleAddManualCredit} disabled={savingManual}>
                     {savingManual ? 'Saving...' : 'Add Credit'}
                   </Button>

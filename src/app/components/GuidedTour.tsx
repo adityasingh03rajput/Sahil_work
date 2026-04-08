@@ -37,7 +37,7 @@ export function GuidedTour({
       {
         route: '/dashboard',
         selector: '[data-tour-id="nav-dashboard"]',
-        title: 'Welcome to BillVyapar v1.0.5',
+        title: 'Welcome to BillVyapar vv1.0.1',
         description: 'Experience your business command center. We have enabled Demo Mode: explore safely with dummy data while your real records remain untouched.',
       },
       {
@@ -122,9 +122,9 @@ export function GuidedTour({
       },
       {
         route: '/dashboard',
-        selector: '.p-2:contains("v1.0.4")',
+        selector: '.p-2:contains("vv1.0.1")',
         title: 'You are all set!',
-        description: 'The v1.0.4 Premium Edition is ready for your business. Restart this tour anytime from the tool menu.',
+        description: 'The vv1.0.1 Premium Edition is ready for your business. Restart this tour anytime from the tool menu.',
       },
     ],
     [],

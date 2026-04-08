@@ -568,93 +568,100 @@ export function SuppliersPage() {
           </Button>
         </div>
 
-        <MobileFormSheet open={showCreateDialog} onClose={() => setShowCreateDialog(false)} title="Add New Supplier">
-          <form onSubmit={handleCreate} className="space-y-4">
-            <MobileFormSection label="Party Info">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <Label>Party Name *</Label>
-                  <Input required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enter name" />
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Add New Supplier</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreate} className="space-y-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="s-name">Party Name *</Label>
+                    <Input id="s-name" required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enter name" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="s-owner">Owner Name *</Label>
+                    <Input id="s-owner" required value={String(formData.ownerName || '')} onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })} placeholder="Owner / Proprietor" />
+                  </div>
                 </div>
-                <div>
-                  <Label>Owner Name *</Label>
-                  <Input required value={String(formData.ownerName || '')} onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })} placeholder="Owner / Proprietor" />
+                <EmailInput label="Email" value={formData.email || ''} onChange={(v) => setFormData({ ...formData, email: v })} placeholder="supplier@email.com" error={formErrors.email} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Opening Balance</Label>
+                    <Input value={String(formData.openingBalance ?? '')} onChange={(e) => setFormData({ ...formData, openingBalance: Number(e.target.value || 0) })} placeholder="0" inputMode="decimal" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Opening Type</Label>
+                    <Select value={String(formData.openingBalanceType || 'cr')} onValueChange={(v) => setFormData({ ...formData, openingBalanceType: v as 'dr' | 'cr' })}>
+                      <SelectTrigger><SelectValue placeholder="CR" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cr">CR (Payable)</SelectItem>
+                        <SelectItem value="dr">DR (Receivable)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
+                  <PhoneInput label="Phone" value={formData.phone || ''} onChange={(v) => setFormData({ ...formData, phone: v })} error={formErrors.phone} />
+                  <div className="space-y-2">
+                    <GstinInput label="GSTIN" value={formData.gstin || ''} onChange={(v) => setFormData({ ...formData, gstin: v })} error={formErrors.gstin} onBlur={() => void handleGstinLookupAutofill('create')} />
+                    {gstinLookupLoading && <div className="text-xs text-muted-foreground animate-pulse">Fetching GST details...</div>}
+                  </div>
+                  <PanInput label="PAN" value={formData.pan || ''} onChange={(v) => setFormData({ ...formData, pan: v })} />
+                  <AddressInput label="Address" value={formData.address || ''} onChange={(v) => setFormData({ ...formData, address: v })} />
+                </div>
+
+                <div className="space-y-4 border-t pt-4">
+                  <div className="flex items-center gap-4">
+                    <input id="supplier-logo-create" type="file" accept="image/*" className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]; if (!file) return;
+                        try {
+                          const dataUrl = await fileToDataUrl(file);
+                          setFormData((prev) => ({ ...prev, logoDataUrl: dataUrl }));
+                          const url = await uploadLogoToCloudinary(dataUrl);
+                          setFormData((prev) => ({ ...prev, logoUrl: url }));
+                        } catch { toast.error('Failed to upload logo'); }
+                      }}
+                    />
+                    <Button type="button" variant="outline" asChild>
+                      <label htmlFor="supplier-logo-create" className="cursor-pointer">
+                        {formData.logoUrl || formData.logoDataUrl ? 'Change Logo' : 'Upload Logo'}
+                      </label>
+                    </Button>
+                    {!!(formData.logoUrl || formData.logoDataUrl) && (
+                      <img src={String(formData.logoUrl || formData.logoDataUrl)} alt="Logo" className="h-10 w-10 rounded border object-contain bg-background" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4 border-t pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Bank Name</Label>
+                      <Input value={formData.bankName || ''} onChange={(e) => setFormData({ ...formData, bankName: e.target.value })} placeholder="Bank name" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Branch</Label>
+                      <Input value={formData.bankBranch || ''} onChange={(e) => setFormData({ ...formData, bankBranch: e.target.value })} placeholder="Branch" />
+                    </div>
+                  </div>
+                  <AccountNumberInput label="Account Number" value={formData.accountNumber || ''} onChange={(v) => setFormData({ ...formData, accountNumber: v })} />
+                  <IfscInput label="IFSC Code" value={formData.ifscCode || ''} onChange={(v) => setFormData({ ...formData, ifscCode: v })} />
+                  <UpiInput label="UPI ID" value={formData.upiId || ''} onChange={(v) => setFormData({ ...formData, upiId: v })} />
                 </div>
               </div>
-              <EmailInput label="Email" value={formData.email || ''} onChange={(v) => setFormData({ ...formData, email: v })} placeholder="supplier@email.com" error={formErrors.email} />
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Opening Balance</Label>
-                  <Input value={String(formData.openingBalance ?? '')} onChange={(e) => setFormData({ ...formData, openingBalance: Number(e.target.value || 0) })} placeholder="0" inputMode="decimal" />
-                </div>
-                <div>
-                  <Label>Opening Type</Label>
-                  <Select value={String(formData.openingBalanceType || 'cr')} onValueChange={(v) => setFormData({ ...formData, openingBalanceType: v as 'dr' | 'cr' })}>
-                    <SelectTrigger><SelectValue placeholder="CR" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cr">CR (Payable)</SelectItem>
-                      <SelectItem value="dr">DR (Receivable)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t sticky bottom-0 bg-background">
+                <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
+                <Button type="button" variant="secondary" onClick={handleCreateByGstin} disabled={gstinLoading}>{gstinLoading ? 'Creating...' : 'Create via GSTIN'}</Button>
+                <Button type="submit">Add Supplier</Button>
               </div>
-            </MobileFormSection>
-
-            <MobileFormSection label="Contact & Tax">
-              <PhoneInput label="Phone" value={formData.phone || ''} onChange={(v) => setFormData({ ...formData, phone: v })} error={formErrors.phone} />
-              <GstinInput label="GSTIN" value={formData.gstin || ''} onChange={(v) => setFormData({ ...formData, gstin: v })} error={formErrors.gstin} onBlur={() => void handleGstinLookupAutofill('create')} />
-              {gstinLookupLoading && <div className="text-xs text-muted-foreground">Fetching GST details...</div>}
-              <PanInput label="PAN" value={formData.pan || ''} onChange={(v) => setFormData({ ...formData, pan: v })} />
-              <AddressInput label="Address" value={formData.address || ''} onChange={(v) => setFormData({ ...formData, address: v })} />
-            </MobileFormSection>
-
-            <MobileFormSection label="Logo">
-              <div className="flex items-center gap-3">
-                <input id="supplier-logo-create" type="file" accept="image/*" className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]; if (!file) return;
-                    try {
-                      const dataUrl = await fileToDataUrl(file);
-                      setFormData((prev) => ({ ...prev, logoDataUrl: dataUrl }));
-                      const url = await uploadLogoToCloudinary(dataUrl);
-                      setFormData((prev) => ({ ...prev, logoUrl: url }));
-                    } catch { toast.error('Failed to upload logo'); }
-                  }}
-                />
-                <Button type="button" variant="outline" asChild>
-                  <label htmlFor="supplier-logo-create" style={{ cursor: 'pointer' }}>
-                    {formData.logoUrl || formData.logoDataUrl ? 'Change Logo' : 'Upload Logo'}
-                  </label>
-                </Button>
-                {!!(formData.logoUrl || formData.logoDataUrl) && (
-                  <img src={String(formData.logoUrl || formData.logoDataUrl)} alt="Logo" className="h-10 w-10 rounded border object-contain bg-background" />
-                )}
-              </div>
-            </MobileFormSection>
-
-            <MobileFormSection label="Bank Details">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Bank Name</Label>
-                  <Input value={formData.bankName || ''} onChange={(e) => setFormData({ ...formData, bankName: e.target.value })} placeholder="Bank name" />
-                </div>
-                <div>
-                  <Label>Branch</Label>
-                  <Input value={formData.bankBranch || ''} onChange={(e) => setFormData({ ...formData, bankBranch: e.target.value })} placeholder="Branch" />
-                </div>
-              </div>
-              <AccountNumberInput label="Account Number" value={formData.accountNumber || ''} onChange={(v) => setFormData({ ...formData, accountNumber: v })} />
-              <IfscInput label="IFSC Code" value={formData.ifscCode || ''} onChange={(v) => setFormData({ ...formData, ifscCode: v })} />
-              <UpiInput label="UPI ID" value={formData.upiId || ''} onChange={(v) => setFormData({ ...formData, upiId: v })} />
-            </MobileFormSection>
-
-            <MobileFormActions>
-              <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
-              <Button type="button" variant="secondary" onClick={handleCreateByGstin} disabled={gstinLoading}>{gstinLoading ? 'Creating...' : 'Create via GSTIN'}</Button>
-              <Button type="submit">Add Supplier</Button>
-            </MobileFormActions>
-          </form>
-        </MobileFormSheet>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         <Card className="mb-6">
           <CardContent className="pt-6">
@@ -731,7 +738,7 @@ export function SuppliersPage() {
                         <DropdownMenuContent align="end" className="w-64">
                           <DropdownMenuLabel className="flex items-center justify-between">
                             <span>Supplier Insight</span>
-                            <span className="text-[10px] font-normal px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">v1.0.5</span>
+                            <span className="text-[10px] font-normal px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">vv1.0.1</span>
                           </DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           
@@ -829,92 +836,59 @@ export function SuppliersPage() {
           </div>
         )}
 
-        <MobileFormSheet open={showEditDialog} onClose={() => setShowEditDialog(false)} title="Edit Supplier">
-          <form onSubmit={handleUpdateSupplier} className="space-y-4">
-            <MobileFormSection label="Party Info">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <Label>Party Name *</Label>
-                  <Input required value={editFormData.name || ''} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} placeholder="Enter name" />
+        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Supplier</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdateSupplier} className="space-y-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-s-name">Party Name *</Label>
+                    <Input id="edit-s-name" required value={editFormData.name || ''} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} placeholder="Enter name" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-s-owner">Owner Name *</Label>
+                    <Input id="edit-s-owner" required value={String(editFormData.ownerName || '')} onChange={(e) => setEditFormData({ ...editFormData, ownerName: e.target.value })} placeholder="Owner / Proprietor" />
+                  </div>
                 </div>
-                <div>
-                  <Label>Owner Name *</Label>
-                  <Input required value={String(editFormData.ownerName || '')} onChange={(e) => setEditFormData({ ...editFormData, ownerName: e.target.value })} placeholder="Owner / Proprietor" />
+                <EmailInput label="Email" value={editFormData.email || ''} onChange={(v) => setEditFormData({ ...editFormData, email: v })} placeholder="supplier@email.com" error={editFormErrors.email} />
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
+                  <PhoneInput label="Phone" value={editFormData.phone || ''} onChange={(v) => setEditFormData({ ...editFormData, phone: v })} error={editFormErrors.phone} />
+                  <div className="space-y-2">
+                    <GstinInput label="GSTIN" value={editFormData.gstin || ''} onChange={(v) => setEditFormData({ ...editFormData, gstin: v })} error={editFormErrors.gstin} onBlur={() => void handleGstinLookupAutofill('edit')} />
+                    {gstinLookupLoading && <div className="text-xs text-muted-foreground animate-pulse">Fetching GST details...</div>}
+                  </div>
+                  <PanInput label="PAN" value={editFormData.pan || ''} onChange={(v) => setEditFormData({ ...editFormData, pan: v })} />
+                  <AddressInput label="Address" value={editFormData.address || ''} onChange={(v) => setEditFormData({ ...editFormData, address: v })} />
+                </div>
+
+                <div className="space-y-4 border-t pt-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Bank Name</Label>
+                      <Input value={editFormData.bankName || ''} onChange={(e) => setEditFormData({ ...editFormData, bankName: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Branch</Label>
+                      <Input value={editFormData.bankBranch || ''} onChange={(e) => setEditFormData({ ...editFormData, bankBranch: e.target.value })} />
+                    </div>
+                  </div>
+                  <AccountNumberInput label="Account Number" value={editFormData.accountNumber || ''} onChange={(v) => setEditFormData({ ...editFormData, accountNumber: v })} />
+                  <IfscInput label="IFSC Code" value={editFormData.ifscCode || ''} onChange={(v) => setEditFormData({ ...editFormData, ifscCode: v })} />
+                  <UpiInput label="UPI ID" value={editFormData.upiId || ''} onChange={(v) => setEditFormData({ ...editFormData, upiId: v })} />
                 </div>
               </div>
-              <EmailInput label="Email" value={editFormData.email || ''} onChange={(v) => setEditFormData({ ...editFormData, email: v })} placeholder="supplier@email.com" error={editFormErrors.email} />
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Opening Balance</Label>
-                  <Input value={String(editFormData.openingBalance ?? '')} onChange={(e) => setEditFormData({ ...editFormData, openingBalance: Number(e.target.value || 0) })} placeholder="0" inputMode="decimal" />
-                </div>
-                <div>
-                  <Label>Opening Type</Label>
-                  <Select value={String(editFormData.openingBalanceType || 'cr')} onValueChange={(v) => setEditFormData({ ...editFormData, openingBalanceType: v as 'dr' | 'cr' })}>
-                    <SelectTrigger><SelectValue placeholder="CR" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cr">CR (Payable)</SelectItem>
-                      <SelectItem value="dr">DR (Receivable)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t sticky bottom-0 bg-background">
+                <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+                <Button type="submit">Save Changes</Button>
               </div>
-            </MobileFormSection>
-
-            <MobileFormSection label="Contact & Tax">
-              <PhoneInput label="Phone" value={editFormData.phone || ''} onChange={(v) => setEditFormData({ ...editFormData, phone: v })} error={editFormErrors.phone} />
-              <GstinInput label="GSTIN" value={editFormData.gstin || ''} onChange={(v) => setEditFormData({ ...editFormData, gstin: v })} error={editFormErrors.gstin} onBlur={() => void handleGstinLookupAutofill('edit')} />
-              {gstinLookupLoading && <div className="text-xs text-muted-foreground">Fetching GST details...</div>}
-              <PanInput label="PAN" value={editFormData.pan || ''} onChange={(v) => setEditFormData({ ...editFormData, pan: v })} />
-              <AddressInput label="Address" value={editFormData.address || ''} onChange={(v) => setEditFormData({ ...editFormData, address: v })} />
-            </MobileFormSection>
-
-            <MobileFormSection label="Logo">
-              <div className="flex items-center gap-3">
-                <input id="supplier-logo-edit" type="file" accept="image/*" className="hidden"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]; if (!file) return;
-                    try {
-                      const dataUrl = await fileToDataUrl(file);
-                      setEditFormData((prev) => ({ ...prev, logoDataUrl: dataUrl }));
-                      const url = await uploadLogoToCloudinary(dataUrl);
-                      setEditFormData((prev) => ({ ...prev, logoUrl: url }));
-                    } catch { toast.error('Failed to upload logo'); }
-                  }}
-                />
-                <Button type="button" variant="outline" asChild>
-                  <label htmlFor="supplier-logo-edit" style={{ cursor: 'pointer' }}>
-                    {editFormData.logoUrl || editFormData.logoDataUrl ? 'Change Logo' : 'Upload Logo'}
-                  </label>
-                </Button>
-                {!!(editFormData.logoUrl || editFormData.logoDataUrl) && (
-                  <img src={String(editFormData.logoUrl || editFormData.logoDataUrl)} alt="Logo" className="h-10 w-10 rounded border object-contain bg-background" />
-                )}
-              </div>
-            </MobileFormSection>
-
-            <MobileFormSection label="Bank Details">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Bank Name</Label>
-                  <Input value={editFormData.bankName || ''} onChange={(e) => setEditFormData({ ...editFormData, bankName: e.target.value })} />
-                </div>
-                <div>
-                  <Label>Branch</Label>
-                  <Input value={editFormData.bankBranch || ''} onChange={(e) => setEditFormData({ ...editFormData, bankBranch: e.target.value })} />
-                </div>
-              </div>
-              <AccountNumberInput label="Account Number" value={editFormData.accountNumber || ''} onChange={(v) => setEditFormData({ ...editFormData, accountNumber: v })} />
-              <IfscInput label="IFSC Code" value={editFormData.ifscCode || ''} onChange={(v) => setEditFormData({ ...editFormData, ifscCode: v })} />
-              <UpiInput label="UPI ID" value={editFormData.upiId || ''} onChange={(v) => setEditFormData({ ...editFormData, upiId: v })} />
-            </MobileFormSection>
-
-            <MobileFormActions>
-              <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-              <Button type="submit">Save Changes</Button>
-            </MobileFormActions>
-          </form>
-        </MobileFormSheet>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {filteredSuppliers.length > 0 && (
           <Card className="mt-6">

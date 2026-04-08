@@ -148,6 +148,44 @@ export function ProfilesPage() {
     loadProfiles();
   }, []);
 
+  useEffect(() => {
+    const generatePreview = async () => {
+      const upi = String(editFormData.upiId || '').trim();
+      if (!upi) {
+        setUpiQrDataUrl('');
+        return;
+      }
+      try {
+        const url = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(editFormData.businessName || '')}&cu=INR`;
+        const dataUrl = await QRCode.toDataURL(url, { margin: 1, width: 240 });
+        setUpiQrDataUrl(dataUrl);
+      } catch (e) {
+        setUpiQrDataUrl('');
+      }
+    };
+    generatePreview();
+  }, [editFormData.upiId, editFormData.businessName]);
+
+  useEffect(() => {
+    const generateMap = async () => {
+      const map: Record<string, string> = {};
+      for (const p of profiles) {
+        const upi = String(p.upiId || '').trim();
+        if (upi) {
+          try {
+            const url = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(p.businessName || '')}&cu=INR`;
+            const dataUrl = await QRCode.toDataURL(url, { margin: 1, width: 80 });
+            map[p.id] = dataUrl;
+          } catch {
+            // ignore
+          }
+        }
+      }
+      setProfileUpiQrMap(map);
+    };
+    if (profiles.length > 0) generateMap();
+  }, [profiles]);
+
   const loadProfiles = async () => {
     try {
       const response = await fetch(`${apiUrl}/profiles`, {

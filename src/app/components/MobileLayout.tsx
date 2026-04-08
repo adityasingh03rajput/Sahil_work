@@ -8,16 +8,16 @@ import { useNavigate, useLocation } from 'react-router';
 import {
   LayoutDashboard, FileText, Users, BarChart3, MoreHorizontal,
   Plus, Package, Receipt, CreditCard, Landmark, LogOut, X,
-  AlertCircle, ShoppingCart, Truck, ChevronRight, WifiOff,
-  UserCog, Sun, Moon, Settings, Palette,
+  AlertCircle, ShoppingCart, Truck, ChevronRight,
+  UserCog, Palette, BadgeCheck,
 } from 'lucide-react';
-const logoImg = '/logo.png';
+const logoImg = './logo.png';
 import { useTheme, type ThemeMode } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useDisplay, type DisplayScale } from '../contexts/DisplayContext';
-import { Button } from './ui/button';
 import { TraceLoader } from './TraceLoader';
 import { prefetchRoute } from '../hooks/usePrefetch';
+import { App } from '@capacitor/app';
 
 interface MobileLayoutProps {
   children: ReactNode;
@@ -38,12 +38,12 @@ const PRIMARY_TABS = [
 const MORE_ITEMS = [
   { icon: Package,      label: 'Items',        path: '/items',          color: '#f59e0b' },
   { icon: Receipt,      label: 'GST Reports',  path: '/reports/gst',    color: '#10b981' },
-  { icon: CreditCard,   label: 'Ledger',       path: '/ledger',         color: '#6366f1' },
+  { icon: CreditCard,   label: 'Vyapar Khata', path: '/vyapar-khata-new', color: '#6366f1' },
   { icon: Landmark,     label: 'Bank',         path: '/bank-accounts',  color: '#0ea5e9' },
   { icon: ShoppingCart, label: 'POS',          path: '/pos',            color: '#f97316' },
   { icon: Truck,        label: 'Expenses',     path: '/extra-expenses', color: '#e11d48' },
   { icon: UserCog,      label: 'Employees',    path: '/employees',      color: '#8b5cf6' },
-  { icon: CreditCard,   label: 'Subscription', path: '/subscription',   color: '#14b8a6' },
+  { icon: BadgeCheck,   label: 'Subscription', path: '/subscription',   color: '#14b8a6' },
 ];
 
 const SALES_TYPES = [
@@ -109,7 +109,7 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
   const { signOut } = useAuth();
   const offline = useOffline();
   const transitioning = usePageTransition();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   // ── More sheet ──────────────────────────────────────────────────────────────
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -201,6 +201,7 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
       if (btn) btn.style.transform = fabOpen ? 'rotate(45deg)' : '';
     }
     joyStartY.current = 0;
+    joyDeltaY.current = 0;
   }, [fabOpen]);
 
   useEffect(() => {
@@ -214,7 +215,8 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
 
   const profile = readProfile();
   const ini = initials(profile?.businessName);
-  const hideFab = location.pathname.startsWith('/documents/create') || location.pathname.startsWith('/documents/edit');
+  const showFab = location.pathname === '/documents';
+  const hideFab = !showFab;
   const { scale, setScale } = useDisplay();
 
   const isTabActive = (tab: (typeof PRIMARY_TABS)[number]) => {
@@ -226,6 +228,75 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
   const goTo = (path: string) => { closeMore(); setFabOpen(false); navigate(path); };
   const currentTheme = THEME_OPTIONS.find(t => t.id === theme) ?? THEME_OPTIONS[0];
 
+  // ── STEP-BY-STEP BACKING (WHATSAPP UX) ──────────────────────────────────────
+  const lastBackPress = useRef<number>(0);
+  
+  useEffect(() => {
+    let active = true;
+    const backHandlerPromise = App.addListener('backButton', ({ canGoBack }) => {
+      if (!active) return;
+      
+      // Step 0: Smart Logic - If keyboard/input is focused, blur it first
+      const activeEl = document.activeElement as HTMLElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        activeEl.blur();
+        return;
+      }
+
+      // Step 1: Component Internals (Sign Out Dialog)
+      if (confirmSignOutVisible) {
+        setConfirmSignOutVisible(false);
+        return;
+      }
+      
+      // Step 2: More Sheet
+      if (sheetOpen) {
+        closeMore();
+        return;
+      }
+      
+      // Step 3: FAB Context Menu
+      if (fabOpen) {
+        setFabOpen(false);
+        return;
+      }
+
+      // Step 4: Generic Overlays/Dialogs (Radix, Valu, etc.)
+      const activeOverlay = document.querySelector('[role="dialog"], [role="alertdialog"], .radix-overlay');
+      if (activeOverlay) {
+        window.dispatchEvent(new KeyboardEvent('keydown', {
+          key: 'Escape', keyCode: 27, code: 'Escape', which: 27, bubbles: true
+        }));
+        return;
+      }
+
+      // Step 5: Smart Exit Regression (Double-back to exit)
+      const isRoot = location.pathname === '/dashboard' || location.pathname === '/welcome' || !canGoBack;
+      if (isRoot) {
+        const now = Date.now();
+        if (now - lastBackPress.current < 2000) {
+          App.exitApp();
+        } else {
+          lastBackPress.current = now;
+          import('sonner').then(({ toast }) => {
+            toast.info("Press back again to exit application", {
+              position: 'bottom-center',
+              className: 'font-black uppercase tracking-widest text-[9px] bg-indigo-600/90 text-white rounded-xl border-none text-center',
+              duration: 2000,
+            });
+          });
+        }
+      } else {
+        navigate(-1);
+      }
+    });
+
+    return () => {
+      active = false;
+      backHandlerPromise.then(h => h.remove());
+    };
+  }, [confirmSignOutVisible, sheetOpen, fabOpen, location.pathname, navigate, closeMore]);
+
   return (
     <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
       overflow: 'hidden', background: 'var(--background, #0d1117)',
@@ -234,45 +305,65 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
       {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
       <header style={{
         flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        paddingTop: 'calc(env(safe-area-inset-top,0px) + 10px)',
-        paddingBottom: 10, paddingLeft: 16, paddingRight: 16,
-        background: 'linear-gradient(180deg,rgba(30,27,75,0.95) 0%,rgba(13,17,23,0.98) 100%)',
-        borderBottom: '1px solid rgba(99,102,241,0.15)',
-        backdropFilter: 'blur(12px)',
+        paddingTop: 'calc(env(safe-area-inset-top,0px) + 8px)',
+        paddingBottom: 8, paddingLeft: 20, paddingRight: 20,
+        background: 'rgba(10, 10, 15, 0.6)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        zIndex: 45,
+        boxShadow: '0 10px 30px -10px rgba(0,0,0,0.5)'
       }}>
         {/* Logo + name */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 10, overflow: 'hidden',
-            background: 'linear-gradient(135deg,#4f46e5,#7c3aed)',
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 14, overflow: 'hidden',
+            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(79,70,229,0.4)' }}>
-            <img src={logoImg} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+            boxShadow: '0 8px 20px -4px rgba(99, 102, 241, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.3)',
+            animation: 'mobileLogoGlow 3s ease-in-out infinite' }}>
+            <img src={logoImg} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           </div>
-          <span style={{ fontSize: 17, fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.3px',
-            fontFamily: 'system-ui,-apple-system,sans-serif' }}>BillVyapar</span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 17, fontStyle: 'italic', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em',
+              lineHeight: 1, textTransform: 'uppercase', textShadow: '0 0 15px rgba(99,102,241,0.5)' }}>BillVyapar</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#818cf8', letterSpacing: '0.15em',
+                textTransform: 'uppercase', opacity: 0.9 }}>Enterprise</span>
+              <div style={{ width: 3, height: 3, borderRadius: '50%', background: '#4f46e5' }} />
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#a5b4fc', letterSpacing: '0.15em',
+                textTransform: 'uppercase', opacity: 0.7 }}>HQ vv1.0.1</span>
+            </div>
+          </div>
         </div>
 
         {/* Right side */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {offline && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px',
-              borderRadius: 20, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.25)' }}>
-              <WifiOff style={{ width: 11, height: 11, color: '#f87171' }} />
-              <span style={{ fontSize: 10, color: '#f87171', fontWeight: 700 }}>Offline</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {offline ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
+              borderRadius: 20, background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', animation: 'mobilePulse 1s infinite' }} />
+              <span style={{ fontSize: 10, color: '#f87171', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Offline</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
+              borderRadius: 20, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)',
+              boxShadow: 'inset 0 0 10px rgba(16,185,129,0.05)' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
+              <span style={{ fontSize: 10, color: '#34d399', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Live Cloud</span>
             </div>
           )}
-          {!offline && (
-            <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e',
-              boxShadow: '0 0 6px rgba(34,197,94,0.6)' }} />
-          )}
-          {/* Profile avatar */}
+          
+          {/* Profile avatar - Glass Design */}
           <button type="button"
             onClick={() => !subscriptionExpired && navigate('/profiles')}
-            style={{ width: 36, height: 36, borderRadius: 12, border: '2px solid rgba(99,102,241,0.4)',
-              background: 'linear-gradient(135deg,rgba(79,70,229,0.4),rgba(124,58,237,0.4))',
-              color: '#fff', fontWeight: 800, fontSize: 13, cursor: 'pointer',
+            style={{ width: 40, height: 40, borderRadius: 15,
+              border: '1.5px solid rgba(255, 255, 255, 0.2)',
+              background: 'rgba(255, 255, 255, 0.08)',
+              color: '#fff', fontWeight: 900, fontSize: 14, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'system-ui,sans-serif' }}>
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.05)',
+              transition: 'all 0.2s', fontFamily: 'system-ui,sans-serif' }}>
             {ini}
           </button>
         </div>
@@ -359,11 +450,28 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
         </div>
       )}
 
-      {/* ── BOTTOM PILL NAV BAR ───────────────────────────────────────────────── */}
-      <nav style={{ flexShrink: 0, paddingBottom: 'env(safe-area-inset-bottom,0px)',
-        background: 'rgba(13,17,23,0.97)', borderTop: '1px solid rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(20px)' }}>
-        <div style={{ display: 'flex', alignItems: 'stretch', height: 62 }}>
+      {/* ── BOTTOM NAV BAR ────────────────────────────────────────────────────── */}
+      <nav style={{ 
+        flexShrink: 0, 
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
+        paddingTop: 12,
+        paddingLeft: 12,
+        paddingRight: 12,
+        background: 'linear-gradient(180deg, rgba(10, 10, 15, 0) 0%, rgba(10, 10, 15, 0.95) 100%)',
+        pointerEvents: 'none'
+      }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'stretch', 
+          height: 64,
+          background: 'rgba(25, 25, 35, 0.85)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderRadius: 24,
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+          pointerEvents: 'auto'
+        }}>
           {PRIMARY_TABS.map(tab => {
             const Icon = tab.icon;
             const active = isTabActive(tab);
@@ -372,24 +480,45 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
                 onMouseEnter={() => tab.path !== '__more__' && prefetchRoute(tab.path)}
                 onClick={() => tab.path === '__more__' ? openMore() : goTo(tab.path)}
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  justifyContent: 'center', gap: 3, background: 'none', border: 'none',
-                  cursor: 'pointer', position: 'relative', padding: '8px 4px' }}>
-                {/* Active indicator dot */}
+                  justifyContent: 'center', gap: 4, background: 'none', border: 'none',
+                  cursor: 'pointer', position: 'relative' }}>
+                
+                {/* Active Glow/Indicator */}
                 {active && (
-                  <div style={{ position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)',
-                    width: 4, height: 4, borderRadius: '50%', background: '#818cf8' }} />
+                  <div style={{ 
+                    position: 'absolute', 
+                    top: 0, 
+                    left: '50%', 
+                    transform: 'translateX(-50%)',
+                    width: 32, 
+                    height: 2, 
+                    background: '#6366f1',
+                    boxShadow: '0 0 12px #6366f1',
+                    borderRadius: '0 0 4px 4px'
+                  }} />
                 )}
-                {/* Icon container */}
-                <div style={{ width: 40, height: 32, borderRadius: 10, display: 'flex',
+
+                <div style={{ 
+                  width: 44, height: 34, borderRadius: 12, display: 'flex',
                   alignItems: 'center', justifyContent: 'center',
-                  background: active ? 'rgba(79,70,229,0.2)' : 'transparent',
-                  transition: 'background 0.15s' }}>
-                  <Icon style={{ width: 20, height: 20, color: active ? '#818cf8' : '#475569',
-                    strokeWidth: active ? 2.5 : 1.8, transition: 'color 0.15s' }} />
+                  background: active ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
+                }}>
+                  <Icon style={{ 
+                    width: 22, height: 22, 
+                    color: active ? '#818cf8' : 'rgba(255, 255, 255, 0.35)',
+                    strokeWidth: active ? 2.5 : 2, 
+                    filter: active ? 'drop-shadow(0 0 8px rgba(99, 102, 241, 0.5))' : 'none',
+                    transition: 'all 0.3s' 
+                  }} />
                 </div>
-                <span style={{ fontSize: 10, fontWeight: active ? 700 : 500,
-                  color: active ? '#818cf8' : '#475569', transition: 'color 0.15s',
-                  fontFamily: 'system-ui,sans-serif' }}>{tab.label}</span>
+                <span style={{ 
+                  fontSize: 10, fontWeight: active ? 800 : 600,
+                  color: active ? '#f1f5f9' : 'rgba(255, 255, 255, 0.35)',
+                  letterSpacing: '0.02em',
+                  textTransform: 'uppercase',
+                  transition: 'color 0.3s' 
+                }}>{tab.label}</span>
               </button>
             );
           })}
@@ -584,16 +713,14 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
           onClick={() => setConfirmSignOutVisible(false)}>
           <div onClick={e => e.stopPropagation()}
             style={{ width: '100%', maxWidth: 480,
-              background: 'var(--background,#0d1117)',
+              background: '#1e293b',
               borderRadius: '24px 24px 0 0',
               padding: '8px 20px 0',
               paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 20px)',
-              boxShadow: '0 -12px 48px rgba(0,0,0,0.5)' }}>
-            {/* Handle */}
+              boxShadow: '0 -12px 48px rgba(0,0,0,0.4)' }}>
             <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 16px' }}>
               <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)' }} />
             </div>
-            {/* Icon */}
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
               <div style={{ width: 56, height: 56, borderRadius: 18,
                 background: 'rgba(239,68,68,0.15)',
@@ -601,32 +728,30 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
                 <LogOut style={{ width: 26, height: 26, color: '#f87171' }} />
               </div>
             </div>
-            {/* Text */}
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
               <p style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: '#f1f5f9',
                 fontFamily: 'system-ui,sans-serif' }}>Sign Out?</p>
-              <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.45)',
+              <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.5)',
                 fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
                 You'll need to sign in again to access your account.
               </p>
             </div>
-            {/* Buttons */}
             <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
               <button type="button" onClick={() => setConfirmSignOutVisible(false)}
                 style={{ flex: 1, height: 50, borderRadius: 14, cursor: 'pointer',
-                  background: 'rgba(255,255,255,0.07)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: 600,
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#f1f5f9', fontSize: 15, fontWeight: 600,
                   fontFamily: 'system-ui,sans-serif' }}>
                 Cancel
               </button>
               <button type="button" onClick={() => { setConfirmSignOutVisible(false); signOut(); }}
                 style={{ flex: 1, height: 50, borderRadius: 14, cursor: 'pointer',
-                  background: 'linear-gradient(135deg,#dc2626,#b91c1c)',
+                  background: '#dc2626',
                   border: 'none',
                   color: '#fff', fontSize: 15, fontWeight: 700,
                   fontFamily: 'system-ui,sans-serif',
-                  boxShadow: '0 4px 16px rgba(220,38,38,0.4)' }}>
+                  boxShadow: '0 4px 16px rgba(220,38,38,0.3)' }}>
                 Sign Out
               </button>
             </div>
@@ -643,10 +768,10 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
           <div style={{ position: 'fixed', inset: 0, zIndex: 50,
             background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
             display: 'flex', alignItems: 'flex-end' }}>
-            <div style={{ width: '100%', background: 'var(--background,#0d1117)',
+            <div style={{ width: '100%', background: '#1e293b',
               borderRadius: '28px 28px 0 0', padding: '24px 20px',
               paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 24px)',
-              boxShadow: '0 -12px 60px rgba(0,0,0,0.5)' }}>
+              boxShadow: '0 -12px 60px rgba(0,0,0,0.4)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20 }}>
                 <div style={{ width: 44, height: 44, borderRadius: 14, flexShrink: 0,
                   background: 'rgba(239,68,68,0.15)',
@@ -667,14 +792,15 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" onClick={() => navigate('/subscription')}
                   style={{ flex: 1, height: 50, borderRadius: 14, border: 'none', cursor: 'pointer',
-                    background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: '#fff',
-                    fontSize: 15, fontWeight: 700, fontFamily: 'system-ui,sans-serif' }}>
+                    background: '#4f46e5', color: '#fff',
+                    fontSize: 15, fontWeight: 700, fontFamily: 'system-ui,sans-serif',
+                    boxShadow: '0 4px 16px rgba(79,70,229,0.4)' }}>
                   Renew Now
                 </button>
                 <button type="button" onClick={signOut}
                   style={{ flex: 1, height: 50, borderRadius: 14, cursor: 'pointer',
-                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'rgba(255,255,255,0.7)', fontSize: 15, fontWeight: 600,
+                    background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
+                    color: '#f1f5f9', fontSize: 15, fontWeight: 600,
                     fontFamily: 'system-ui,sans-serif' }}>
                   Sign Out
                 </button>
@@ -685,8 +811,11 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
 
       <style>{`
         @keyframes mobilePulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        @keyframes mobileLogoGlow {
+          0%, 100% { box-shadow: 0 8px 20px -4px rgba(99, 102, 241, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+          50% { box-shadow: 0 12px 30px -2px rgba(129, 140, 248, 0.8), inset 0 0 0 1.5px rgba(255, 255, 255, 0.5); }
+        }
         * { -webkit-tap-highlight-color: transparent; }
-        /* Pass scroll touches through cards to the scroll container */
         .card, [class*="card"], [data-slot="card"] { touch-action: pan-y; }
       `}</style>
     </div>

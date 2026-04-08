@@ -275,10 +275,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setAccessToken(null);
     clearApiCache();
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('currentProfile');
-    localStorage.removeItem('deviceId'); // clear device binding so next login on any device works
+    const keysToRemove = ['accessToken', 'user', 'currentProfile', 'deviceId'];
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    
+    // Specifically keep any keys prefixed with 'bv_filter_' or 'bv_pref_'
+    // clearApiCache already handles business data cleanup.
+    
     window.location.href = '/';
   };
 

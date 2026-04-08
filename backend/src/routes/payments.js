@@ -171,8 +171,8 @@ paymentsRouter.get('/', async (req, res, next) => {
 
     res.json(
       payments.map(p => ({
+        ...p,
         id: String(p._id),
-        ...p.toObject(),
         _id: undefined,
         userId: undefined,
         createdAt: p.createdAt?.toISOString?.() ?? p.createdAt,

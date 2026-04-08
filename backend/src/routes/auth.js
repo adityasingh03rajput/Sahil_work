@@ -441,6 +441,19 @@ authRouter.post('/activate-license', requireAuth, async (req, res, next) => {
       if (String(license.activatedByUserId) !== String(req.userId)) {
         return res.status(400).json({ error: 'This license key is already in use' });
       }
+      
+      // License is already active and belongs to this user.
+      // Return the current expiry date without extending it.
+      const daysRemaining = Math.max(0, Math.ceil((license.expiresAt - new Date()) / (1000 * 60 * 60 * 24)));
+      return res.json({
+        ok: true,
+        license: {
+          key: license.key,
+          expiresAt: license.expiresAt,
+          daysRemaining,
+          durationDays: license.durationDays,
+        },
+      });
     }
 
     // Check email matches

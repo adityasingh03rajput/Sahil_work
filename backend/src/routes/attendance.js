@@ -5,6 +5,102 @@ import { requireAuth } from '../middleware/auth.js';
 
 export const attendanceRouter = Router();
 
+/**
+ * In-memory set of employees currently online via the HTTP (native) path.
+ * Key: `${employeeId}:${ownerUserId}`, Value: timeout handle that fires
+ * employee-online:false after 60s of silence (2× the 15s GPS interval + buffer).
+ *
+ * This is the bridge that makes HTTP-only (native TrackingService) employees
+ * appear as "Live" in the dashboard — previously, only socket-connected
+ * employees got employee-online:true, so HTTP-tracking employees always
+ * showed as "Offline" even though their location was updating.
+ */
+const httpOnlineTimers = new Map();
+
+/**
+ * POST /attendance/live-location
+ * Called directly by the native Android TrackingService (Java HTTP POST).
+ * No auth token required — authenticated by employeeId + ownerUserId pair.
+ * Broadcasts location to owner's socket room AND persists to DB.
+ */
+attendanceRouter.post('/live-location', async (req, res) => {
+  try {
+    const { employeeId, ownerUserId, name, lat, lng, accuracy, speed, updatedAt } = req.body;
+    if (!employeeId || !ownerUserId || lat == null || lng == null) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      // FIX: Emit employee-online:true so the dashboard shows "Live" status.
+      // Previously this was missing — only socket employee-join set online:true,
+      // but the native TrackingService only uses HTTP POST, never socket.
+      const timerKey = `${employeeId}:${ownerUserId}`;
+      const isFirstPing = !httpOnlineTimers.has(timerKey);
+
+      // Clear any existing silence-timeout
+      if (httpOnlineTimers.has(timerKey)) {
+        clearTimeout(httpOnlineTimers.get(timerKey));
+      }
+
+      // Mark online (always — in case dashboard restarted or reconnected)
+      // Emit on first ping OR every ~5 pings as a heartbeat-refresh
+      io.to(`owner:${ownerUserId}`).emit('employee-online', {
+        employeeId,
+        online: true,
+      });
+
+      // Set a 60s silence timer — if no ping arrives, mark offline
+      // 60s = 4 × 15s interval, giving plenty of buffer for GPS delays
+      const silenceTimer = setTimeout(() => {
+        httpOnlineTimers.delete(timerKey);
+        if (io) {
+          io.to(`owner:${ownerUserId}`).emit('employee-online', {
+            employeeId,
+            online: false,
+          });
+        }
+      }, 60_000);
+      httpOnlineTimers.set(timerKey, silenceTimer);
+
+      // Broadcast location to owner's room
+      io.to(`owner:${ownerUserId}`).emit('employee-location', {
+        employeeId, name, lat, lng,
+        updatedAt: updatedAt || new Date().toISOString(),
+      });
+    }
+
+    // Persist to Attendance DB
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const newPt = { lat, lng, ts: new Date(updatedAt || Date.now()) };
+
+    const record = await Attendance.findOne({ employeeId, date: today });
+    if (record) {
+      const hist = record.locationHistory || [];
+      let addedKm = 0;
+      if (hist.length > 0) {
+        const last = hist[hist.length - 1];
+        const R = 6371;
+        const dLat = ((lat - last.lat) * Math.PI) / 180;
+        const dLng = ((lng - last.lng) * Math.PI) / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos((last.lat * Math.PI) / 180) * Math.cos((lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+        addedKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        if (addedKm < 0.005 || addedKm > 1) addedKm = 0;
+      }
+      await Attendance.findByIdAndUpdate(record._id, {
+        $set: { lastLocation: { lat, lng, updatedAt: newPt.ts } },
+        $push: { locationHistory: { $each: [newPt], $slice: -240 } },
+        $inc: { totalKm: addedKm },
+      });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[live-location] Error:', err.message);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
 /** Google Places Autocomplete proxy (New API) — keeps API key server-side */
 attendanceRouter.get('/places/autocomplete', async (req, res) => {
   const { q, lat, lng } = req.query;
@@ -400,7 +496,7 @@ attendanceRouter.get('/', requireAuth, async (req, res, next) => {
     // Manual lookup instead of populate
     const empIds = [...new Set(records.map(r => String(r.employeeId)))];
     const employees = empIds.length
-      ? await Employee.find({ _id: { $in: empIds } }, 'name email role').lean()
+      ? await Employee.find({ _id: { $in: empIds } }, 'name email role schedule').lean()
       : [];
     const empMap = Object.fromEntries(employees.map(e => [String(e._id), e]));
 
@@ -427,7 +523,7 @@ attendanceRouter.get('/today', requireAuth, async (req, res, next) => {
     // Manual lookup instead of populate — faster, no Mongoose overhead
     const empIds = [...new Set(records.map(r => String(r.employeeId)))];
     const employees = empIds.length
-      ? await Employee.find({ _id: { $in: empIds } }, 'name email role').lean()
+      ? await Employee.find({ _id: { $in: empIds } }, 'name email role schedule').lean()
       : [];
     const empMap = Object.fromEntries(employees.map(e => [String(e._id), e]));
 
@@ -460,8 +556,9 @@ attendanceRouter.post('/location', requireAuth, async (req, res, next) => {
     if (hist.length > 0) {
       const last = hist[hist.length - 1];
       addedKm = haversineKm(last.lat, last.lng, newPt.lat, newPt.lng);
-      // Ignore GPS noise (< 5m) and teleports (> 1km jump in one ping)
-      if (addedKm < 0.005 || addedKm > 1) addedKm = 0;
+      // Ignore GPS noise (< 20m) and teleports (> 1km jump in one ping)
+      // Jitter typically hops 5-15m indoors; 20m is the strategic threshold.
+      if (addedKm < 0.020 || addedKm > 1) addedKm = 0;
     }
 
     await Attendance.findByIdAndUpdate(record._id, {
@@ -493,7 +590,7 @@ attendanceRouter.get('/live', requireAuth, async (req, res, next) => {
 
     const empIds = [...new Set(records.map(r => String(r.employeeId)))];
     const employees = empIds.length
-      ? await Employee.find({ _id: { $in: empIds } }, 'name email role').lean()
+      ? await Employee.find({ _id: { $in: empIds } }, 'name email role schedule').lean()
       : [];
     const empMap = Object.fromEntries(employees.map(e => [String(e._id), e]));
 

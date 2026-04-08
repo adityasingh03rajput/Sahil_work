@@ -166,63 +166,192 @@ export function AuthPage() {
 
   // ── NATIVE (APK) layout ───────────────────────────────────────────────────
   if (isNative) {
-    const statusDot = backendOnline === true ? '#22c55e' : backendOnline === false ? '#ef4444' : '#f59e0b';
+    const statusDot = backendOnline === true ? '#10b981' : backendOnline === false ? '#ef4444' : '#f59e0b';
     const modeTitle = mode === 'auth' ? (isSignUp ? 'Create Account' : 'Welcome Back') : mode === 'forgot' ? 'Forgot Password' : 'Reset Password';
-    const btnLabel = mode === 'forgot' ? 'Send OTP' : mode === 'reset' ? 'Reset Password' : isSignUp ? 'Create Account' : 'Sign In';
+    const btnLabel = mode === 'forgot' ? 'Get Protocol' : mode === 'reset' ? 'Update Keys' : isSignUp ? 'Begin Initialization' : 'Authorize Access';
+
     return (
-      <div style={{ position: 'fixed', inset: 0, background: '#0d1117', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden', fontFamily: 'system-ui,-apple-system,sans-serif', WebkitTapHighlightColor: 'transparent' } as any}>
-        <div style={{ position: 'fixed', top: -100, left: -100, width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle,rgba(79,70,229,0.15) 0%,transparent 70%)', pointerEvents: 'none', zIndex: 0 }} />
-        <div style={{ height: 'env(safe-area-inset-top,20px)' }} />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 20px', position: 'relative', zIndex: 2 }}>
-          <span style={{ fontSize: 16, fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.3px' }}>BillVyapar</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, borderRadius: 20, padding: '5px 10px', background: 'rgba(255,255,255,0.06)' }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusDot }} />
-            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>{backendOnline === true ? 'Online' : backendOnline === false ? 'Offline' : '…'}</span>
-          </div>
+      <div style={{ position: 'fixed', inset: 0, background: '#05050a', fontFamily: 'system-ui,-apple-system,sans-serif', overflowY: 'auto', overflowX: 'hidden' }}>
+        {/* Animated Background System */}
+        <div style={{ position: 'fixed', top: '-20%', left: '-20%', width: '100%', height: '80%', borderRadius: '50%', background: 'radial-gradient(circle,rgba(79,70,229,0.15) 0%,transparent 70%)', pointerEvents: 'none', filter: 'blur(80px)' }} />
+        <div style={{ position: 'fixed', bottom: '-20%', right: '-20%', width: '100%', height: '80%', borderRadius: '50%', background: 'radial-gradient(circle,rgba(16,185,129,0.1) 0%,transparent 70%)', pointerEvents: 'none', filter: 'blur(80px)' }} />
+        <div style={{ position: 'fixed', top: '20%', right: '-10%', width: '40%', height: '40%', borderRadius: '50%', background: 'radial-gradient(circle,rgba(139,92,246,0.08) 0%,transparent 70%)', pointerEvents: 'none', filter: 'blur(60px)' }} />
+
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          <div style={{ height: 'env(safe-area-inset-top, 20px)' }} />
+
+          {/* Precision Header */}
+          <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px' }}>
+            <span style={{ fontSize: 22, fontStyle: 'italic', fontWeight: 900, letterSpacing: '-0.06em', color: '#fff', textShadow: '0 0 20px rgba(99,102,241,0.5)' }}>
+              BILLVYAPAR<span style={{ color: '#10b981' }}>™</span>
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', borderRadius: 100, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusDot, boxShadow: `0 0 10px ${statusDot}` }} />
+              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>{backendOnline === true ? 'Active' : 'Offline'}</span>
+            </div>
+          </header>
+
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 24px 60px' }}>
+            <div className="auth-container" style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 32, opacity: 0, animation: 'authFadeIn 0.8s ease-out forwards' }}>
+              
+              <style>{`
+                @keyframes authFadeIn { from { opacity:0; transform:translateY(30px) scale(0.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+                @keyframes logoPulse { from { box-shadow: 0 0 20px rgba(99,102,241,0.2); } to { box-shadow: 0 0 40px rgba(99,102,241,0.5); } }
+                @keyframes authSpin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+              `}</style>
+
+              {/* Logo Identity */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24 }}>
+                <div style={{ position: 'relative' }}>
+                   <div style={{ position: 'absolute', inset: -20, borderRadius: '50%', background: 'radial-gradient(circle,#4f46e5 0%,transparent 70%)', opacity: 0.3, filter: 'blur(20px)' }} />
+                   <div style={{ 
+                      position: 'relative', width: 92, height: 92, borderRadius: 28, 
+                      background: 'linear-gradient(135deg,#4f46e5,#7c3aed)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+                      animation: 'logoPulse 2s ease-in-out infinite alternate'
+                   }}>
+                     <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                   </div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, letterSpacing: '-0.04em', color: '#fff' }}>{modeTitle}</h1>
+                  <p style={{ margin: '8px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.02em', fontWeight: 500 }}>
+                    {mode === 'auth' ? (isSignUp ? 'Initialize your corporate registry' : 'Accessing encrypted business data') : 'Aria-Protocol Verification Required'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Advanced Tab Switcher */}
+              {mode === 'auth' && (
+                <div style={{ 
+                   display: 'flex', padding: 8, borderRadius: 24, 
+                   background: 'rgba(255,255,255,0.03)', 
+                   border: '1px solid rgba(255,255,255,0.06)',
+                   backdropFilter: 'blur(20px)',
+                   gap: 8
+                }}>
+                  {(['owner', 'employee'] as const).map(tab => (
+                    <button key={tab} type="button"
+                      onClick={() => { if (tab === 'employee') { navigate('/employee/login'); return; } setLoginTab(tab); setIsSignUp(false); }}
+                      style={{ 
+                        flex: 1, padding: '14px 0', borderRadius: 18, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 800, letterSpacing: '0.08em', transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+                        background: loginTab === tab ? 'white' : 'transparent',
+                        color: loginTab === tab ? '#000' : 'rgba(255,255,255,0.3)',
+                        boxShadow: loginTab === tab ? '0 8px 30px rgba(255,255,255,0.15)' : 'none',
+                        transform: loginTab === tab ? 'scale(1.02)' : 'scale(1)',
+                      }}>
+                      {tab === 'owner' ? 'HQ ADMIN' : 'STAFF PORTAL'}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Tactical Input Card */}
+              <div style={{ 
+                 background: 'rgba(255,255,255,0.02)',
+                 backdropFilter: 'blur(30px)',
+                 border: '1px solid rgba(255,255,255,0.08)',
+                 borderRadius: 40,
+                 padding: '40px 32px',
+                 boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+              }}>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+                  {mode === 'auth' && isSignUp && (
+                    <>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <MobileFieldLabel>Legal Identity</MobileFieldLabel>
+                        <input type="text" placeholder="Commander Name" value={name} onChange={e => setName(e.target.value)} required style={mobileInp} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <MobileFieldLabel>Telecom Link</MobileFieldLabel>
+                        <div style={{ display: 'flex', gap: 12 }}>
+                          <select value={phoneCountryCode} onChange={e => setPhoneCountryCode(e.target.value)} style={{ ...mobileInp, width: 'auto', textAlign: 'center' }}>{['+91','+1','+44'].map(c => <option key={c} value={c}>{c}</option>)}</select>
+                          <input type="tel" placeholder="Digit sequence" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g,''))} required style={{ ...mobileInp, flex: 1 }} />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <MobileFieldLabel>Registry Email</MobileFieldLabel>
+                    <input type="text" inputMode="email" autoComplete="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="operator@hukum.io" value={email} onChange={e => setEmail(e.target.value)} required 
+                      style={{ ...mobileInp, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }} />
+                  </div>
+
+                  {mode === 'auth' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <MobileFieldLabel>Cipher Key</MobileFieldLabel>
+                        {!isSignUp && loginTab === 'owner' && (
+                          <button type="button" onClick={() => setMode('forgot')}
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 900, color: '#6366f1', letterSpacing: '0.12em', textTransform: 'uppercase', padding: 0 }}>
+                            Lost Token?
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ position: 'relative' }}>
+                        <input type={showPass ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} 
+                          style={{ ...mobileInp, paddingRight: 64, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }} />
+                        <button type="button" onClick={() => setShowPass(!showPass)}
+                          style={{ position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 10, fontWeight: 900, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.15em', textTransform: 'uppercase', padding: 0 }}>
+                          {showPass ? 'Mask' : 'Show'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {mode === 'reset' && (
+                    <>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <MobileFieldLabel>OTP Signal</MobileFieldLabel>
+                        <input type="text" placeholder="6-digit hash" value={otp} onChange={e => setOtp(e.target.value)} required style={mobileInp} />
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <MobileFieldLabel>New Master Key</MobileFieldLabel>
+                        <input type="password" placeholder="Secure cipher" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={6} style={mobileInp} />
+                      </div>
+                    </>
+                  )}
+
+                  <button type="submit" disabled={loading}
+                    style={{ 
+                      width: '100%', height: 68, borderRadius: 24, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+                      background: loading ? 'white' : 'linear-gradient(135deg,#6366f1,#4f46e5)',
+                      color: loading ? '#000' : '#fff', fontWeight: 900, fontSize: 17, letterSpacing: '0.1em',
+                      boxShadow: loading ? 'none' : '0 12px 32px rgba(99,102,241,0.4)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
+                      transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+                      fontFamily: 'system-ui,-apple-system,sans-serif',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}>
+                    {loading ? <Spinner /> : btnLabel.toUpperCase()}
+                  </button>
+                </form>
+
+                <div style={{ textAlign: 'center', marginTop: 32 }}>
+                  {mode === 'auth' && loginTab === 'owner' && (
+                    <button type="button" onClick={() => setIsSignUp(!isSignUp)}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 800, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: 12 }}>
+                      {isSignUp ? '← Back to HQ Portal' : 'Initialize New Account'}
+                    </button>
+                  )}
+                  {mode !== 'auth' && (
+                    <button type="button" onClick={() => setMode('auth')}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 800, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: 12 }}>
+                      ← Secure Portal Access
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </main>
+
+          <footer style={{ padding: '32px', textAlign: 'center', opacity: 0.2 }}>
+            <p style={{ margin: 0, fontSize: 9, fontWeight: 900, color: '#fff', letterSpacing: '0.4em', textTransform: 'uppercase' }}>Hukum Strategic Systems © 2026</p>
+          </footer>
         </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 20px 0', position: 'relative', zIndex: 2 }}>
-          <div style={{ marginBottom: 24, textAlign: 'center' }}>
-            <div style={{ width: 80, height: 80, borderRadius: 24, margin: '0 auto 14px', background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 0 12px rgba(79,70,229,0.1), 0 8px 32px rgba(79,70,229,0.4)' }}>
-              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            </div>
-            <h1 style={{ margin: '0 0 4px', fontSize: 26, fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.5px' }}>BillVyapar</h1>
-            <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>Business Billing & Documentation</p>
-          </div>
-          {mode === 'auth' && (
-            <div style={{ display: 'flex', width: '100%', maxWidth: 400, gap: 8, marginBottom: 20 }}>
-              {(['owner', 'employee'] as const).map(tab => (
-                <button key={tab} type="button" onClick={() => { if (tab === 'employee') { navigate('/employee/login'); return; } setLoginTab(tab); setIsSignUp(false); }}
-                  style={{ flex: 1, padding: '12px 8px', borderRadius: 14, cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'system-ui,sans-serif', background: loginTab === tab ? 'linear-gradient(135deg,rgba(79,70,229,0.3),rgba(124,58,237,0.25))' : 'rgba(255,255,255,0.04)', color: loginTab === tab ? '#a5b4fc' : 'rgba(255,255,255,0.4)', outline: loginTab === tab ? '1.5px solid rgba(99,102,241,0.4)' : '1.5px solid rgba(255,255,255,0.07)', border: 'none', transition: 'all 0.15s' }}>
-                  {tab === 'owner' ? '🏢 Owner' : '👤 Employee'}
-                </button>
-              ))}
-            </div>
-          )}
-          <div style={{ width: '100%', maxWidth: 400, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 24, padding: '24px 20px 20px', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
-            <div style={{ width: 32, height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.12)', margin: '0 auto 20px' }} />
-            <div style={{ marginBottom: 20 }}>
-              <h2 style={{ margin: '0 0 3px', fontSize: 20, fontWeight: 800, color: '#f1f5f9' }}>{modeTitle}</h2>
-              <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>{mode === 'auth' ? (isSignUp ? 'Start managing your business' : 'Sign in to your dashboard') : mode === 'forgot' ? 'Enter your email to receive an OTP' : 'Enter the OTP and your new password'}</p>
-            </div>
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {mode === 'auth' && isSignUp && (<>
-                <div><MobileFieldLabel>Full Name</MobileFieldLabel><input type="text" placeholder="Your full name" value={name} onChange={e => setName(e.target.value)} required style={mobileInp} onFocus={e => e.target.style.borderColor='rgba(99,102,241,0.6)'} onBlur={e => e.target.style.borderColor='rgba(255,255,255,0.1)'} /></div>
-                <div><MobileFieldLabel>Phone</MobileFieldLabel><div style={{ display: 'flex', gap: 8 }}><select value={phoneCountryCode} onChange={e => setPhoneCountryCode(e.target.value)} style={{ ...mobileInp, width: 'auto', minWidth: 76, padding: '14px 10px' }} aria-label="Country code">{['+91','+1','+44','+61','+971','+65','+60','+49','+33','+81','+86','+7','+55','+27','+92','+880','+94','+977'].map(c => <option key={c} value={c}>{c}</option>)}</select><input type="tel" inputMode="numeric" placeholder="Phone number" value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g,'').slice(0,15))} required style={{ ...mobileInp, flex: 1 }} onFocus={e => e.target.style.borderColor='rgba(99,102,241,0.6)'} onBlur={e => e.target.style.borderColor='rgba(255,255,255,0.1)'} /></div></div>
-              </>)}
-              <div><MobileFieldLabel>Email Address</MobileFieldLabel><input type="email" inputMode="email" autoComplete="email" placeholder="name@company.com" value={email} onChange={e => setEmail(e.target.value)} required style={mobileInp} onFocus={e => e.target.style.borderColor='rgba(99,102,241,0.6)'} onBlur={e => e.target.style.borderColor='rgba(255,255,255,0.1)'} /></div>
-              {mode === 'forgot' && (<div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 12, background: 'rgba(79,70,229,0.1)', border: '1px solid rgba(99,102,241,0.25)' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span style={{ fontSize: 12, color: '#a5b4fc', fontWeight: 600 }}>OTP will be sent to your email</span></div>)}
-              {mode === 'auth' && (<div><div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}><MobileFieldLabel>Password</MobileFieldLabel>{!isSignUp && loginTab === 'owner' && <button type="button" onClick={() => setMode('forgot')} style={{ fontSize: 12, fontWeight: 600, color: '#818cf8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>Forgot?</button>}</div><div style={{ position: 'relative' }}><input type={showPass ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} autoComplete={isSignUp ? 'new-password' : 'current-password'} style={{ ...mobileInp, paddingRight: 52 }} onFocus={e => e.target.style.borderColor='rgba(99,102,241,0.6)'} onBlur={e => e.target.style.borderColor='rgba(255,255,255,0.1)'} /><button type="button" onClick={() => setShowPass(v => !v)} style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 52, background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{showPass ? 'HIDE' : 'SHOW'}</button></div></div>)}
-              {mode === 'reset' && (<><div><MobileFieldLabel>OTP Code</MobileFieldLabel><input type="text" inputMode="numeric" placeholder="Enter 4-digit OTP" value={otp} onChange={e => setOtp(e.target.value)} required style={mobileInp} onFocus={e => e.target.style.borderColor='rgba(99,102,241,0.6)'} onBlur={e => e.target.style.borderColor='rgba(255,255,255,0.1)'} /></div><div><MobileFieldLabel>New Password</MobileFieldLabel><input type="password" placeholder="New password (min 6 chars)" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={6} autoComplete="new-password" style={mobileInp} onFocus={e => e.target.style.borderColor='rgba(99,102,241,0.6)'} onBlur={e => e.target.style.borderColor='rgba(255,255,255,0.1)'} /></div></>)}
-              <button type="submit" disabled={loading} style={{ width: '100%', height: 54, borderRadius: 16, border: 'none', background: loading ? 'rgba(79,70,229,0.35)' : 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: '#fff', fontSize: 16, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer', boxShadow: loading ? 'none' : '0 8px 28px rgba(79,70,229,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontFamily: 'system-ui,sans-serif', marginTop: 4 }} onTouchStart={e => { if (!loading) e.currentTarget.style.transform='scale(0.97)'; }} onTouchEnd={e => { e.currentTarget.style.transform='scale(1)'; }}>{loading ? <><Spinner />Please wait…</> : btnLabel}</button>
-            </form>
-            <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {mode !== 'auth' && <button type="button" onClick={() => setMode('auth')} style={{ fontSize: 13, fontWeight: 600, color: '#818cf8', background: 'none', border: 'none', cursor: 'pointer' }}>← Back to sign in</button>}
-              {mode === 'auth' && loginTab === 'owner' && <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: 0 }}>{isSignUp ? 'Already have an account? ' : "Don't have an account? "}<button type="button" onClick={() => { setMode('auth'); setIsSignUp(!isSignUp); }} style={{ fontWeight: 700, color: '#818cf8', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>{isSignUp ? 'Sign in' : 'Sign up'}</button></p>}
-            </div>
-          </div>
-        </div>
-        <div style={{ height: 'calc(env(safe-area-inset-bottom,16px) + 24px)' }} />
-        <style>{`@keyframes authSpin{to{transform:rotate(360deg)}} input::placeholder{color:rgba(255,255,255,0.2)} input:-webkit-autofill,input:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 100px #1e1b4b inset!important;-webkit-text-fill-color:#f1f5f9!important} select option{background:#1e1b4b;color:#f1f5f9}`}</style>
       </div>
     );
   }
@@ -252,7 +381,7 @@ export function AuthPage() {
     : loginTab === 'employee' ? 'Sign In as Employee' : isSignUp ? 'Create Account' : 'Sign In';
 
   return (
-    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', fontFamily: 'Manrope, sans-serif', backgroundImage: 'url(/background.png)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#2a3a5c', overflowY: 'auto', width: '100vw', height: '100vh', maxWidth: 'none' }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', fontFamily: 'Manrope, sans-serif', backgroundImage: 'url(./background.png)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#2a3a5c', overflowY: 'auto', width: '100vw', height: '100vh', maxWidth: 'none' }}>
 
       {/* Fullscreen button */}
       <button type="button" title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}

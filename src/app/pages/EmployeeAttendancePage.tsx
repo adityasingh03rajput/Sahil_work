@@ -3,6 +3,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { API_URL } from "../config/api";
 import { toast } from "sonner";
 import { useLocationTracker } from "../hooks/useLocationTracker";
+import { encodeDigiPin } from "../utils/markerAnimation";
+
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -126,9 +128,91 @@ function EmptyState({ emoji, title, sub }: { emoji: string; title: string; sub: 
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
+/**
+ * usePullToRefresh — native-feel pull-down gesture on a scroll container.
+ * Returns a ref to attach to the scrollable element + refreshing state.
+ * onRefresh: async fn to call on a confirmed pull (returns when done).
+ */
+function usePullToRefresh(onRefresh: () => Promise<void>) {
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDist, setPullDist] = useState(0); // px pulled down
+  const startY = useRef(0);
+  const pulling = useRef(false);
+
+  const THRESHOLD = 72; // px needed to trigger
+  const MAX_PULL   = 100;
+
+  const onTouchStart = useCallback((e: TouchEvent) => {
+    const el = scrollRef.current;
+    if (!el || el.scrollTop > 0) return;
+    startY.current = e.touches[0].clientY;
+    pulling.current = true;
+  }, []);
+
+  const onTouchMove = useCallback((e: TouchEvent) => {
+    if (!pulling.current || refreshing) return;
+    const el = scrollRef.current;
+    if (!el || el.scrollTop > 0) { pulling.current = false; setPullDist(0); return; }
+    const dy = e.touches[0].clientY - startY.current;
+    if (dy <= 0) { setPullDist(0); return; }
+    e.preventDefault();
+    setPullDist(Math.min(dy * 0.55, MAX_PULL));
+  }, [refreshing]);
+
+  const onTouchEnd = useCallback(async () => {
+    if (!pulling.current) return;
+    pulling.current = false;
+    if (pullDist >= THRESHOLD) {
+      setRefreshing(true);
+      setPullDist(0);
+      try { await onRefresh(); } finally { setRefreshing(false); }
+    } else {
+      setPullDist(0);
+    }
+  }, [pullDist, onRefresh]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [onTouchStart, onTouchMove, onTouchEnd]);
+
+  return { scrollRef, refreshing, pullDist, threshold: THRESHOLD };
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
+
 export function EmployeeAttendancePage() {
   const { user, accessToken, signOut } = useAuth();
   const [tab, setTab] = useState<"today" | "tasks" | "projects" | "history">("today");
+
+  // ── Theme isolation: force the employee app's own dark context regardless
+  // of what theme the web app is using. Restores original class on unmount.
+  // This prevents warm/ocean/emerald/rosewood themes from making text invisible.
+  useEffect(() => {
+    const root = document.documentElement;
+    // Save all current theme-related classes
+    const saved = Array.from(root.classList);
+    // Strip every color-theme class, force dark
+    root.classList.remove(
+      'theme-warm', 'theme-ocean', 'theme-emerald', 'theme-rosewood',
+      'theme-indigo-fusion', 'dark', 'light'
+    );
+    root.classList.add('dark');
+    return () => {
+      // Restore original classes when leaving employee view
+      root.classList.remove('dark');
+      for (const cls of saved) root.classList.add(cls);
+    };
+  }, []);
 
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,6 +230,8 @@ export function EmployeeAttendancePage() {
   const [expandedProj, setExpandedProj] = useState<Set<string>>(new Set());
   const [projTaskUpdating, setProjTaskUpdating] = useState<string | null>(null);
 
+  const [lastPos, setLastPos] = useState<{ lat: number, lng: number } | null>(null);
+  const [showPermissionTip, setShowPermissionTip] = useState(false);
   const locationTracker = useLocationTracker();
 
   const hdrs = { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` };
@@ -198,11 +284,10 @@ export function EmployeeAttendancePage() {
     if (tab === "projects") loadProjects();
   }, [tab]);
 
-  const startTracking = useCallback((employeeId: string, ownerUserId: string, name: string) => {
+  const startTracking = useCallback(async (employeeId: string, ownerUserId: string, name: string) => {
     if (locationTracker.isActive()) return;
-    locationTracker.start(employeeId, ownerUserId, name, getSocketUrl());
-    // Mirror connect/disconnect to local `tracking` state
-    const sock = locationTracker.socket();
+    // FIX: start() is async — await it to get the socket before attaching listeners
+    const sock = await locationTracker.start(employeeId, ownerUserId, name, getSocketUrl());
     if (sock) {
       sock.on("connect",    () => setTracking(true));
       sock.on("disconnect", () => setTracking(false));
@@ -214,6 +299,23 @@ export function EmployeeAttendancePage() {
     locationTracker.stop();
     setTracking(false);
   }, [locationTracker]);
+
+  // ── Pull-to-refresh: reload data + restart GPS if it stopped ──────────────
+  const handlePullRefresh = useCallback(async () => {
+    // Reload attendance data
+    await load();
+    if (tab === "tasks") await loadTasks();
+    if (tab === "projects") await loadProjects();
+
+    // Restart GPS tracking if it was supposed to be active but isn't
+    const shouldTrack = !!todayRecord?.checkInTime && !todayRecord?.checkOutTime;
+    if (shouldTrack && !locationTracker.isActive() && user?.id && user?.ownerUserId) {
+      toast.info("Restarting location tracking…");
+      await startTracking(user.id, user.ownerUserId, user.name || user.email || "Employee");
+    }
+  }, [load, loadTasks, loadProjects, tab, todayRecord, locationTracker, user, startTracking]);
+
+  const { scrollRef, refreshing, pullDist, threshold } = usePullToRefresh(handlePullRefresh);
 
   useEffect(() => {
     if (todayRecord?.checkInTime && !todayRecord?.checkOutTime && user?.id && user?.ownerUserId && !locationTracker.isActive())
@@ -236,8 +338,12 @@ export function EmployeeAttendancePage() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       if (data.action === "checkin") {
-        toast.success("Checked in!"); if (user?.id && user?.ownerUserId) startTracking(user.id, user.ownerUserId, user.name || user.email || "Employee");
-      } else if (data.action === "checkout") { toast.success("Checked out!"); stopTracking(); }
+        toast.success("Checked in!"); 
+        if (user?.id && user?.ownerUserId) {
+          startTracking(user.id, user.ownerUserId, user.name || user.email || "Employee");
+          setShowPermissionTip(true); // Show BG permission tip on checkin
+        }
+      } else if (data.action === "checkout") { toast.success("Checked out!"); stopTracking(); setShowPermissionTip(false); }
       else toast.info("Attendance already complete for today");
       await load();
     } catch (err: any) { toast.error(err.message || "Failed to mark attendance"); }
@@ -350,9 +456,14 @@ export function EmployeeAttendancePage() {
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
                 <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Employee</span>
                 {tracking && (
-                  <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#22c55e", fontWeight: 600 }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 11, color: "#22c55e", fontWeight: 600 }}>
                     <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block", animation: "livePulse 2s infinite" }} />
                     Live
+                    {lastPos && (
+                      <span style={{ marginLeft: 4, padding: "1px 6px", background: "rgba(34,197,94,0.12)", borderRadius: 6, fontSize: 10, fontFamily: "monospace", border: "1px solid rgba(34,197,94,0.3)" }}>
+                        DIGI-{encodeDigiPin(lastPos.lat, lastPos.lng)}
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
@@ -395,8 +506,60 @@ export function EmployeeAttendancePage() {
       </header>
 
       {/* ── SCROLLABLE CONTENT ─────────────────────────────────────────────── */}
-      <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden",
-        WebkitOverflowScrolling: "touch" }}>
+      <main
+        ref={(el) => { (scrollRef as any).current = el; }}
+        style={{ flex: 1, overflowY: "auto", overflowX: "hidden",
+          WebkitOverflowScrolling: "touch",
+          // Allow pull-to-refresh gesture to work by ensuring native scroll
+          // overscroll is managed by our own gesture handler
+          overscrollBehaviorY: "contain" as any,
+        }}
+      >
+
+        {/* ── Pull-to-refresh indicator ─────────────────────────────────────── */}
+        <div style={{
+          height: refreshing ? 56 : pullDist > 0 ? pullDist * 0.8 : 0,
+          overflow: "hidden",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: refreshing ? "none" : "height 0.2s ease",
+          flexShrink: 0,
+        }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            opacity: refreshing ? 1 : Math.min(1, pullDist / threshold),
+            transform: `scale(${refreshing ? 1 : 0.75 + (pullDist / threshold) * 0.25})`,
+            transition: "opacity 0.15s, transform 0.15s",
+          }}>
+            {/* Spinner when refreshing, arrow icon when pulling */}
+            {refreshing ? (
+              <div style={{ width: 20, height: 20, borderRadius: "50%",
+                border: "2.5px solid rgba(99,102,241,0.3)", borderTopColor: "#818cf8",
+                animation: "spin 0.7s linear infinite" }}
+              />
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.5"
+                style={{ transform: pullDist >= threshold ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s" }}>
+                <polyline points="7 13 12 18 17 13"/>
+                <line x1="12" y1="6" x2="12" y2="18"/>
+              </svg>
+            )}
+            <span style={{ fontSize: 12, color: "#818cf8", fontWeight: 600 }}>
+              {refreshing ? "Refreshing…" : pullDist >= threshold ? "Release to refresh" : "Pull to refresh"}
+            </span>
+          </div>
+        </div>
+
+        {/* BG Permission Tip */}
+        {showPermissionTip && checkedIn && !checkedOut && (
+          <div style={{ margin: "16px 16px 0", padding: "14px", borderRadius: 16, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", position: "relative" }}>
+            <button onClick={() => setShowPermissionTip(false)} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "#fff", opacity: 0.4, padding: 4 }}>✕</button>
+            <p style={{ margin: "0 0 6px", fontSize: 13, fontWeight: 700, color: "#a5b4fc" }}>📡 Background Tracking Active</p>
+            <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>
+              To track when screen is OFF, please ensure Location is set to <strong>"Allow all the time"</strong> in App Info {">"} Permissions.
+            </p>
+          </div>
+        )}
 
         {/* ════════════════════════════════════════════════════════════════════
             TODAY TAB — card-based layout with large check-in button

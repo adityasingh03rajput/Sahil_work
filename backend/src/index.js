@@ -154,7 +154,7 @@ app.use("/employees/login", authLimiter);
 app.use(apiLimiter);
 
 // ── Health check ──────────────────────────────────────────────────────────────
-const BACKEND_VERSION = "v1.0.6"; // increment this on every backend deploy
+const BACKEND_VERSION = "vv1.0.1"; // increment this on every backend deploy
 
 app.get("/health", (_req, res) => {
   const dbState = mongoose.connection.readyState;
@@ -170,7 +170,7 @@ app.get("/health", (_req, res) => {
 });
 
 // ── Version endpoint (public, no auth) ───────────────────────────────────────
-app.get('/version', (req, res) => res.json({ backend: '1.0.6' }));
+app.get('/version', (req, res) => res.json({ backend: '1.0.1' }));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/auth", authRouter);

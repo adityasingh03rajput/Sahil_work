@@ -198,10 +198,10 @@ export function DocumentsPage() {
     }
   };
 
+  const norm = (v: any) => String(v || '').trim().toLowerCase();
   const filterDocuments = (docs?: any[]) => {
     const source = Array.isArray(docs) ? docs : documents;
     let filtered = [...source];
-    const norm = (v: any) => String(v || '').trim().toLowerCase();
 
     if (filterType !== 'all') filtered = filtered.filter(doc => doc.type === filterType);
     if (filterStatus !== 'all') {
@@ -336,10 +336,10 @@ export function DocumentsPage() {
   };
 
   const loadPdfDoc = async () => {
-    if (!pdfDocumentId) return;
+    if (!pdfDocumentId || !profileId) return;
     setPdfLoading(true);
     try {
-      const doc = await fetchDocumentById({ apiUrl, accessToken, deviceId, profileId: profileId!, documentId: pdfDocumentId });
+      const doc = await fetchDocumentById({ apiUrl, accessToken, deviceId, profileId, documentId: pdfDocumentId });
       const upiId = String(doc?.upiId || profile?.upiId || '').trim();
       if (upiId) {
         const upiUri = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(profile?.businessName || '')}&am=${Number(doc?.grandTotal).toFixed(2)}&cu=INR&tn=${encodeURIComponent(String(doc?.invoiceNo || doc?.documentNumber || ''))}`;
@@ -401,22 +401,55 @@ export function DocumentsPage() {
       <PdfPreviewDialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen} mode={pdfDialogMode} pdfDoc={pdfDoc} pdfLoading={pdfLoading} pdfExporting={pdfExporting} templateId={pdfTemplateId} setTemplateId={setPdfTemplateId} profile={profile} onPreview={handlePreviewPdf} onExport={handleExportPdf} pdfRef={pdfRef} />
 
       {isNative ? (
-        <div className="pt-4 pb-4">
-          <div className="px-4 mb-4"><h1 className="text-2xl font-bold">Documents</h1><p className="text-sm text-muted-foreground">Manage all your business documents</p></div>
-          <div className="px-4 mb-3"><button onClick={() => navigate('/documents/create')} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-green-500 text-white font-semibold shadow-sm active:scale-95 transition-all"><Plus className="h-5 w-5" strokeWidth={2.5} />Create Document</button></div>
+        <div style={{ paddingTop: 16, paddingBottom: 16, fontFamily: 'system-ui,-apple-system,sans-serif' }}>
+          <div style={{ padding: '0 16px', marginBottom: 16 }}>
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#f1f5f9' }}>Documents</h1>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>Manage all your business documents</p>
+          </div>
 
-          <div className="mx-4 mb-4 bg-card rounded-2xl shadow-sm border p-4 space-y-3">
-            <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl border bg-muted text-sm outline-none focus:border-primary transition-colors" /></div>
+          <div style={{ padding: '0 16px', marginBottom: 12 }}>
+            <button onClick={() => navigate('/documents/create')}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '14px 0', borderRadius: 18, border: 'none', cursor: 'pointer',
+                background: 'linear-gradient(135deg,#10b981,#059669)', color: '#fff',
+                fontWeight: 700, fontSize: 15, boxShadow: '0 4px 16px rgba(16,185,129,0.35)' }}>
+              <Plus style={{ width: 20, height: 20 }} strokeWidth={2.5} />
+              Create Document
+            </button>
+          </div>
+
+          <div style={{ margin: '0 16px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: 18,
+            border: '1px solid rgba(255,255,255,0.08)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ position: 'relative' }}>
+              <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                width: 16, height: 16, color: 'rgba(255,255,255,0.35)' }} />
+              <input type="text" placeholder="Search documents..." value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ width: '100%', paddingLeft: 38, paddingRight: 12, paddingTop: 10, paddingBottom: 10,
+                  borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', fontSize: 14,
+                  outline: 'none', boxSizing: 'border-box', fontFamily: 'system-ui,sans-serif' }} />
+            </div>
             <DateRangePicker range={dateRange} onRangeChange={setDateRange} align="start" className="w-full" persistenceKey="documents" />
           </div>
 
-          <div className="pb-20">
+          <div style={{ paddingBottom: 80 }}>
             {filteredDocs.length === 0 ? (
-              <div className="mx-4 bg-card rounded-2xl p-8 text-center border border-dashed"><FileX className="h-12 w-12 text-muted-foreground mx-auto mb-2" /><p className="font-semibold">No documents found</p></div>
+              <div style={{ margin: '0 16px', background: 'rgba(255,255,255,0.04)', borderRadius: 18,
+                border: '1px dashed rgba(255,255,255,0.12)', padding: 32, textAlign: 'center' }}>
+                <FileX style={{ width: 48, height: 48, color: 'rgba(255,255,255,0.25)', margin: '0 auto 8px' }} />
+                <p style={{ margin: 0, fontWeight: 600, color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>No documents found</p>
+              </div>
             ) : filteredDocs.map((doc) => (
-              <MobileDocCard key={doc.id} doc={doc} navigate={navigate} openPaymentDialog={openPaymentDialog} openReminderDialog={openReminderDialog} openPdfDialog={openPdfDialog} openDeleteDialog={openDeleteDialog} getTypeColor={getTypeColor} getTypeLabel={getTypeLabel} formatDate={formatDate} formatCurrency={formatCurrency} />
+              <MobileDocCard key={doc.id} doc={doc} navigate={navigate} openPaymentDialog={openPaymentDialog} openReminderDialog={openReminderDialog} openPdfDialog={openPdfDialog} openDeleteDialog={openDeleteDialog} getTypeLabel={getTypeLabel} formatDate={formatDate} formatCurrency={formatCurrency} />
             ))}
-            {hasMore && <button onClick={loadMoreDocuments} disabled={loadingMore} className="w-full py-4 text-sm font-medium text-primary">{loadingMore ? 'Loading...' : 'Load More'}</button>}
+            {hasMore && (
+              <button onClick={loadMoreDocuments} disabled={loadingMore}
+                style={{ width: '100%', padding: '16px 0', background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 14, fontWeight: 600, color: '#818cf8' }}>
+                {loadingMore ? 'Loading...' : 'Load More'}
+              </button>
+            )}
           </div>
         </div>
       ) : (
@@ -468,32 +501,64 @@ export function DocumentsPage() {
 
 // ── Shared Sub-components ────────────────────────────────────────────────
 
-const MobileDocCard = ({ doc, navigate, openPaymentDialog, openReminderDialog, openPdfDialog, openDeleteDialog, getTypeColor, getTypeLabel, formatDate, formatCurrency }: any) => (
-  <div className="bg-card rounded-2xl shadow-sm mx-4 mb-3 border p-4 text-left">
-    <div className="flex items-center gap-2 flex-wrap mb-2">
-      <span className="font-bold">{doc.invoiceNo || doc.documentNumber}</span>
-      <Badge className={getTypeColor(doc.type)}>{getTypeLabel(doc.type)}</Badge>
-      {doc.paymentStatus === 'paid' ? <span className="text-xs font-bold text-green-500">Paid</span> : <span className="text-xs font-bold text-orange-500">Unpaid</span>}
+const TYPE_COLORS: Record<string, { bg: string; color: string }> = {
+  invoice:              { bg: 'rgba(59,130,246,0.15)',  color: '#60a5fa' },
+  quotation:            { bg: 'rgba(16,185,129,0.15)',  color: '#34d399' },
+  purchase:             { bg: 'rgba(245,158,11,0.15)',  color: '#fbbf24' },
+  order:                { bg: 'rgba(16,185,129,0.15)',  color: '#34d399' },
+  proforma:             { bg: 'rgba(249,115,22,0.15)',  color: '#fb923c' },
+  challan:              { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' },
+  invoice_cancellation: { bg: 'rgba(239,68,68,0.15)',   color: '#f87171' },
+};
+
+const MobileDocCard = ({ doc, navigate, openPaymentDialog, openReminderDialog, openPdfDialog, openDeleteDialog, getTypeLabel, formatDate, formatCurrency }: any) => {
+  const typeStyle = TYPE_COLORS[doc.type] || TYPE_COLORS.challan;
+  const isPaid = doc.paymentStatus === 'paid';
+  return (
+    <div style={{ margin: '0 16px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: 18,
+      border: '1px solid rgba(255,255,255,0.08)', padding: 16, fontFamily: 'system-ui,sans-serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        <span style={{ fontWeight: 800, fontSize: 15, color: '#f1f5f9' }}>{doc.invoiceNo || doc.documentNumber}</span>
+        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+          background: typeStyle.bg, color: typeStyle.color }}>{getTypeLabel(doc.type)}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: isPaid ? '#34d399' : '#fb923c',
+          marginLeft: 'auto' }}>{isPaid ? '✓ Paid' : 'Unpaid'}</span>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <p style={{ margin: '0 0 2px', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{doc.customerName}</p>
+        <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
+          {formatDate(doc.date)} •{' '}
+          <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{formatCurrency(doc.grandTotal)}</span>
+        </p>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={() => navigate(`/documents/edit/${doc.id}`)}
+          style={{ flex: 1, padding: '9px 0', borderRadius: 12, border: '1px solid rgba(255,255,255,0.12)',
+            background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <FileEdit style={{ width: 14, height: 14 }} /> Edit
+        </button>
+        <button onClick={() => openPaymentDialog(doc)}
+          style={{ flex: 1, padding: '9px 0', borderRadius: 12, border: '1px solid rgba(99,102,241,0.3)',
+            background: 'rgba(99,102,241,0.12)', color: '#a5b4fc', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          Payment
+        </button>
+        <button onClick={() => openPdfDialog(doc.id, 'download')}
+          style={{ width: 40, height: 40, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)',
+            background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Download style={{ width: 16, height: 16 }} />
+        </button>
+        <button onClick={() => openDeleteDialog(doc)}
+          style={{ width: 40, height: 40, borderRadius: 12, border: '1px solid rgba(239,68,68,0.2)',
+            background: 'rgba(239,68,68,0.08)', color: '#f87171', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Trash2 style={{ width: 16, height: 16 }} />
+        </button>
+      </div>
     </div>
-    <div className="text-sm text-muted-foreground space-y-0.5 mb-3">
-      <p>{doc.customerName}</p>
-      <p>{formatDate(doc.date)} • <span className="text-foreground font-bold">{formatCurrency(doc.grandTotal)}</span></p>
-    </div>
-    <div className="flex items-center gap-2">
-      <Button variant="outline" size="sm" onClick={() => navigate(`/documents/edit/${doc.id}`)} className="rounded-xl"><FileEdit className="h-4 w-4 mr-1" />Edit</Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild><Button variant="outline" size="icon" className="rounded-xl"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={() => openPaymentDialog(doc)}>Payment</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => openReminderDialog(doc)}>Reminder</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => openPdfDialog(doc.id, 'preview')}>Preview PDF</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => openPdfDialog(doc.id, 'download')}>Download PDF</DropdownMenuItem>
-          <DropdownMenuItem onClick={() => openDeleteDialog(doc)} className="text-destructive">Delete</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  </div>
-);
+  );
+};
 
 const DeleteDialog = ({ open, onOpenChange, doc, loading, onConfirm }: any) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
@@ -539,19 +604,19 @@ const ReminderDialog = ({ open, onOpenChange, doc, to, setTo, message, setMessag
 
 const PdfPreviewDialog = ({ open, onOpenChange, mode, pdfDoc, pdfLoading, pdfExporting, templateId, setTemplateId, profile, onPreview, onExport, pdfRef }: any) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="max-w-6xl h-[92vh] flex flex-col p-0 gap-0 overflow-hidden bg-[#020617] border-white/5 shadow-2xl">
+    <DialogContent className="max-w-6xl h-[92vh] flex flex-col p-0 gap-0 overflow-hidden bg-card text-card-foreground shadow-2xl border-border">
       <div className="flex-1 flex flex-col p-4 sm:p-6 space-y-3 overflow-hidden">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg sm:text-xl font-black text-white tracking-tight uppercase leading-none">{mode === 'preview' ? 'Document Preview' : 'Export Matrix'}</h2>
+            <h2 className="text-lg sm:text-xl font-black text-foreground tracking-tight uppercase leading-none">{mode === 'preview' ? 'Document Preview' : 'Export Matrix'}</h2>
             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-[0.2em] mt-1 opacity-50">Precision Visual Engine</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="text-white opacity-40 hover:opacity-100 transition-opacity">
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground transition-all">
             <X className="w-4 h-4" />
           </Button>
         </div>
 
-        <div className="bg-white/5 p-2 rounded-xl border border-white/5">
+        <div className="bg-muted p-2 rounded-xl border border-border">
           <div className="flex flex-wrap gap-1.5">
             {PDF_TEMPLATES.map((t) => (
               <button
@@ -560,8 +625,8 @@ const PdfPreviewDialog = ({ open, onOpenChange, mode, pdfDoc, pdfLoading, pdfExp
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all duration-300",
                   templateId === t.id
-                    ? "bg-indigo-600 border-indigo-500 text-white shadow-lg"
-                    : "bg-white/5 border-white/10 text-muted-foreground/50 hover:bg-white/10 hover:text-white"
+                    ? "bg-primary border-primary text-primary-foreground shadow-sm"
+                    : "bg-input-background border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 {t.label}
@@ -570,7 +635,7 @@ const PdfPreviewDialog = ({ open, onOpenChange, mode, pdfDoc, pdfLoading, pdfExp
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center bg-muted/40 rounded-2xl overflow-hidden border border-white/10 relative p-1 sm:p-3 shadow-inner">
+        <div className="flex-1 flex flex-col items-center justify-center bg-muted/40 rounded-2xl overflow-hidden border border-border relative p-1 sm:p-3 shadow-inner">
           {pdfLoading ? (
             <div className="flex flex-col items-center justify-center space-y-4">
               <Download className="h-8 w-8 text-indigo-500 animate-bounce" />
@@ -590,10 +655,10 @@ const PdfPreviewDialog = ({ open, onOpenChange, mode, pdfDoc, pdfLoading, pdfExp
           )}
           
           {pdfExporting && (
-            <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-indigo-950/40 backdrop-blur-sm transition-all duration-500">
-               <div className="bg-slate-900/90 border border-white/10 px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center space-y-3">
-                  <div className="h-10 w-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-100">Capturing High Resolution Vision</p>
+            <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm transition-all duration-500">
+               <div className="bg-card border border-border px-6 py-4 rounded-2xl shadow-2xl flex flex-col items-center space-y-3">
+                  <div className="h-10 w-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground">Capturing High Resolution Vision</p>
                </div>
             </div>
           )}
@@ -614,9 +679,9 @@ const PdfPreviewDialog = ({ open, onOpenChange, mode, pdfDoc, pdfLoading, pdfExp
           @media (max-height: 600px) { :root { --pdf-preview-scale: 0.32; } }
         `}} />
 
-        <div className="flex gap-4 justify-end pt-3 border-t border-white/5">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 hover:text-white transition-all">Abort Matrix</Button>
-          <Button onClick={mode === 'preview' ? onPreview : onExport} disabled={pdfLoading || pdfExporting || !pdfDoc} className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] tracking-widest uppercase px-8 h-10 rounded-xl shadow-lg transition-all active:scale-95 overflow-hidden relative">
+        <div className="flex gap-4 justify-end pt-3 border-t border-border">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-all">Abort Matrix</Button>
+          <Button onClick={mode === 'preview' ? onPreview : onExport} disabled={pdfLoading || pdfExporting || !pdfDoc} className="bg-primary hover:bg-primary/90 text-primary-foreground font-black text-[10px] tracking-widest uppercase px-8 h-10 rounded-xl shadow-md transition-all active:scale-95 overflow-hidden relative">
             <span className={cn("transition-transform duration-500 block", pdfExporting ? "-translate-y-full opacity-0" : "translate-y-0 opacity-100")}>
               {mode === 'preview' ? 'Launch Full Vision' : 'Finalize & Ship'}
             </span>

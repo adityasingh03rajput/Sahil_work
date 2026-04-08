@@ -399,7 +399,7 @@ export function VyaparKhataPage() {
         {showAddTransaction && (
           <div className="fixed inset-0 z-50 bg-black/20" onClick={() => setShowAddTransaction(false)}>
             <div
-              className="absolute right-0 top-0 h-full w-96 bg-white shadow-xl overflow-y-auto"
+              className="absolute right-0 top-0 h-full w-96 bg-background border-l shadow-xl overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 border-b">

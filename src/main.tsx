@@ -18,8 +18,21 @@ try {
 
 // Defer mount to next frame — lets the browser paint the splash screen
 // before the heavy JS bundle parse blocks the main thread
-const mount = () => {
+const mount = async () => {
   createRoot(document.getElementById("root")!).render(<App />);
+
+  // Hide native splash screen once React has mounted
+  try {
+    const cap = (window as any)?.Capacitor;
+    if (cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform()) {
+      const { SplashScreen } = await import('@capacitor/splash-screen');
+      setTimeout(() => {
+        SplashScreen.hide();
+      }, 500); // 500ms delay to ensure the DOM is painted on low-end devices
+    }
+  } catch (e) {
+    console.error("Failed to conceal splash screen", e);
+  }
 };
 
 if (typeof requestAnimationFrame === 'function') {

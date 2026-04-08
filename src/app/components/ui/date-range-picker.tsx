@@ -15,15 +15,43 @@ interface DateRangePickerProps {
   onRangeChange: (range: DateRange) => void;
   className?: string;
   align?: 'start' | 'center' | 'end';
+  persistenceKey?: string;
 }
 
-export function DateRangePicker({ range, onRangeChange, className, align = 'end' }: DateRangePickerProps) {
+export function DateRangePicker({ range, onRangeChange, className, align = 'end', persistenceKey }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [localRange, setLocalRange] = useState<DateRange>(range);
+  const [localRange, setLocalRange] = useState<DateRange>(() => {
+    if (persistenceKey) {
+      try {
+        const saved = localStorage.getItem(`bv_filter_${persistenceKey}`);
+        if (saved) return JSON.parse(saved);
+      } catch { /* ignore */ }
+    }
+    return range;
+  });
 
   useEffect(() => {
-    setLocalRange(range);
-  }, [range]);
+    // If external range changes and we have no saved state, or if we want to force sync
+    if (!persistenceKey) {
+      setLocalRange(range);
+    }
+  }, [range, persistenceKey]);
+
+  // Read-back on mount if persistenceKey exists
+  useEffect(() => {
+    if (persistenceKey) {
+      try {
+        const saved = localStorage.getItem(`bv_filter_${persistenceKey}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.from !== range.from || parsed.to !== range.to) {
+            onRangeChange(parsed);
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persistenceKey]);
 
   const presets = [
     { label: 'Today', getValue: () => { const d = new Date().toISOString().slice(0, 10); return { from: d, to: d }; } },
@@ -63,6 +91,9 @@ export function DateRangePicker({ range, onRangeChange, className, align = 'end'
   ];
 
   const applyRange = (newRange: DateRange) => {
+    if (persistenceKey) {
+      localStorage.setItem(`bv_filter_${persistenceKey}`, JSON.stringify(newRange));
+    }
     onRangeChange(newRange);
     setIsOpen(false);
   };

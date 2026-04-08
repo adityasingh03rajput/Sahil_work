@@ -7,7 +7,12 @@
  *
  * Dead reckoning:
  *   predictNext(last, speedMs, headingRad, deltaMs) → { lat, lng }
+ *
+ * DigiPin:
+ *   encodeDigiPin(lat, lng) → "IN-XXXXX-XXXXX"
  */
+
+const DIGIPIN_CHARS = "23456789CJKLMPFT";
 
 export interface LatLng { lat: number; lng: number }
 
@@ -77,4 +82,49 @@ export function bearing(from: LatLng, to: LatLng): number {
     Math.sin(dλ) * Math.cos(φ2),
     Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(dλ),
   );
+}
+
+/**
+ * encodeDigiPin — Indian national digital address system (10 chars, 4x4m grid)
+ */
+export function encodeDigiPin(lat: number, lng: number): string {
+  // India's bounding box for DigiPin
+  const MIN_LAT = 2.5; 
+  const MAX_LAT = 38.5;
+  const MIN_LNG = 63.5;
+  const MAX_LNG = 99.5;
+
+  if (lat < MIN_LAT || lat > MAX_LAT || lng < MIN_LNG || lng > MAX_LNG) {
+    return "GLOBAL";
+  }
+
+  let code = "";
+  let curMinLat = MIN_LAT, curMaxLat = MAX_LAT;
+  let curMinLng = MIN_LNG, curMaxLng = MAX_LNG;
+
+  for (let i = 0; i < 10; i++) {
+    const latStep = (curMaxLat - curMinLat) / 4;
+    const lngStep = (curMaxLng - curMinLng) / 4;
+
+    // Row 0 is Top (North), Row 3 is Bottom (South)
+    let row = Math.floor((curMaxLat - lat) / latStep);
+    if (row < 0) row = 0; if (row > 3) row = 3;
+
+    // Col 0 is Left (West), Col 3 is Right (East)
+    let col = Math.floor((lng - curMinLng) / lngStep);
+    if (col < 0) col = 0; if (col > 3) col = 3;
+
+    const index = row * 4 + col;
+    code += DIGIPIN_CHARS[index];
+
+    // Narrow bounds for next level
+    curMaxLat = curMaxLat - row * latStep;
+    curMinLat = curMaxLat - latStep;
+    curMinLng = curMinLng + col * lngStep;
+    curMaxLng = curMinLng + lngStep;
+
+    if (i === 4) code += "-"; // Formatting break
+  }
+
+  return code;
 }

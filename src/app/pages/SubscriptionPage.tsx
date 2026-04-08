@@ -102,149 +102,171 @@ export function SubscriptionPage() {
   const isExpired = status?.status === 'expired';
 
   return (
-    <>
-      <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground">Subscription</h1>
-          <p className="text-muted-foreground text-sm mt-1">Manage your BillVyapar license</p>
-        </div>
+    <div className="min-h-full font-sans">
+      <div className="p-6 max-w-2xl mx-auto space-y-8 pb-12">
+        <header className="text-center space-y-2 pt-4">
+          <h1 className="text-3xl font-black tracking-tight text-primary">SUBSCRIPTION<span className="text-emerald-500">.</span></h1>
+          <p className="text-muted-foreground font-bold text-sm tracking-widest uppercase">System License Control</p>
+        </header>
 
         {/* Status Card */}
         {status && (
-          <Card className={
-            isLicensed ? 'border-green-200 bg-green-50' :
-            isTrial ? 'border-blue-200 bg-blue-50' :
-            'border-red-200 bg-red-50'
-          }>
-            <CardContent className="py-5">
-              <div className="flex items-start gap-3">
-                {isLicensed && <ShieldCheck className="h-6 w-6 text-green-600 mt-0.5 shrink-0" />}
-                {isTrial && <Clock className="h-6 w-6 text-blue-600 mt-0.5 shrink-0" />}
-                {isExpired && <AlertCircle className="h-6 w-6 text-red-600 mt-0.5 shrink-0" />}
-                <div className="flex-1">
+          <div className={`bg-card text-card-foreground rounded-[2rem] p-8 relative overflow-hidden group transition-all duration-500 border shadow-sm ${
+            isLicensed ? 'border-emerald-500/30' : isTrial ? 'border-primary/30' : 'border-destructive/30'
+          }`}>
+            <div className={`absolute top-0 right-0 p-6`}>
+              <div className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest ${
+                isLicensed ? 'bg-emerald-500 text-white' : isTrial ? 'bg-primary text-primary-foreground' : 'bg-destructive text-destructive-foreground'
+              }`}>
+                {isLicensed ? 'Operational' : isTrial ? 'Evaluation' : 'Terminated'}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-6">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border ${
+                isLicensed ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' :
+                isTrial ? 'bg-primary/10 border-primary/30 text-primary' :
+                'bg-destructive/10 border-destructive/30 text-destructive'
+              }`}>
+                {isLicensed && <ShieldCheck className="h-8 w-8" />}
+                {isTrial && <Clock className="h-8 w-8" />}
+                {isExpired && <AlertCircle className="h-8 w-8" />}
+              </div>
+
+              <div className="flex-1 space-y-4">
+                <div>
+                  <h2 className={`text-xl font-black uppercase tracking-tight ${
+                    isLicensed ? 'text-emerald-600 dark:text-emerald-400' : isTrial ? 'text-primary' : 'text-destructive'
+                  }`}>
+                    {isLicensed ? 'Active License' : isTrial ? 'Trial active' : 'Access Terminated'}
+                  </h2>
+                  
                   {isLicensed && status.license && (
-                    <>
-                      <p className="font-semibold text-green-900">License Active</p>
-                      <p className="text-sm text-green-700 mt-0.5">
-                        {status.license.daysRemaining} days remaining · Expires {formatDate(status.license.expiresAt)}
-                      </p>
-                      <p className="text-xs text-green-600 mt-1 font-mono">{status.license.key}</p>
-                    </>
+                    <div className="mt-3 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-3xl font-black text-foreground">{status.license.daysRemaining}</span>
+                        <span className="text-muted-foreground font-bold text-xs uppercase tracking-widest">Days Remaining</span>
+                      </div>
+                      <p className="text-sm font-medium text-muted-foreground">Registry Expiry: <span className="text-foreground font-bold">{formatDate(status.license.expiresAt)}</span></p>
+                      <div className="px-4 py-2 rounded-xl bg-muted border border-border font-mono text-[10px] text-muted-foreground tracking-widest">
+                        {status.license.key}
+                      </div>
+                    </div>
                   )}
+
                   {isTrial && (
-                    <>
-                      <p className="font-semibold text-blue-900">Free Trial</p>
-                      <p className="text-sm text-blue-700 mt-0.5">
-                        {status.trial.daysRemaining} day{status.trial.daysRemaining !== 1 ? 's' : ''} remaining · Ends {formatDate(status.trial.trialEndsAt)}
+                    <div className="mt-3 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-3xl font-black text-foreground">{status.trial.daysRemaining}</span>
+                        <span className="text-muted-foreground font-bold text-xs uppercase tracking-widest">Trial Days</span>
+                      </div>
+                      <p className="text-sm font-medium text-muted-foreground leading-relaxed">
+                        Evaluation ends <span className="text-foreground font-bold">{formatDate(status.trial.trialEndsAt)}</span>. 
+                        Deploy a permanent license key to maintain terminal access.
                       </p>
-                      <p className="text-xs text-blue-600 mt-1">Activate a license key before your trial ends to keep access.</p>
-                    </>
+                    </div>
                   )}
+
                   {isExpired && (
-                    <>
-                      <p className="font-semibold text-red-900">Access Expired</p>
-                      <p className="text-sm text-red-700 mt-0.5">
-                        Your 7-day trial has ended. Activate a license key to restore access.
+                    <div className="mt-3">
+                      <p className="text-sm font-medium text-destructive leading-relaxed">
+                        Security override enabled. Trial duration exhausted. 
+                        Please supply a valid operational key to re-enable business modules.
                       </p>
-                    </>
+                    </div>
                   )}
                 </div>
-                <Badge variant="outline" className={
-                  isLicensed ? 'bg-green-100 text-green-800 border-green-300' :
-                  isTrial ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                  'bg-red-100 text-red-800 border-red-300'
-                }>
-                  {isLicensed ? 'Licensed' : isTrial ? 'Trial' : 'Expired'}
-                </Badge>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* License Key Activation */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Key className="h-4 w-4" />
-              Activate License Key
-            </CardTitle>
-            <CardDescription>
-              Enter the license key sent to your registered email address.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-2">
-              <Input
+        <div className="bg-card text-card-foreground rounded-[2rem] p-8 space-y-6 shadow-sm border border-border">
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+              <Key className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-foreground tracking-tight uppercase">Registry Keys</h3>
+              <p className="text-muted-foreground text-xs font-bold uppercase tracking-wider">Activate Operational Suite</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="relative group">
+              <input
                 value={licenseKey}
                 onChange={e => setLicenseKey(e.target.value.toUpperCase())}
                 placeholder="BVYP-XXXX-XXXX-XXXX"
-                className="font-mono tracking-widest"
+                className="w-full bg-input-background border border-border rounded-2xl h-16 px-6 font-mono text-lg tracking-[0.2em] text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 outline-none transition-all"
                 onKeyDown={e => e.key === 'Enter' && handleActivate()}
               />
-              <Button onClick={handleActivate} disabled={activating || !licenseKey.trim()}>
-                {activating ? 'Activating...' : 'Activate'}
-              </Button>
+              <div className="absolute inset-0 bg-primary/5 rounded-2xl -z-10 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              License keys are tied to your email address. Contact support if you haven't received yours.
+
+            <button
+              onClick={handleActivate}
+              disabled={activating || !licenseKey.trim()}
+              className="w-full h-16 rounded-2xl bg-primary hover:bg-primary/90 text-primary-foreground font-black tracking-widest uppercase transition-all shadow-xl shadow-primary/20 active:scale-[0.98] disabled:opacity-40"
+            >
+              {activating ? 'Authenticating...' : 'Deploy License'}
+            </button>
+            <p className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+              Encrypted Registry Transmission
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        {/* Features */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">What's included</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {[
-                'Unlimited business profiles',
-                'Invoices, Quotations, Orders & more',
-                'Customer & item catalog management',
-                'GST calculations & compliance',
-                'PDF export & sharing',
-                'Real-time analytics dashboard',
-                'Offline mode with cloud sync',
-              ].map((f, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm text-foreground/80">
-                  <Check className="h-4 w-4 text-green-600 shrink-0" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
+        {/* Features Checklist */}
+        <div className="bg-card text-card-foreground rounded-[2rem] p-8 border border-border shadow-sm">
+          <h4 className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-6">Operational Modules</h4>
+          <div className="grid gap-4">
+            {[
+              'Universal Business Registry',
+              'Multi-Type Document Generation',
+              'Advanced Catalog Control',
+              'GST Compliance Engine',
+              'Strategic Analytics Suite',
+              'Offline Security Sync',
+              'PDF Deployment Modules'
+            ].map((f, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Check className="h-3 w-3 text-primary" />
+                </div>
+                <span className="text-sm font-bold text-foreground/80 uppercase tracking-wide">{f}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-      {/* Version info */}
-      <div className="mt-6 flex items-center justify-center gap-3 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
-          Frontend <span className="font-mono font-semibold text-foreground">v{FRONTEND_VERSION}</span>
-        </span>
-        <span className="text-border">·</span>
-        <span className="flex items-center gap-1.5">
-          <span className={`w-2 h-2 rounded-full inline-block ${backendVersion && backendVersion !== 'unavailable' ? 'bg-green-500' : 'bg-red-400'}`} />
-          Backend <span className="font-mono font-semibold text-foreground">
-            {backendVersion ? `v${backendVersion}` : '…'}
-          </span>
-        </span>
-        <span className="text-border">·</span>
-        <button
-          type="button"
-          className="hover:text-foreground transition-colors"
-          onClick={() => {
-            setBackendVersion(null);
-            fetch(`${API_URL}/version`)
-              .then(r => r.json())
-              .then(d => setBackendVersion(d?.backend || null))
-              .catch(() => setBackendVersion('unavailable'));
-          }}
-        >
-          ↻ refresh
-        </button>
+        <footer className="pt-8 text-center space-y-4">
+          <div className="flex flex-wrap items-center justify-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">FRONTEND v{FRONTEND_VERSION}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${backendVersion && backendVersion !== 'unavailable' ? 'bg-emerald-500' : 'bg-destructive'}`} />
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">BACKEND {backendVersion ? `v${backendVersion}` : 'OFFLINE'}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="text-[10px] font-black text-primary/60 uppercase tracking-widest hover:text-primary transition-colors"
+            onClick={() => {
+              setBackendVersion(null);
+              fetch(`${API_URL}/version`)
+                .then(r => r.json())
+                .then(d => setBackendVersion(d?.backend || null))
+                .catch(() => setBackendVersion('unavailable'));
+            }}
+          >
+            Refresh Heartbeat
+          </button>
+        </footer>
       </div>
-    </>
+    </div>
   );
 }

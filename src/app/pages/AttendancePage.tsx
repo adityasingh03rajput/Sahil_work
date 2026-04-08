@@ -2,13 +2,16 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { toast } from 'sonner';
-import { CalendarDays, Users, CheckCircle2, Clock, RefreshCw, MapPin, Navigation, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { CalendarDays, Users, CheckCircle2, Clock, RefreshCw, MapPin, Navigation, Plus, Trash2, ChevronDown, ChevronUp, CheckSquare, FileSpreadsheet, FileText } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent } from '../components/ui/card';
 import { TraceLoader } from '../components/TraceLoader';
 import { EmployeeTrackingMap } from '../components/EmployeeTrackingMap';
 import { DateRangePicker, DateRange } from '../components/ui/date-range-picker';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 interface TaskLocation { lat: number | null; lng: number | null; address: string | null; }
 interface Task {
@@ -28,10 +31,14 @@ interface AttendanceRecord {
   checkInTime: string | null;
   checkOutTime: string | null;
   status: 'present' | 'absent' | 'half_day';
-  employeeId: { _id: string; name: string; email: string; role: string } | null;
+  employeeId: { 
+    _id: string; name: string; email: string; role: string;
+    schedule?: { geofenceMeters?: number; workLocation?: { lat: number; lng: number; address: string } };
+  } | null;
   checkInAddress: string | null;
   checkOutAddress: string | null;
   totalKm: number;
+  checkInLocation?: { lat: number; lng: number };
   tasks: Task[];
 }
 interface TodaySummary {
@@ -329,36 +336,93 @@ function AttendanceRow({ r, headers, onTasksUpdated }: {
 
   return (
     <>
-      <tr className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setExpanded((v) => !v)}>
-        <td className="px-4 py-3 font-medium text-foreground">{r.date}</td>
-        <td className="px-4 py-3">
-          <p className="font-medium text-foreground">{r.employeeId?.name ?? '—'}</p>
-          <p className="text-xs text-muted-foreground">{r.employeeId?.email}</p>
+      <tr className="hover:bg-muted/30 transition-colors cursor-pointer border-b border-border/50 last:border-0" onClick={() => setExpanded((v) => !v)}>
+        {/* Employee Info */}
+        <td className="px-4 py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">
+              {r.employeeId?.name?.[0]?.toUpperCase() ?? '?'}
+            </div>
+            <div>
+              <p className="font-bold text-foreground text-sm leading-tight">{r.employeeId?.name ?? '—'}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{r.employeeId?.email}</p>
+              <p className="text-[10px] text-muted-foreground/60 font-medium tracking-tighter uppercase mt-1">{r.date}</p>
+            </div>
+          </div>
         </td>
-        <td className="px-4 py-3">
-          <p className="text-foreground">{fmtTime(r.checkInTime)}</p>
-          {r.checkInAddress && <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5"><MapPin className="h-3 w-3 shrink-0" />{r.checkInAddress}</p>}
+
+        {/* Check-in */}
+        <td className="px-4 py-4">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <p className="text-sm font-bold text-foreground">{fmtTime(r.checkInTime)}</p>
+            {r.checkInLocation?.lat && r.employeeId?.schedule?.workLocation?.lat && (
+              <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-tighter ${
+                haversineM(r.checkInLocation, r.employeeId.schedule.workLocation) <= (r.employeeId.schedule.geofenceMeters || 200)
+                ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/20'
+                : 'bg-amber-500 text-white shadow-sm shadow-amber-500/20'
+              }`}>
+                {haversineM(r.checkInLocation, r.employeeId.schedule.workLocation) <= (r.employeeId.schedule.geofenceMeters || 200) ? 'Site Locked' : 'Off-Site'}
+              </span>
+            )}
+          </div>
+          {r.checkInAddress && (
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1 line-clamp-1 max-w-[140px]">
+              <MapPin className="h-2.5 w-2.5 shrink-0" />{r.checkInAddress}
+            </p>
+          )}
         </td>
-        <td className="px-4 py-3">
-          <p className="text-foreground">{fmtTime(r.checkOutTime)}</p>
-          {r.checkOutAddress && <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5"><MapPin className="h-3 w-3 shrink-0" />{r.checkOutAddress}</p>}
+
+        {/* Check-out */}
+        <td className="px-4 py-4">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 rounded-full bg-rose-500" />
+            <p className="text-sm font-bold text-foreground">{fmtTime(r.checkOutTime)}</p>
+          </div>
+          {r.checkOutAddress && (
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1 line-clamp-1 max-w-[140px]">
+              <MapPin className="h-2.5 w-2.5 shrink-0" />{r.checkOutAddress}
+            </p>
+          )}
         </td>
-        <td className="px-4 py-3">
-          <p className="text-foreground font-medium">{timeSpent}</p>
-          {r.totalKm > 0 && <p className="text-xs text-muted-foreground mt-0.5">{r.totalKm.toFixed(2)} km</p>}
+
+        {/* Time Spent / KM */}
+        <td className="px-4 py-4">
+          <div className="space-y-1">
+            <p className="text-sm font-black text-indigo-600 dark:text-indigo-400">{timeSpent}</p>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 rounded-lg w-fit border border-indigo-100 dark:border-indigo-900/50">
+              <MapPin className="h-3 w-3 text-indigo-500" />
+              <span className="text-[10px] font-black text-indigo-700 dark:text-indigo-300 whitespace-nowrap tracking-tight">
+                {r.totalKm !== undefined ? `${r.totalKm.toFixed(2)} KM` : '0.00 KM'}
+              </span>
+            </div>
+          </div>
         </td>
-        <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
-        <td className="px-4 py-3 text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs">{r.tasks?.length ?? 0} task{r.tasks?.length !== 1 ? 's' : ''}</span>
-            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+
+        {/* Status */}
+        <td className="px-4 py-4">
+          <StatusBadge status={r.status} />
+        </td>
+
+        {/* Tasks */}
+        <td className="px-4 py-4 text-right">
+          <div className="flex items-center justify-end gap-2 text-muted-foreground group">
+            <div className="flex -space-x-1">
+              {[...Array(Math.min(r.tasks?.length ?? 0, 3))].map((_, i) => (
+                <div key={i} className="w-5 h-5 rounded-full border-2 border-background bg-muted flex items-center justify-center">
+                  <CheckSquare className="h-2.5 w-2.5" />
+                </div>
+              ))}
+            </div>
+            <span className="text-xs font-bold">{r.tasks?.length ?? 0}</span>
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </div>
         </td>
       </tr>
 
       {expanded && (
         <tr>
-          <td colSpan={7} className="px-4 pb-4 bg-muted/20">
+          <td colSpan={6} className="px-4 pb-4 bg-muted/20">
             <div style={{ padding: '12px 0 4px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tasks</p>
@@ -500,6 +564,56 @@ export function AttendancePage() {
     return () => clearInterval(timer);
   }, [tab, loadToday]);
 
+  const exportExcel = (data: AttendanceRecord[]) => {
+    const rows = data.map(r => ({
+      Date: r.date,
+      Employee: r.employeeId?.name || '—',
+      'Check-in': fmtTime(r.checkInTime),
+      'Check-out': fmtTime(r.checkOutTime),
+      'Time Spent': calcTimeSpent(r.checkInTime, r.checkOutTime),
+      'Total KM': (r.totalKm || 0).toFixed(2),
+      Status: r.status,
+      'Site Verify': r.checkInLocation?.lat && r.employeeId?.schedule?.workLocation?.lat ? (
+        haversineM(r.checkInLocation, r.employeeId.schedule.workLocation) <= (r.employeeId.schedule.geofenceMeters || 200) ? 'ON SITE' : 'OFF SITE'
+      ) : 'NO GEO'
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+    XLSX.writeFile(wb, `Attendance_Report_${dateRange.from}_to_${dateRange.to}.xlsx`);
+  };
+
+  const exportPDF = (data: AttendanceRecord[]) => {
+    const doc = new jsPDF() as any;
+    doc.setFontSize(20);
+    doc.text("Hukum Attendance Strategic Report", 14, 22);
+    doc.setFontSize(10);
+    doc.text(`Period: ${dateRange.from} to ${dateRange.to}`, 14, 28);
+    
+    const tableData = data.map(r => [
+      r.date,
+      r.employeeId?.name || '—',
+      fmtTime(r.checkInTime),
+      fmtTime(r.checkOutTime),
+      calcTimeSpent(r.checkInTime, r.checkOutTime),
+      r.checkInLocation?.lat && r.employeeId?.schedule?.workLocation?.lat ? (
+        haversineM(r.checkInLocation, r.employeeId.schedule.workLocation) <= (r.employeeId.schedule.geofenceMeters || 200) ? 'LOCKED' : 'MISMATCH'
+      ) : 'NO GEO',
+      r.status
+    ]);
+
+    doc.autoTable({
+      head: [['Date', 'Employee', 'In', 'Out', 'Duration', 'Site', 'Status']],
+      body: tableData,
+      startY: 35,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229] }, // Indigo
+      styles: { fontSize: 8 }
+    });
+
+    doc.save(`Hukum_Report_${dateRange.from}.pdf`);
+  };
+
   const handleTasksUpdated = (recordId: string, tasks: Task[]) => {
     setRecords((prev) => prev.map((r) => r._id === recordId ? { ...r, tasks } : r));
     setTodaySummary((prev) => prev ? {
@@ -511,25 +625,30 @@ export function AttendancePage() {
   const absent = todaySummary ? todaySummary.totalEmployees - todaySummary.present : 0;
 
   return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-4 sm:space-y-6">
-      <div className="flex items-center gap-3">
-        <CalendarDays className="h-7 w-7 text-blue-600" />
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Attendance</h1>
-          <p className="text-sm text-muted-foreground">Track employee attendance records</p>
-        </div>
-      </div>
-
+    <div className="space-y-10 pb-40 md:pb-10 min-h-screen">
       {/* Tabs */}
-      <div className="flex gap-1 bg-muted rounded-lg p-1 overflow-x-auto">
-        {(['today', 'history', 'tracking'] as const).map((t) => (
-          <button key={t} type="button" onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-md text-sm font-semibold transition-all whitespace-nowrap shrink-0 ${tab === t ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-            {t === 'today' ? "Today's Summary" : t === 'history' ? 'Monthly History' : (
-              <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />Live Tracking</span>
-            )}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex gap-1 bg-muted rounded-lg p-1 overflow-x-auto">
+          {(['today', 'history', 'tracking'] as const).map((t) => (
+            <button key={t} type="button" onClick={() => setTab(t)}
+              className={`px-4 py-2 rounded-md text-sm font-semibold transition-all whitespace-nowrap shrink-0 ${tab === t ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              {t === 'today' ? "Today's Summary" : t === 'history' ? 'Monthly History' : (
+                <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />Live Tracking</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'history' && records.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => exportExcel(records)} className="h-9 gap-2 rounded-xl bg-emerald-500/5 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-all shadow-sm">
+              <FileSpreadsheet className="h-4 w-4" /> Excel
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => exportPDF(records)} className="h-9 gap-2 rounded-xl bg-rose-500/5 text-rose-600 border-rose-500/20 hover:bg-rose-500 hover:text-white transition-all shadow-sm">
+              <FileText className="h-4 w-4" /> PDF Report
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ── TODAY TAB ── */}
@@ -539,25 +658,34 @@ export function AttendancePage() {
             <div className="flex items-center justify-center py-16"><TraceLoader label="Loading attendance…" /></div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Card className="border-border"><CardContent className="p-5">
-                  <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2"><Users className="h-4 w-4" /><span>Total Employees</span></div>
-                  <p className="text-3xl font-bold text-foreground">{todaySummary?.totalEmployees ?? 0}</p>
-                </CardContent></Card>
-                <Card className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30"><CardContent className="p-5">
-                  <div className="flex items-center gap-2 text-green-700 dark:text-green-300 text-sm mb-2"><CheckCircle2 className="h-4 w-4" /><span>Present</span></div>
-                  <p className="text-3xl font-bold text-green-700 dark:text-green-300">{todaySummary?.present ?? 0}</p>
-                </CardContent></Card>
-                <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30"><CardContent className="p-5">
-                  <div className="flex items-center gap-2 text-red-700 dark:text-red-300 text-sm mb-2"><Clock className="h-4 w-4" /><span>Absent</span></div>
-                  <p className="text-3xl font-bold text-red-700 dark:text-red-300">{absent}</p>
-                </CardContent></Card>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+                <div className="bg-card border border-border p-6 rounded-2xl shadow-sm hover:border-indigo-500/30 transition-all">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest opacity-60">Staff Registry</span>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-3xl font-black text-foreground">{todaySummary?.totalEmployees ?? 0}</span>
+                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500"><Users className="h-5 w-5" /></div>
+                  </div>
+                </div>
+                <div className="bg-card border border-border p-6 rounded-2xl shadow-sm hover:border-emerald-500/30 transition-all">
+                  <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest opacity-60">Verified Present</span>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-3xl font-black text-emerald-600">{todaySummary?.present ?? 0}</span>
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500"><CheckCircle2 className="h-5 w-5" /></div>
+                  </div>
+                </div>
+                <div className="bg-card border border-border p-6 rounded-2xl shadow-sm hover:border-rose-500/30 transition-all">
+                  <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest opacity-60">Absent Node Status</span>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-3xl font-black text-rose-600">{absent}</span>
+                    <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600"><Clock className="h-5 w-5" /></div>
+                  </div>
+                </div>
               </div>
 
               {!todaySummary || todaySummary.records.length === 0 ? (
-                <div className="text-center py-16 text-muted-foreground">
-                  <CalendarDays className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">No check-ins yet today</p>
+                <div className="text-center py-24 bg-muted/10 border border-dashed border-muted rounded-3xl">
+                  <CalendarDays className="h-16 w-16 mx-auto mb-4 opacity-10" />
+                  <p className="text-lg font-semibold text-foreground/50">No check-ins yet today</p>
                 </div>
               ) : (
                 <>
@@ -591,7 +719,7 @@ export function AttendancePage() {
                           <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Check-out</th>
                           <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Time Spent / KM</th>
                           <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Status</th>
-                          <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Tasks</th>
+                          <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-right border-l border-border/5 pr-4">Tasks</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
@@ -611,9 +739,9 @@ export function AttendancePage() {
         {/* ── HISTORY TAB ── */}
       {tab === 'history' && (
         <>
-          <div className="flex flex-wrap items-center gap-3">
-            <DateRangePicker range={dateRange} onRangeChange={setDateRange} align="start" />
-            <Button variant="outline" size="sm" onClick={loadHistory} className="gap-1.5 h-9 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <DateRangePicker range={dateRange} onRangeChange={setDateRange} align="start" persistenceKey="attendance" />
+            <Button variant="outline" size="sm" onClick={loadHistory} className="gap-1.5 h-10 shrink-0">
               <RefreshCw className="h-3.5 w-3.5" />Refresh
             </Button>
           </div>
@@ -654,13 +782,12 @@ export function AttendancePage() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Date</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Employee</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Check-in</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Check-out</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Time Spent / KM</th>
                       <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Status</th>
-                      <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Tasks</th>
+                      <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-right border-l border-border/5 pr-4">Tasks</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -679,4 +806,14 @@ export function AttendancePage() {
       {tab === 'tracking' && <EmployeeTrackingMap profileId={profileId} />}
     </div>
   );
+}
+
+/** Haversine in meters */
+function haversineM(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const x = Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }

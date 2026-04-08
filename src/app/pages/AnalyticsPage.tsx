@@ -22,6 +22,7 @@ import { getCurrentFiscalYearRange } from '../utils/fiscal';
 import { DateRangePicker, DateRange } from '../components/ui/date-range-picker';
 import { toast } from 'sonner';
 import { FeatureInfo } from '../components/FeatureInfo';
+import { saveCsvWithDialog } from '../utils/saveFile';
 
 export function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<any>(null);
@@ -37,6 +38,8 @@ export function AnalyticsPage() {
   useEffect(() => {
     setAnalytics(null);
     setLoading(true);
+    // Note: We deliberately DON'T reset dateRange here because user wants it remembered 
+    // even after profile switches or logouts.
   }, [profileId]);
 
   useEffect(() => {
@@ -119,19 +122,10 @@ export function AnalyticsPage() {
     });
 
     const csv = lines.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
     const rangeSuffix = `${dateRange.from || 'all'}_to_${dateRange.to || 'all'}`;
     const filename = `item-wise-sales_${rangeSuffix}.csv`;
 
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    void saveCsvWithDialog(csv, filename);
   };
 
   const formatCurrency = (amount: number) => {
@@ -184,7 +178,7 @@ export function AnalyticsPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
-              <DateRangePicker range={dateRange} onRangeChange={applyDateRange} />
+              <DateRangePicker range={dateRange} onRangeChange={applyDateRange} persistenceKey="analytics" />
               <button
                 type="button"
                 onClick={downloadItemsCsv}
@@ -202,14 +196,14 @@ export function AnalyticsPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardDescription>Total Revenue</CardDescription>
-                <DollarSign className="h-5 w-5 text-green-600" />
+                <DollarSign className="h-5 w-5 text-secondary" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">
                 {formatCurrency(analytics?.totalSales || 0)}
               </div>
-              <div className="flex items-center gap-1 mt-2 text-sm text-green-600">
+              <div className="flex items-center gap-1 mt-2 text-sm text-secondary">
                 <ArrowUp className="h-4 w-4" />
                 <span>All time sales</span>
               </div>
@@ -220,14 +214,14 @@ export function AnalyticsPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardDescription>Outstanding</CardDescription>
-                <FileText className="h-5 w-5 text-orange-600" />
+                <FileText className="h-5 w-5 text-orange-500" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">
                 {formatCurrency(analytics?.outstanding || 0)}
               </div>
-              <div className="flex items-center gap-1 mt-2 text-sm text-orange-600">
+              <div className="flex items-center gap-1 mt-2 text-sm text-orange-500">
                 <span>{analytics?.unpaidInvoices || 0} unpaid invoices</span>
               </div>
             </CardContent>
@@ -237,14 +231,14 @@ export function AnalyticsPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardDescription>Total Invoices</CardDescription>
-                <FileText className="h-5 w-5 text-blue-600" />
+                <FileText className="h-5 w-5 text-primary" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">
                 {analytics?.totalInvoices || 0}
               </div>
-              <div className="flex items-center gap-1 mt-2 text-sm text-blue-600">
+              <div className="flex items-center gap-1 mt-2 text-sm text-primary">
                 <span>{analytics?.paidInvoices || 0} paid</span>
               </div>
             </CardContent>
@@ -254,7 +248,7 @@ export function AnalyticsPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardDescription>Conversion Rate</CardDescription>
-                <TrendingUp className="h-5 w-5 text-green-600" />
+                <TrendingUp className="h-5 w-5 text-secondary" />
               </div>
             </CardHeader>
             <CardContent>
@@ -287,7 +281,7 @@ export function AnalyticsPage() {
                     <Line
                       type="monotone"
                       dataKey="revenue"
-                      stroke="#3b82f6"
+                      stroke="var(--primary)"
                       strokeWidth={2}
                       name="Revenue"
                       dot={false}
@@ -391,13 +385,13 @@ export function AnalyticsPage() {
                             <div className="font-medium text-foreground">{row.name}</div>
                           </td>
                           <td className="py-3 pr-3 text-right tabular-nums">{qty}</td>
-                          <td className="py-3 pr-3 text-right tabular-nums text-blue-600 font-semibold">
+                          <td className="py-3 pr-3 text-right tabular-nums text-primary font-semibold">
                             {formatCurrency(revenue)}
                           </td>
                           <td className="py-3 pr-3 text-right tabular-nums">
                             {formatCurrency(cost)}
                           </td>
-                          <td className={`py-3 pr-3 text-right tabular-nums font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          <td className={`py-3 pr-3 text-right tabular-nums font-semibold ${profit >= 0 ? 'text-secondary' : 'text-destructive'}`}>
                             {formatCurrency(profit)}
                           </td>
                           <td className="py-3 text-right tabular-nums">
@@ -427,17 +421,17 @@ export function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-3 gap-6">
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <p className="text-sm text-green-700 mb-1">Total Quotations</p>
-                <p className="text-3xl font-bold text-green-900">{analytics?.totalQuotations || 0}</p>
+              <div className="text-center p-4 bg-muted/30 border border-border rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Total Quotations</p>
+                <p className="text-3xl font-bold text-foreground">{analytics?.totalQuotations || 0}</p>
               </div>
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700 mb-1">Total Invoices</p>
-                <p className="text-3xl font-bold text-blue-900">{analytics?.totalInvoices || 0}</p>
+              <div className="text-center p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                <p className="text-sm text-primary mb-1">Total Invoices</p>
+                <p className="text-3xl font-bold text-primary">{analytics?.totalInvoices || 0}</p>
               </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <p className="text-sm text-green-700 mb-1">Paid Invoices</p>
-                <p className="text-3xl font-bold text-green-900">{analytics?.paidInvoices || 0}</p>
+              <div className="text-center p-4 bg-secondary/10 border border-secondary/20 rounded-lg">
+                <p className="text-sm text-secondary mb-1">Paid Invoices</p>
+                <p className="text-3xl font-bold text-secondary">{analytics?.paidInvoices || 0}</p>
               </div>
             </div>
           </CardContent>

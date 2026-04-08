@@ -12,6 +12,7 @@ import { useRef } from 'react';
 import { getCurrentFiscalYearRange } from '../utils/fiscal';
 import { DateRangePicker, DateRange } from '../components/ui/date-range-picker';
 import { FeatureInfo } from '../components/FeatureInfo';
+import { saveCsvWithDialog } from '../utils/saveFile';
 
 type PartyType = 'customer' | 'supplier';
 
@@ -296,17 +297,10 @@ export function PartyLedgerPage() {
     }
 
     const csv = lines.join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
     const name = String(statement.party?.name || partyLabel).replace(/[^a-z0-9\-_ ]/gi, '_');
-    a.download = `ledger_${name}_${dateRange.from}_to_${dateRange.to}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    const filename = `ledger_${name}_${dateRange.from}_to_${dateRange.to}.csv`;
+    
+    void saveCsvWithDialog(csv, filename);
   };
 
   const downloadPdf = async () => {
@@ -452,7 +446,7 @@ export function PartyLedgerPage() {
               <div className="md:col-span-2 flex items-end">
                 <div className="w-full">
                   <Label className="mb-1.5 block">Custom Date Range</Label>
-                  <DateRangePicker range={dateRange} onRangeChange={setDateRange} align="start" className="w-full" />
+                  <DateRangePicker range={dateRange} onRangeChange={setDateRange} align="start" className="w-full" persistenceKey="party_ledger" />
                 </div>
               </div>
             </div>

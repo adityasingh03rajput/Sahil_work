@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import { API_URL } from "../config/api";
 import { useAuth } from "../contexts/AuthContext";
-import { animateMarker, predictNext, bearing, type LatLng } from "../utils/markerAnimation";
+import { animateMarker, predictNext, bearing, encodeDigiPin, type LatLng } from "../utils/markerAnimation";
 
 interface LiveEmployee {
   employeeId: string;
@@ -14,6 +14,10 @@ interface LiveEmployee {
   // for dead reckoning
   prevLat?: number;
   prevLng?: number;
+  schedule?: {
+    geofenceMeters?: number;
+    workLocation?: { lat: number; lng: number; address: string };
+  };
 }
 
 declare global {
@@ -25,7 +29,9 @@ declare global {
 }
 
 const GOOGLE_MAPS_KEY = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY ?? "";
-const STALE_THRESHOLD_MS = 20_000;  // grey out marker if no update for 20s
+// 45s stale threshold: native service posts every 15s, but Doze/network can add
+// 10-20s of delay. 20s was too tight — employees kept flipping to stale between pings.
+const STALE_THRESHOLD_MS = 45_000;
 const DR_INTERVAL_MS     = 1_000;   // dead-reckoning update cadence
 
 function loadGoogleMaps(): Promise<void> {
@@ -64,6 +70,7 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
   const markersRef      = useRef<Map<string, any>>(new Map());
   const cancelAnimRef   = useRef<Map<string, () => void>>(new Map());  // cancel in-flight animations
   const prevPosRef      = useRef<Map<string, LatLng>>(new Map());      // for animation start
+  const geofenceRef     = useRef<Map<string, any>>(new Map());         // google.maps.Circle
   const infoWindowRef   = useRef<any>(null);
   const socketRef       = useRef<Socket | null>(null);
   const drTimerRef      = useRef<number | null>(null);
@@ -89,13 +96,22 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
           for (const r of data) {
             if (!r.lastLocation?.lat) continue;
             const id = String(r.employeeId._id ?? r.employeeId);
+            // Consider employee 'online' if their last location update is within
+            // the stale window. This prevents HTTP-only (native) employees from
+            // showing as 'Offline' on initial page load before the first socket
+            // employee-online event arrives.
+            const lastUpdatedMs = r.lastLocation?.updatedAt
+              ? Date.now() - new Date(r.lastLocation.updatedAt).getTime()
+              : Infinity;
+            const wasRecentlyActive = lastUpdatedMs < STALE_THRESHOLD_MS;
             next.set(id, {
               employeeId: id,
               name:       r.employeeId?.name ?? "Employee",
               lat:        r.lastLocation.lat,
               lng:        r.lastLocation.lng,
               updatedAt:  r.lastLocation.updatedAt,
-              online:     next.get(id)?.online ?? false,
+              online:     next.get(id)?.online ?? wasRecentlyActive,
+              schedule:   r.employeeId?.schedule,
             });
           }
           return next;
@@ -146,6 +162,7 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
           online:     true,
           prevLat:    existing?.lat,
           prevLng:    existing?.lng,
+          schedule:   existing?.schedule,
         });
         return next;
       });
@@ -186,15 +203,35 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
 
   useEffect(() => { loadSnapshot(); }, [loadSnapshot]);
 
-  // ── Sync markers + smooth animation ────────────────────────────────────────
-  useEffect(() => {
+    // ── Fit Map to Markers ──────────────────────────────────────────────────
+    const fitAllMarkers = useCallback(() => {
+      if (!mapInstanceRef.current || employees.size === 0) return;
+      const bounds = new window.google.maps.LatLngBounds();
+      employees.forEach((e) => bounds.extend({ lat: e.lat, lng: e.lng }));
+      mapInstanceRef.current.fitBounds(bounds);
+      if (employees.size === 1) mapInstanceRef.current.setZoom(20);
+    }, [employees]);
+
+    const hasInitialFitRef = useRef(false);
+    useEffect(() => {
+      if (mapReady && employees.size > 0 && !hasInitialFitRef.current) {
+        fitAllMarkers();
+        hasInitialFitRef.current = true;
+      }
+    }, [mapReady, employees.size, fitAllMarkers]);
+
+    // ── Sync markers + smooth animation ────────────────────────────────────────
+    useEffect(() => {
     if (!mapReady || !mapInstanceRef.current) return;
     const map     = mapInstanceRef.current;
     const markers = markersRef.current;
 
     employees.forEach((emp) => {
       const isStale   = staleSet.has(emp.employeeId);
-      const color     = isStale ? "#94a3b8" : emp.online ? "#22c55e" : "#6366f1";
+      const isOut     = emp.schedule?.workLocation?.lat && emp.schedule?.geofenceMeters && 
+                        haversineM({ lat: emp.lat, lng: emp.lng }, { lat: emp.schedule.workLocation.lat, lng: emp.schedule.workLocation.lng }) > emp.schedule.geofenceMeters;
+
+      const color     = isStale ? "#94a3b8" : isOut ? "#f43f5e" : emp.online ? "#22c55e" : "#6366f1";
       const targetPos = { lat: emp.lat, lng: emp.lng };
 
       if (markers.has(emp.employeeId)) {
@@ -208,13 +245,41 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
         prevPosRef.current.set(emp.employeeId, targetPos);
 
         m.setIcon({
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 11,
+          path: "M12 2C8.13 2 5 5.13 5 9c0 4.17 4.42 9.92 6.24 12.11.4.48 1.13.48 1.53 0C14.58 18.92 19 13.17 19 9c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
           fillColor: color,
           fillOpacity: 1,
           strokeColor: "#fff",
           strokeWeight: 2.5,
+          scale: 1.5,
+          anchor: new window.google.maps.Point(12, 24),
+          labelOrigin: new window.google.maps.Point(12, 9),
         });
+
+        // ── Geofence Circle Sync ──
+        if (geofenceRef.current.has(emp.employeeId)) {
+          const c = geofenceRef.current.get(emp.employeeId);
+          if (emp.schedule?.workLocation?.lat && emp.schedule?.geofenceMeters) {
+            c.setCenter({ lat: emp.schedule.workLocation.lat, lng: emp.schedule.workLocation.lng });
+            c.setRadius(emp.schedule.geofenceMeters);
+            c.setOptions({ strokeColor: isOut ? "#f43f5e" : "#6366f1", fillOpacity: isOut ? 0.15 : 0.08 });
+          } else {
+            c.setMap(null);
+            geofenceRef.current.delete(emp.employeeId);
+          }
+        } else if (emp.schedule?.workLocation?.lat && emp.schedule?.geofenceMeters) {
+           const circle = new window.google.maps.Circle({
+             map,
+             center: { lat: emp.schedule.workLocation.lat, lng: emp.schedule.workLocation.lng },
+             radius: emp.schedule.geofenceMeters,
+             fillColor: "#6366f1",
+             fillOpacity: 0.08,
+             strokeColor: "#6366f1",
+             strokeWeight: 1,
+             strokeOpacity: 0.2,
+             clickable: false
+           });
+           geofenceRef.current.set(emp.employeeId, circle);
+        }
       } else {
         // First time — place marker immediately, no animation needed
         prevPosRef.current.set(emp.employeeId, targetPos);
@@ -223,18 +288,20 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
           position: targetPos,
           title: emp.name,
           icon: {
-            path: window.google.maps.SymbolPath.CIRCLE,
-            scale: 11,
+            path: "M12 2C8.13 2 5 5.13 5 9c0 4.17 4.42 9.92 6.24 12.11.4.48 1.13.48 1.53 0C14.58 18.92 19 13.17 19 9c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
             fillColor: color,
             fillOpacity: 1,
             strokeColor: "#fff",
-            strokeWeight: 2.5,
+            strokeWeight: 2,
+            scale: 1.5,
+            anchor: new window.google.maps.Point(12, 24),
+            labelOrigin: new window.google.maps.Point(12, 9),
           },
           label: {
             text: emp.name[0].toUpperCase(),
             color: "#fff",
             fontWeight: "bold",
-            fontSize: "12px",
+            fontSize: "10px",
           },
         });
 
@@ -244,24 +311,33 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
           const t = new Date(e.updatedAt).toLocaleTimeString("en-IN", {
             hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
           });
-          const stale = staleSet.has(emp.employeeId);
+          const pin = encodeDigiPin(e.lat, e.lng);
           
           const buildContent = (addressHtml: string) => `
             <div style="font-family:system-ui;padding:4px 2px;min-width:170px;max-width:240px">
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-                <div style="width:8px;height:8px;border-radius:50%;background:${stale ? "#94a3b8" : e.online ? "#22c55e" : "#6366f1"}"></div>
-                <strong style="font-size:14px">${e.name}</strong>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <div style="width:8px;height:8px;border-radius:50%;background:${isStale ? "#94a3b8" : e.online ? "#22c55e" : "#6366f1"}"></div>
+                  <strong style="font-size:14px;color:#000">${e.name}</strong>
+                </div>
+                <div style="background:#f1f5f9;padding:2px 6px;border-radius:6px;font-family:monospace;font-size:9px;font-weight:700;color:#475569;border:1px solid #e2e8f0">
+                  DIGI-${pin}
+                </div>
               </div>
-              <div style="font-size:12px;color:#555">Last update: ${t} (${fmtAgo(sec)})</div>
-              <div style="font-size:12px;color:#333;margin-top:6px;line-height:1.4">📍 ${addressHtml}</div>
-              <div style="font-size:10px;color:#888;margin-top:4px">${e.lat.toFixed(5)}, ${e.lng.toFixed(5)}</div>
-              ${stale ? `<div style="font-size:11px;color:#e11d48;margin-top:6px;font-weight:600">⚫ No signal for ${fmtAgo(sec)}</div>` : ""}
+              <div style="font-size:12px;color:#475569;margin-bottom:6px">Last update: ${t} (${fmtAgo(sec)})</div>
+              <div style="font-size:12px;color:#1e293b;margin-top:6px;line-height:1.4">📍 ${addressHtml}</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9">${e.lat.toFixed(6)}, ${e.lng.toFixed(6)}</div>
+              ${isStale ? `<div style="font-size:11px;color:#e11d48;margin-top:8px;padding:4px 8px;background:#fff1f2;border-radius:6px;font-weight:600">⚫ Signal Lost ${fmtAgo(sec)}</div>` : ""}
             </div>
           `;
 
           // Show immediate fallback
           infoWindowRef.current.setContent(buildContent("<span style='color:#888'>Loading address...</span>"));
           infoWindowRef.current.open(map, marker);
+          
+          // Focus and zoom
+          map.panTo(marker.getPosition());
+          if (map.getZoom() < 20) map.setZoom(20);
 
           // Fetch robust reverse geocoding via our backend 100m cache layer
           try {
@@ -289,16 +365,10 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
         prevPosRef.current.delete(id);
         marker.setMap(null);
         markers.delete(id);
+        geofenceRef.current.get(id)?.setMap(null);
+        geofenceRef.current.delete(id);
       }
     });
-
-    // Fit bounds on first render
-    if (employees.size > 0) {
-      const bounds = new window.google.maps.LatLngBounds();
-      employees.forEach((e) => bounds.extend({ lat: e.lat, lng: e.lng }));
-      map.fitBounds(bounds);
-      if (employees.size === 1) map.setZoom(15);
-    }
   }, [employees, staleSet, mapReady]);
 
   // ── Dead reckoning: if no update for 5-10s, extrapolate position ──────────
@@ -357,16 +427,31 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
             {employees.size} employee{employees.size !== 1 ? "s" : ""} tracked today
           </span>
         </div>
-        <button
-          type="button"
-          onClick={loadSnapshot}
-          style={{ fontSize: 12, padding: "4px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "transparent", cursor: "pointer", color: "var(--foreground)" }}
-        >
-          Refresh
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            type="button"
+            onClick={fitAllMarkers}
+            style={{ fontSize: 12, padding: "4px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--primary)", cursor: "pointer", color: "var(--primary-foreground)" }}
+          >
+            Re-center Map
+          </button>
+          <button
+            type="button"
+            onClick={loadSnapshot}
+            style={{ fontSize: 12, padding: "4px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "transparent", cursor: "pointer", color: "var(--foreground)" }}
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}`}</style>
+      <style>{`
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+        /* Hide Google Maps "For development purposes only" watermark text */
+        .gm-style div[style*="z-index: 1000000"] { display: none !important; }
+        .gm-style .dismissButton { display: none !important; }
+        .gm-err-container { display: none !important; }
+      `}</style>
 
       {/* Map */}
       <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", border: "1px solid var(--border)", height: 440 }}>
@@ -393,13 +478,13 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
         </div>
 
         {loading && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.04)" }}>
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.04)", pointerEvents: "none" }}>
             <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Loading…</span>
           </div>
         )}
 
         {!loading && employees.size === 0 && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, pointerEvents: "none" }}>
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ opacity: 0.25 }}>
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
               <circle cx="12" cy="9" r="2.5"/>
@@ -434,7 +519,10 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
                       : emp.online
                         ? `Live · ${fmtAgo(sec)}`
                         : `Offline · ${fmtAgo(sec)}`}
-                    {" · "}{emp.lat.toFixed(4)}, {emp.lng.toFixed(4)}
+                  </p>
+                  <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--muted-foreground)", opacity: 0.8, fontFamily: "monospace", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ background: "rgba(0,0,0,0.05)", padding: "1px 4px", borderRadius: 4 }}>DIGI-{encodeDigiPin(emp.lat, emp.lng)}</span>
+                    <span>{emp.lat.toFixed(5)}, {emp.lng.toFixed(5)}</span>
                   </p>
                 </div>
                 <span style={{

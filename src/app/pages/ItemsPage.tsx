@@ -217,7 +217,7 @@ export function ItemsPage() {
   // The structure renders instantly now, swapping list items smoothly.
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto pb-40 md:pb-12 min-h-screen">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>

@@ -12,9 +12,19 @@ export const employeesRouter = Router();
 // GET /employees?profileId=xxx  — list employees for a profile
 employeesRouter.get('/', requireAuth, async (req, res, next) => {
   try {
-    const { profileId } = req.query;
+    const { profileId, search } = req.query;
     const filter = { ownerUserId: req.userId };
     if (profileId) filter.profileId = profileId;
+    
+    if (search) {
+      const regex = new RegExp(String(search), 'i');
+      filter.$or = [
+        { name: regex },
+        { email: regex },
+        { phone: regex },
+      ];
+    }
+
     const employees = await Employee.find(filter)
       .select('-passwordHash')
       .sort({ createdAt: -1 })

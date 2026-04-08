@@ -9,7 +9,6 @@ import {
   TrendingUp, 
   Clock,
   CheckCircle2,
-  XCircle,
   MoreVertical,
   Sun,
   Moon,
@@ -20,7 +19,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { TraceLoader } from '../components/TraceLoader';
-import { GenericPageSkeleton } from '../components/PageSkeleton';
+import { AnalyticsPageSkeleton } from '../components/PageSkeleton';
 import { prefetchRoutesOnIdle } from '../hooks/usePrefetch';
 import { DateRangePicker, DateRange } from '../components/ui/date-range-picker';
 import { usePageRefresh } from '../hooks/usePageRefresh';
@@ -137,12 +136,12 @@ export function DashboardPage() {
   };
 
   if (loading) {
-    return <GenericPageSkeleton />;
+    return <AnalyticsPageSkeleton />;
   }
 
   return (
     <>
-      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 100px)' }}>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div>
@@ -208,7 +207,7 @@ export function DashboardPage() {
 
                 <DropdownMenuSeparator />
                 <div className="p-2 text-[10px] text-muted-foreground text-center">
-                  v1.0.5 - Premium Edition
+                  vv1.0.1 - Premium Edition
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -247,7 +246,7 @@ export function DashboardPage() {
             <CardContent className="py-6">
               <div className="text-center max-w-2xl mx-auto">
                 <h2 className="text-2xl font-bold text-foreground mb-2">
-                  Welcome to BillVyapar! 🎉
+                  Welcome to BillVyapar vv1.0.1! 🎉
                 </h2>
                 <p className="text-foreground/80 mb-4">
                   Your complete business documentation and billing ecosystem is ready. 

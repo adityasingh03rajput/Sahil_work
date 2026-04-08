@@ -60,11 +60,11 @@ export function MasterAdminUsersPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black" style={{ color: '#1e1b4b' }}>All Users</h1>
-          <p className="text-sm font-medium mt-0.5" style={{ color: '#94a3b8' }}>Every registered user across the platform</p>
+          <h1 className="text-2xl font-black" style={{ color: 'var(--foreground)' }}>All Users</h1>
+          <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Every registered user across the platform</p>
         </div>
         <span className="text-xs px-3.5 py-2 rounded-2xl font-bold"
-          style={{ background: '#eef2ff', color: '#6366f1', border: '1.5px solid #c7d2fe', boxShadow: '0 2px 8px rgba(99,102,241,0.1)' }}>
+          style={{ background: 'var(--accent)', color: 'var(--primary)', border: '1.5px solid var(--border)', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
           {users.length} users
         </span>
       </div>
@@ -75,9 +75,9 @@ export function MasterAdminUsersPage() {
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search by name, email or phone..."
           className="w-full pl-11 pr-4 py-3 rounded-2xl text-sm font-medium outline-none transition-all"
-          style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid #e2e8f0', color: '#1e1b4b', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}
-          onFocus={e => { e.currentTarget.style.borderColor = '#a5b4fc'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(165,180,252,0.2)'; }}
-          onBlur={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)'; }} />
+          style={{ background: 'var(--card)', border: '1.5px solid var(--border)', color: 'var(--foreground)', boxShadow: '0 4px 12px rgba(0,0,0,0.04)' }}
+          onFocus={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent)'; }}
+          onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)'; }} />
       </div>
 
       {/* List */}
@@ -87,32 +87,32 @@ export function MasterAdminUsersPage() {
         </div>
       ) : users.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 rounded-3xl"
-          style={{ background: 'rgba(255,255,255,0.7)', border: '1.5px solid rgba(255,255,255,0.9)', boxShadow: '0 8px 32px rgba(99,102,241,0.06)' }}>
+          style={{ background: 'var(--card)', border: '1.5px solid var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.06)' }}>
           <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4"
-            style={{ background: '#eef2ff', border: '1.5px solid #c7d2fe' }}>
-            <UsersIcon className="h-8 w-8" style={{ color: '#a5b4fc' }} />
+            style={{ background: 'var(--accent)', border: '1.5px solid var(--border)' }}>
+            <UsersIcon className="h-8 w-8" style={{ color: 'var(--primary)' }} />
           </div>
-          <p className="text-sm font-bold" style={{ color: '#94a3b8' }}>No users found</p>
+          <p className="text-sm font-bold" style={{ color: 'var(--muted-foreground)' }}>No users found</p>
         </div>
       ) : (
         <div className="space-y-3">
           {users.map(user => (
             <div key={user._id} className="p-5 transition-all"
-              style={{ background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(255,255,255,0.9)', borderRadius: 20, boxShadow: '0 4px 16px rgba(99,102,241,0.06)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(99,102,241,0.1)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(99,102,241,0.06)'; }}>
+              style={{ background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 20, boxShadow: '0 4px 16px rgba(0,0,0,0.04)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(0,0,0,0.04)'; }}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-sm font-black flex-shrink-0"
-                    style={{ background: '#eef2ff', color: '#6366f1', border: '1.5px solid #c7d2fe', boxShadow: '0 4px 12px rgba(99,102,241,0.15)' }}>
+                    style={{ background: 'var(--accent)', color: 'var(--primary)', border: '1.5px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                     {(user.name || user.email || '?')[0].toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <p className="text-sm font-bold" style={{ color: '#1e1b4b' }}>{user.name || 'Unnamed User'}</p>
+                      <p className="text-sm font-bold" style={{ color: 'var(--foreground)' }}>{user.name || 'Unnamed User'}</p>
                       {user.tenant && (
                         <span className="text-[10px] px-2.5 py-1 rounded-full font-black"
-                          style={{ background: '#ede9fe', color: '#7c3aed', border: '1.5px solid #ddd6fe' }}>
+                          style={{ background: 'oklch(0.9 0.1 280 / 0.15)', color: 'oklch(0.6 0.2 280)', border: '1.5px solid oklch(0.6 0.2 280 / 0.3)' }}>
                           SUBSCRIBER
                         </span>
                       )}
@@ -130,7 +130,7 @@ export function MasterAdminUsersPage() {
                           )}
                           {!user.license && (
                             <span className="text-[10px] px-2.5 py-1 rounded-full font-black"
-                              style={{ background: '#fef9c3', color: '#ca8a04', border: '1.5px solid #fde68a' }}>
+                              style={{ background: 'oklch(0.95 0.1 90 / 0.15)', color: 'oklch(0.7 0.2 90)', border: '1.5px solid oklch(0.7 0.2 90 / 0.3)' }}>
                               TRIAL
                             </span>
                           )}
@@ -171,9 +171,9 @@ export function MasterAdminUsersPage() {
                   {user.tenant && (
                     <button onClick={() => navigate(`/subscribers/${user.tenant.id}`)}
                       className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all"
-                      style={{ background: '#ede9fe', color: '#7c3aed', border: '1.5px solid #ddd6fe' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#ddd6fe'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#ede9fe'; }}>
+                      style={{ background: 'var(--secondary)', color: 'var(--secondary-foreground)', border: '1.5px solid var(--border)' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--primary)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--secondary)'; }}>
                       <ExternalLink className="h-3 w-3" />Manage
                     </button>
                   )}
@@ -190,16 +190,16 @@ export function MasterAdminUsersPage() {
           style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(4px)' }}
           onClick={() => setResetTarget(null)}>
           <div className="w-full max-w-sm p-6 rounded-3xl"
-            style={{ background: '#fff', border: '1.5px solid #e2e8f0', boxShadow: '0 24px 64px rgba(0,0,0,0.15)' }}
+            style={{ background: 'var(--card)', border: '1.5px solid var(--border)', boxShadow: '0 24px 64px rgba(0,0,0,0.25)', backdropFilter: 'blur(20px)' }}
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-base font-black" style={{ color: '#1e1b4b' }}>Reset Password</h2>
-                <p className="text-xs font-medium mt-0.5" style={{ color: '#94a3b8' }}>{resetTarget.name}</p>
+                <h2 className="text-base font-black" style={{ color: 'var(--foreground)' }}>Reset Password</h2>
+                <p className="text-xs font-medium mt-0.5" style={{ color: 'var(--muted-foreground)' }}>{resetTarget.name}</p>
               </div>
               <button onClick={() => setResetTarget(null)}
                 className="w-8 h-8 rounded-xl flex items-center justify-center"
-                style={{ background: '#f1f5f9', color: '#64748b' }}>
+                style={{ background: 'var(--muted)', color: 'var(--muted-foreground)' }}>
                 <X className="h-4 w-4" />
               </button>
             </div>
