@@ -9,13 +9,16 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* 1. Momentum scrolling on iOS + WebView (feels like native inertia) */
-html, body {
-  zoom: 0.67;
+html,
+body {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-  overscroll-behavior: contain;        /* prevent page bouncing / chaining */
-  -webkit-tap-highlight-color: transparent;  /* remove blue flash on tap */
-  touch-action: pan-y;                 /* allow vertical scrolling, block zoom */
+  overscroll-behavior: contain;
+  /* prevent page bouncing / chaining */
+  -webkit-tap-highlight-color: transparent;
+  /* remove blue flash on tap */
+  touch-action: pan-y;
+  /* allow vertical scrolling, block zoom */
 }
 
 /* 1b. Native APK type scale — driven by DisplayContext via --native-font-size CSS var.
@@ -23,30 +26,85 @@ html, body {
 html.native-app {
   font-size: var(--native-font-size, 13px);
 }
+
 /* Scale Tailwind text utilities proportionally to root font-size */
-html.native-app .text-xs   { font-size: 0.69rem  !important; }
-html.native-app .text-sm   { font-size: 0.8rem   !important; }
-html.native-app .text-base { font-size: 0.92rem  !important; }
-html.native-app .text-lg   { font-size: 1.05rem  !important; }
-html.native-app .text-xl   { font-size: 1.15rem  !important; }
-html.native-app .text-2xl  { font-size: 1.3rem   !important; }
-html.native-app .text-3xl  { font-size: 1.5rem   !important; }
-html.native-app .text-4xl  { font-size: 1.75rem  !important; }
+html.native-app .text-xs {
+  font-size: 0.69rem !important;
+}
+
+html.native-app .text-sm {
+  font-size: 0.8rem !important;
+}
+
+html.native-app .text-base {
+  font-size: 0.92rem !important;
+}
+
+html.native-app .text-lg {
+  font-size: 1.05rem !important;
+}
+
+html.native-app .text-xl {
+  font-size: 1.15rem !important;
+}
+
+html.native-app .text-2xl {
+  font-size: 1.3rem !important;
+}
+
+html.native-app .text-3xl {
+  font-size: 1.5rem !important;
+}
+
+html.native-app .text-4xl {
+  font-size: 1.75rem !important;
+}
 
 /* Compact density — tighter padding on cards and containers */
-html.native-app .p-4  { padding: calc(1rem * var(--dp, 0.8))  !important; }
-html.native-app .p-6  { padding: calc(1.5rem * var(--dp, 0.8)) !important; }
-html.native-app .px-4 { padding-left: calc(1rem * var(--dp, 0.8)) !important; padding-right: calc(1rem * var(--dp, 0.8)) !important; }
-html.native-app .py-4 { padding-top: calc(1rem * var(--dp, 0.8)) !important; padding-bottom: calc(1rem * var(--dp, 0.8)) !important; }
-html.native-app .gap-6 { gap: calc(1.5rem * var(--dp, 0.8)) !important; }
-html.native-app .gap-4 { gap: calc(1rem * var(--dp, 0.8)) !important; }
-html.native-app .mb-6  { margin-bottom: calc(1.5rem * var(--dp, 0.8)) !important; }
-html.native-app .mb-4  { margin-bottom: calc(1rem * var(--dp, 0.8)) !important; }
+html.native-app .p-4 {
+  padding: calc(1rem * var(--dp, 0.8)) !important;
+}
+
+html.native-app .p-6 {
+  padding: calc(1.5rem * var(--dp, 0.8)) !important;
+}
+
+html.native-app .px-4 {
+  padding-left: calc(1rem * var(--dp, 0.8)) !important;
+  padding-right: calc(1rem * var(--dp, 0.8)) !important;
+}
+
+html.native-app .py-4 {
+  padding-top: calc(1rem * var(--dp, 0.8)) !important;
+  padding-bottom: calc(1rem * var(--dp, 0.8)) !important;
+}
+
+html.native-app .gap-6 {
+  gap: calc(1.5rem * var(--dp, 0.8)) !important;
+}
+
+html.native-app .gap-4 {
+  gap: calc(1rem * var(--dp, 0.8)) !important;
+}
+
+html.native-app .mb-6 {
+  margin-bottom: calc(1.5rem * var(--dp, 0.8)) !important;
+}
+
+html.native-app .mb-4 {
+  margin-bottom: calc(1rem * var(--dp, 0.8)) !important;
+}
 
 /* 2. Remove 300ms tap delay on every interactive element */
-a, button, input, select, textarea,
-[role="button"], [tabindex] {
-  touch-action: manipulation;          /* fastest possible tap response */
+a,
+button,
+input,
+select,
+textarea,
+[role="button"],
+[tabindex] {
+  touch-action: manipulation;
+  /* fastest possible tap response */
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
 }
@@ -54,12 +112,14 @@ a, button, input, select, textarea,
 /* 2b. Cards and list items must NOT block vertical scroll.
    touch-action: pan-y lets the finger scroll even when it starts on a card/button.
    The FAB overrides this with touch-action: none via inline style. */
-.card, [data-slot="card"],
-[class*="rounded"], li,
-.flex-col > button,
-.flex-col > a,
-[class*="list"] > *,
-[class*="items"] > * {
+.card,
+[data-slot="card"],
+[class*="rounded"],
+li,
+.flex-col>button,
+.flex-col>a,
+[class*="list"]>*,
+[class*="items"]>* {
   touch-action: pan-y;
 }
 
@@ -73,7 +133,8 @@ a, button, input, select, textarea,
   will-change: transform;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  transform: translateZ(0);            /* force compositing layer */
+  transform: translateZ(0);
+  /* force compositing layer */
 }
 
 /* 4. Prevent card/list items from triggering unintended scroll-chaining */
@@ -146,6 +207,7 @@ a, button, input, select, textarea,
     filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.22));
     text-shadow: 0 0 8px rgba(37, 99, 235, 0.22);
   }
+
   100% {
     filter: drop-shadow(0 0 12px rgba(37, 99, 235, 0.3));
     text-shadow: 0 0 12px rgba(37, 99, 235, 0.3);
@@ -157,6 +219,7 @@ a, button, input, select, textarea,
     filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.28));
     text-shadow: 0 0 8px rgba(34, 197, 94, 0.28);
   }
+
   100% {
     filter: drop-shadow(0 0 14px rgba(34, 197, 94, 0.42));
     text-shadow: 0 0 14px rgba(34, 197, 94, 0.42);
@@ -167,6 +230,7 @@ a, button, input, select, textarea,
   0% {
     transform: translateX(-140%);
   }
+
   100% {
     transform: translateX(140%);
   }
@@ -176,6 +240,7 @@ a, button, input, select, textarea,
   0% {
     background-position: 0% 100%;
   }
+
   100% {
     background-position: 100% 100%;
   }
@@ -186,6 +251,7 @@ a, button, input, select, textarea,
     opacity: 0.55;
     transform: translate(-50%, -50%) scale(0.92);
   }
+
   100% {
     opacity: 0.85;
     transform: translate(-50%, -50%) scale(1.05);
@@ -240,22 +306,18 @@ a, button, input, select, textarea,
   pointer-events: none;
   opacity: 0;
   transform: translateX(-140%);
-  background: radial-gradient(
-    circle at 0% 50%,
-    rgba(37, 99, 235, 0.9) 0%,
-    rgba(34, 197, 94, 0.35) 35%,
-    rgba(37, 99, 235, 0) 70%
-  );
+  background: radial-gradient(circle at 0% 50%,
+      rgba(37, 99, 235, 0.9) 0%,
+      rgba(34, 197, 94, 0.35) 35%,
+      rgba(37, 99, 235, 0) 70%);
   filter: blur(8px);
 }
 
 .dark .travel-glow::after {
-  background: radial-gradient(
-    circle at 0% 50%,
-    rgba(34, 197, 94, 0.95) 0%,
-    rgba(34, 197, 94, 0.45) 40%,
-    rgba(34, 197, 94, 0) 75%
-  );
+  background: radial-gradient(circle at 0% 50%,
+      rgba(34, 197, 94, 0.95) 0%,
+      rgba(34, 197, 94, 0.45) 40%,
+      rgba(34, 197, 94, 0) 75%);
 }
 
 .travel-glow-hover:hover::after,
@@ -265,28 +327,24 @@ a, button, input, select, textarea,
 }
 
 .travel-glow-text {
-  background-image: linear-gradient(
-    90deg,
-    rgba(37, 99, 235, 0) 0%,
-    rgba(37, 99, 235, 0) 44%,
-    rgba(34, 197, 94, 0.9) 50%,
-    rgba(37, 99, 235, 0) 56%,
-    rgba(37, 99, 235, 0) 100%
-  );
+  background-image: linear-gradient(90deg,
+      rgba(37, 99, 235, 0) 0%,
+      rgba(37, 99, 235, 0) 44%,
+      rgba(34, 197, 94, 0.9) 50%,
+      rgba(37, 99, 235, 0) 56%,
+      rgba(37, 99, 235, 0) 100%);
   background-repeat: no-repeat;
   background-size: 200% 2px;
   background-position: 0% 100%;
 }
 
 .dark .travel-glow-text {
-  background-image: linear-gradient(
-    90deg,
-    rgba(34, 197, 94, 0) 0%,
-    rgba(34, 197, 94, 0) 40%,
-    rgba(34, 197, 94, 0.95) 50%,
-    rgba(34, 197, 94, 0) 60%,
-    rgba(34, 197, 94, 0) 100%
-  );
+  background-image: linear-gradient(90deg,
+      rgba(34, 197, 94, 0) 0%,
+      rgba(34, 197, 94, 0) 40%,
+      rgba(34, 197, 94, 0.95) 50%,
+      rgba(34, 197, 94, 0) 60%,
+      rgba(34, 197, 94, 0) 100%);
 }
 
 .travel-glow-text-hover:hover,
@@ -313,24 +371,20 @@ a, button, input, select, textarea,
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.7);
   transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out;
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(37, 99, 235, 0.95) 0%,
-    rgba(34, 197, 94, 0.45) 32%,
-    rgba(37, 99, 235, 0.18) 52%,
-    rgba(37, 99, 235, 0) 72%
-  );
+  background: radial-gradient(circle at 50% 50%,
+      rgba(37, 99, 235, 0.95) 0%,
+      rgba(34, 197, 94, 0.45) 32%,
+      rgba(37, 99, 235, 0.18) 52%,
+      rgba(37, 99, 235, 0) 72%);
   filter: blur(8px);
 }
 
 .dark .icon-aura::before {
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(34, 197, 94, 0.98) 0%,
-    rgba(34, 197, 94, 0.55) 35%,
-    rgba(34, 197, 94, 0.22) 55%,
-    rgba(34, 197, 94, 0) 78%
-  );
+  background: radial-gradient(circle at 50% 50%,
+      rgba(34, 197, 94, 0.98) 0%,
+      rgba(34, 197, 94, 0.55) 35%,
+      rgba(34, 197, 94, 0.22) 55%,
+      rgba(34, 197, 94, 0) 78%);
 }
 
 .icon-aura-hover:hover::before,
@@ -347,6 +401,7 @@ a, button, input, select, textarea,
   0% {
     opacity: 0.35;
   }
+
   100% {
     opacity: 0.6;
   }
@@ -356,6 +411,7 @@ a, button, input, select, textarea,
   0% {
     opacity: 1;
   }
+
   100% {
     opacity: 0.25;
   }
@@ -365,6 +421,7 @@ a, button, input, select, textarea,
   0% {
     opacity: 0;
   }
+
   100% {
     opacity: 1;
   }
@@ -384,14 +441,12 @@ a, button, input, select, textarea,
   opacity: 0;
   transition: opacity 0.4s ease-in-out;
 
-  background: linear-gradient(
-    90deg,
-    rgba(37, 99, 235, 0) 0%,
-    rgba(34, 197, 94, 0.25) 18%,
-    rgba(37, 99, 235, 0.55) 50%,
-    rgba(34, 197, 94, 0.25) 82%,
-    rgba(37, 99, 235, 0) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(37, 99, 235, 0) 0%,
+      rgba(34, 197, 94, 0.25) 18%,
+      rgba(37, 99, 235, 0.55) 50%,
+      rgba(34, 197, 94, 0.25) 82%,
+      rgba(37, 99, 235, 0) 100%);
 
   filter: blur(6px);
 
@@ -406,14 +461,12 @@ a, button, input, select, textarea,
 }
 
 .dark .border-glow::before {
-  background: linear-gradient(
-    90deg,
-    rgba(34, 197, 94, 0) 0%,
-    rgba(34, 197, 94, 0.22) 18%,
-    rgba(34, 197, 94, 0.62) 50%,
-    rgba(34, 197, 94, 0.22) 82%,
-    rgba(34, 197, 94, 0) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(34, 197, 94, 0) 0%,
+      rgba(34, 197, 94, 0.22) 18%,
+      rgba(34, 197, 94, 0.62) 50%,
+      rgba(34, 197, 94, 0.22) 82%,
+      rgba(34, 197, 94, 0) 100%);
 }
 
 .border-glow::after {
@@ -426,11 +479,9 @@ a, button, input, select, textarea,
   opacity: 0;
   transition: opacity 0.4s ease-in-out;
 
-  background: linear-gradient(
-    90deg,
-    rgba(37, 99, 235, 0.35) 0%,
-    rgba(34, 197, 94, 0.35) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(37, 99, 235, 0.35) 0%,
+      rgba(34, 197, 94, 0.35) 100%);
 
   filter: blur(6px);
 
@@ -445,11 +496,9 @@ a, button, input, select, textarea,
 }
 
 .dark .border-glow::after {
-  background: linear-gradient(
-    90deg,
-    rgba(34, 197, 94, 0.38) 0%,
-    rgba(34, 197, 94, 0.38) 100%
-  );
+  background: linear-gradient(90deg,
+      rgba(34, 197, 94, 0.38) 0%,
+      rgba(34, 197, 94, 0.38) 100%);
 }
 
 .border-glow-hover:hover::before,
@@ -575,6 +624,7 @@ a, button, input, select, textarea,
   0% {
     transform: translateX(-140%);
   }
+
   100% {
     transform: translateX(140%);
   }
@@ -665,13 +715,11 @@ a, button, input, select, textarea,
   height: 34px;
   width: 100%;
   border-radius: 10px;
-  background: repeating-linear-gradient(
-    45deg,
-    #303030,
-    #303030 10px,
-    #202020 10px,
-    #202020 20px
-  );
+  background: repeating-linear-gradient(45deg,
+      #303030,
+      #303030 10px,
+      #202020 10px,
+      #202020 20px);
 }
 
 .bv-flip-strip-row {
@@ -748,6 +796,7 @@ a, button, input, select, textarea,
   .bv-flip-inner {
     transition: none;
   }
+
   .bv-flip-card:hover .bv-flip-inner {
     transform: none;
   }
@@ -758,8 +807,15 @@ a, button, input, select, textarea,
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @keyframes bounce-slow {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-15px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-15px);
+  }
 }
 
 .animate-bounce-slow {
@@ -767,9 +823,19 @@ a, button, input, select, textarea,
 }
 
 @keyframes blob {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
 }
 
 .animate-blob {
@@ -785,8 +851,13 @@ a, button, input, select, textarea,
 }
 
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-spin-slow {

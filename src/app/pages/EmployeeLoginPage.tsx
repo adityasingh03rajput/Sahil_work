@@ -5,18 +5,6 @@ import { API_URL, clearApiUrlOverride, getApiUrlOverride, setApiUrlOverride } fr
 import { toast } from 'sonner';
 import { useIsNative } from '../hooks/useIsNative';
 
-/* ── Animated wave background ─────────────────────────────────────────────── */
-function WaveBg() {
-  return (
-    <svg viewBox="0 0 390 200" preserveAspectRatio="none"
-      style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: 220, pointerEvents: 'none' }}>
-      <path d="M0,80 C80,140 160,20 260,90 C320,130 360,60 390,80 L390,200 L0,200 Z"
-        fill="rgba(99,102,241,0.12)" />
-      <path d="M0,110 C60,70 140,150 220,100 C300,50 350,130 390,110 L390,200 L0,200 Z"
-        fill="rgba(139,92,246,0.08)" />
-    </svg>
-  );
-}
 
 /* ── Fingerprint icon ─────────────────────────────────────────────────────── */
 function FingerprintIcon() {
@@ -99,245 +87,72 @@ export function EmployeeLoginPage() {
 
   const statusDot = backendOnline === true ? '#22c55e' : backendOnline === false ? '#ef4444' : '#f59e0b';
 
-  // On web, show a simple clean login page — mobile design is APK-only
-  if (!isNative) {
-    const webInp: React.CSSProperties = {
-      width: '100%', padding: '11px 14px', borderRadius: 8,
-      border: '1px solid hsl(var(--border))', background: 'hsl(var(--background))',
-      color: 'hsl(var(--foreground))', fontSize: 14, outline: 'none',
-      boxSizing: 'border-box', fontFamily: 'system-ui,sans-serif',
-    };
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'hsl(var(--background))', padding: 16 }}>
-        <div style={{ width: '100%', maxWidth: 400, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 16, padding: '32px 28px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
-          <div style={{ textAlign: 'center', marginBottom: 28 }}>
-            <div style={{ width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', boxShadow: '0 4px 16px rgba(79,70,229,0.35)' }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="11" r="2.5" fill="white" stroke="none" opacity="0.7"/><line x1="12" y1="13.5" x2="12" y2="16" strokeWidth="2.5"/></svg>
-            </div>
-            <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: 'hsl(var(--foreground))' }}>Employee Portal</h1>
-            <p style={{ margin: 0, fontSize: 13, color: 'hsl(var(--muted-foreground))' }}>BillVyapar · Staff Access</p>
-          </div>
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'hsl(var(--muted-foreground))', marginBottom: 6 }}>Email</label>
-              <input type="email" inputMode="email" autoComplete="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} required style={webInp} />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'hsl(var(--muted-foreground))', marginBottom: 6 }}>Password</label>
-              <input type="password" autoComplete="current-password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} style={webInp} />
-            </div>
-            <button type="submit" disabled={loading} style={{ width: '100%', padding: '12px', borderRadius: 10, border: 'none', background: loading ? 'rgba(79,70,229,0.4)' : 'linear-gradient(135deg,#4f46e5,#7c3aed)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', boxShadow: loading ? 'none' : '0 4px 16px rgba(79,70,229,0.4)' }}>
-              {loading ? 'Signing in…' : 'Sign In'}
-            </button>
-          </form>
-          <p style={{ textAlign: 'center', fontSize: 12, color: 'hsl(var(--muted-foreground))', margin: '16px 0 0' }}>Forgot your password? Contact your employer.</p>
-          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid hsl(var(--border))', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusDot, flexShrink: 0 }} />
-            <span style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))' }}>
-              {backendOnline === true ? 'Online' : backendOnline === false ? 'Offline' : '…'}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const webInputStyle: React.CSSProperties = {
+    width: '100%', padding: '11px 14px', borderRadius: 6,
+    border: '1px solid rgba(0,0,0,0.15)', background: 'rgba(255,255,255,0.55)',
+    color: '#1a1a14', fontSize: 14, fontFamily: 'Manrope, sans-serif',
+    outline: 'none', transition: 'background 0.2s, border-color 0.2s',
+    backdropFilter: 'blur(4px)', boxSizing: 'border-box',
+  };
+
+  const statusColor = backendOnline ? '#22c55e' : backendOnline === false ? '#ef4444' : '#f59e0b';
+  const statusText = backendOnline ? 'Online' : backendOnline === false ? 'Offline' : '…';
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0,
-      background: 'linear-gradient(175deg, #0f172a 0%, #1e1b4b 45%, #0f172a 100%)',
-      display: 'flex', flexDirection: 'column',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      overflowY: 'auto', overflowX: 'hidden',
-    }}>
-      <WaveBg />
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', fontFamily: 'Manrope, sans-serif', backgroundImage: 'url(/background.png)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#2a3a5c', overflowY: 'auto', width: '100vw', height: '100vh', maxWidth: 'none' }}>
+      
+      <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'clamp(16px,4vw,32px) 16px' }}>
+        <div style={{ width: '100%', maxWidth: 500, background: 'rgba(255,252,240,0.55)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', borderRadius: 4, border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 8px 40px rgba(0,0,0,0.18)', padding: 'clamp(20px,5vw,36px) clamp(16px,6vw,44px)', position: 'relative' }}>
 
-      {/* Safe area top */}
-      <div style={{ height: 'env(safe-area-inset-top, 20px)' }} />
-
-      {/* Top strip — status bar area */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-        padding: '10px 20px 0', position: 'relative', zIndex: 2 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5,
-          border: 'none', padding: '6px 10px', borderRadius: 20,
-          background: 'rgba(255,255,255,0.06)' }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusDot }} />
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
-            {backendOnline === true ? 'Online' : backendOnline === false ? 'Offline' : '…'}
-          </span>
-        </div>
-      </div>
-
-      {/* Hero section */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        padding: '20px 24px 0', position: 'relative', zIndex: 2 }}>
-
-        {/* Icon ring */}
-        <div style={{ position: 'relative', marginBottom: 28 }}>
-          <div style={{
-            width: 88, height: 88, borderRadius: 28,
-            background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 0 12px rgba(99,102,241,0.12), 0 0 0 24px rgba(99,102,241,0.06)',
-          }}>
-            <FingerprintIcon />
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 60, height: 60, borderRadius: 14, background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', boxShadow: '0 4px 16px rgba(79,70,229,0.35)', marginBottom: 10 }}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="11" r="2.5" fill="white" stroke="none" opacity="0.7"/><line x1="12" y1="13.5" x2="12" y2="16" strokeWidth="2.5"/></svg>
+            </div>
+            <h1 style={{ fontFamily: 'Newsreader, serif', fontSize: 'clamp(22px,6vw,30px)', fontWeight: 700, color: '#1a1a14', margin: 0, letterSpacing: '-0.3px' }}>Employee Portal</h1>
+            <p style={{ fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontSize: 14, color: '#4a4a3a', margin: '4px 0 0' }}>BillVyapar · Staff Access</p>
           </div>
-          {/* Online pulse ring */}
-          {backendOnline && (
-            <div style={{
-              position: 'absolute', bottom: 4, right: 4,
-              width: 18, height: 18, borderRadius: '50%',
-              background: '#22c55e', border: '3px solid #0f172a',
-            }} />
-          )}
-        </div>
 
-        <h1 style={{ margin: '0 0 6px', fontSize: 28, fontWeight: 900, color: '#fff',
-          letterSpacing: '-0.5px', textAlign: 'center' }}>
-          Employee Portal
-        </h1>
-        <p style={{ margin: '0 0 36px', fontSize: 14, color: 'rgba(255,255,255,0.4)',
-          textAlign: 'center' }}>
-          BillVyapar · Staff Access
-        </p>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 14, fontSize: 11, color: '#6a6a5a' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor, display: 'inline-block' }} />
+              {statusText}
+            </span>
+          </div>
 
-        {/* Form card — bottom-sheet style */}
-        <div style={{
-          width: '100%', maxWidth: 420,
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.09)',
-          borderRadius: 28,
-          padding: '28px 24px 24px',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-        }}>
-          {/* Drag handle aesthetic */}
-          <div style={{ width: 36, height: 4, borderRadius: 2,
-            background: 'rgba(255,255,255,0.12)', margin: '0 auto 24px' }} />
-
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-
-            {/* Email field */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700,
-                color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em',
-                textTransform: 'uppercase', marginBottom: 8 }}>
-                Email Address
-              </label>
-              <div style={{ position: 'relative' }}>
-                <svg style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
-                  pointerEvents: 'none', opacity: 0.4 }}
-                  width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-                <input type="email" inputMode="email" autoComplete="email"
-                  placeholder="your@email.com" value={email}
-                  onChange={e => setEmail(e.target.value)} required
-                  style={{
-                    width: '100%', padding: '15px 16px 15px 42px',
-                    borderRadius: 14, border: '1.5px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(255,255,255,0.06)', color: '#fff',
-                    fontSize: 16, outline: 'none', boxSizing: 'border-box',
-                    WebkitAppearance: 'none',
-                  }}
-                  onFocus={e => e.target.style.borderColor = 'rgba(99,102,241,0.7)'}
-                  onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                />
-              </div>
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a4a3a' }}>Email address</label>
+              <input type="email" placeholder="name@company.com" value={email} onChange={e => setEmail(e.target.value)} required style={webInputStyle} />
             </div>
-
-            {/* Password field */}
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 700,
-                color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em',
-                textTransform: 'uppercase', marginBottom: 8 }}>
-                Password
-              </label>
-              <div style={{ position: 'relative' }}>
-                <svg style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
-                  pointerEvents: 'none', opacity: 0.4 }}
-                  width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-                <input type={showPass ? 'text' : 'password'} autoComplete="current-password"
-                  placeholder="••••••••" value={password}
-                  onChange={e => setPassword(e.target.value)} required minLength={6}
-                  style={{
-                    width: '100%', padding: '15px 52px 15px 42px',
-                    borderRadius: 14, border: '1.5px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(255,255,255,0.06)', color: '#fff',
-                    fontSize: 16, outline: 'none', boxSizing: 'border-box',
-                    WebkitAppearance: 'none',
-                  }}
-                  onFocus={e => e.target.style.borderColor = 'rgba(99,102,241,0.7)'}
-                  onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.1)'}
-                />
-                <button type="button" onClick={() => setShowPass(v => !v)}
-                  style={{ position: 'absolute', right: 0, top: 0, bottom: 0,
-                    width: 52, background: 'none', border: 'none', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: 'rgba(255,255,255,0.35)', padding: 0 }}>
-                  {showPass
-                    ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                  }
-                </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a4a3a' }}>Password</label>
               </div>
+              <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} style={webInputStyle} />
             </div>
-
-            {/* Submit button */}
-            <button type="submit" disabled={loading}
-              style={{
-                width: '100%', height: 56, borderRadius: 16, border: 'none',
-                background: loading
-                  ? 'rgba(99,102,241,0.35)'
-                  : 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
-                color: '#fff', fontSize: 17, fontWeight: 800,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: loading ? 'none' : '0 8px 28px rgba(79,70,229,0.5)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                letterSpacing: '0.01em',
-                WebkitTapHighlightColor: 'transparent',
-                transition: 'transform 0.1s, box-shadow 0.1s',
-              }}
-              onTouchStart={e => { if (!loading) e.currentTarget.style.transform = 'scale(0.97)'; }}
-              onTouchEnd={e => { e.currentTarget.style.transform = 'scale(1)'; }}>
-              {loading ? (
-                <>
-                  <div style={{ width: 18, height: 18, borderRadius: '50%',
-                    border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff',
-                    animation: 'spin 0.7s linear infinite' }} />
-                  Signing in…
-                </>
-              ) : 'Sign In'}
+            <button type="submit" disabled={loading} style={{ width: '100%', padding: '13px', marginTop: 4, background: loading ? 'rgba(79,70,229,0.4)' : 'linear-gradient(90deg,#4f46e5,#7c3aed)', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: 15, cursor: loading ? 'not-allowed' : 'pointer', boxShadow: loading ? 'none' : '0 4px 16px rgba(79,70,229,0.4)', fontFamily: 'Manrope, sans-serif', letterSpacing: '0.02em' }}>
+              {loading ? 'Please wait…' : 'Sign In'}
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,0.25)',
-            margin: '18px 0 0', lineHeight: 1.5 }}>
-            Forgot your password?<br />Contact your employer.
-          </p>
+          <div style={{ textAlign: 'center', marginTop: 18 }}>
+            <p style={{ fontSize: 12, color: '#6a6a5a', margin: 0 }}>Forgot your password? Contact your employer.</p>
+          </div>
+
+          <div style={{ position: 'absolute', bottom: -24, right: -24, opacity: 0.15, pointerEvents: 'none', transform: 'rotate(12deg)' }}>
+            <div style={{ border: '4px solid #77574d', padding: '12px 14px', borderRadius: 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <span style={{ fontFamily: 'Newsreader, serif', fontSize: 26, fontWeight: 900, color: '#77574d', letterSpacing: '-1px', lineHeight: 1 }}>VERIFIED</span>
+              <span style={{ fontSize: 8, fontWeight: 700, color: '#77574d', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Staff Identity</span>
+            </div>
+          </div>
         </div>
+      </main>
 
-
-      </div>
-
-      {/* Safe area bottom */}
-      <div style={{ height: 'calc(env(safe-area-inset-bottom, 16px) + 24px)' }} />
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        input::placeholder { color: rgba(255,255,255,0.25); }
-        input { -webkit-text-fill-color: white; }
-        input:-webkit-autofill,
-        input:-webkit-autofill:focus {
-          -webkit-box-shadow: 0 0 0 100px #1e1b4b inset !important;
-          -webkit-text-fill-color: white !important;
-        }
-      `}</style>
+      <footer style={{ background: 'transparent' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '16px', display: 'flex', justifyContent: 'center' }}>
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', margin: 0, textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>© 2026 BillVyapar</p>
+        </div>
+      </footer>
     </div>
   );
 }
