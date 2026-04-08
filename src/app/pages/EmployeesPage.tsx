@@ -373,7 +373,7 @@ export function EmployeesPage() {
               <h1 className="text-2xl font-black tracking-tightest text-foreground leading-none">Organization Hub</h1>
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] opacity-60">System Version vv1.0.1</p>
+                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] opacity-60">System Version V1</p>
               </div>
             </div>
 
@@ -423,7 +423,7 @@ export function EmployeesPage() {
         <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h1 className="text-3xl font-black tracking-tight text-foreground">Force Hub</h1>
-              <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest">Operational Center vv1.0.1</p>
+              <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest">Operational Center V1</p>
             </div>
             <Button 
                 onClick={tab === 'employees' ? openCreateEmp : tab === 'roles' ? openCreateRole : undefined}

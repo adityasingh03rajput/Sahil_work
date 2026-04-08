@@ -245,11 +245,11 @@ export function SubscriptionPage() {
           <div className="flex flex-wrap items-center justify-center gap-6">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">FRONTEND v{FRONTEND_VERSION}</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">FRONTEND {FRONTEND_VERSION}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${backendVersion && backendVersion !== 'unavailable' ? 'bg-emerald-500' : 'bg-destructive'}`} />
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">BACKEND {backendVersion ? `v${backendVersion}` : 'OFFLINE'}</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">BACKEND {backendVersion ? backendVersion : 'OFFLINE'}</span>
             </div>
           </div>
           <button

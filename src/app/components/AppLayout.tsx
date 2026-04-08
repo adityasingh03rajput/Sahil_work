@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState, useCallback, useRef } from 'react';
+﻿import { ReactNode, useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -102,7 +102,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     document.addEventListener('fullscreenchange', handler);
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
-  // Start as true if we already have a profile cached — avoids spinner flash on every nav
+  // Start as true if we already have a profile cached â€” avoids spinner flash on every nav
   const [profileGateChecked, setProfileGateChecked] = useState(() => {
     try {
       const raw = localStorage.getItem('currentProfile');
@@ -139,7 +139,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     if (!accessToken || !deviceId) return;
 
     const resolveProfile = async () => {
-      if (!profileId) return; // no profile stored — subscription gate handles this
+      if (!profileId) return; // no profile stored â€” subscription gate handles this
 
       try {
         // Fetch all profiles and find the stored one
@@ -150,19 +150,19 @@ export function AppLayout({ children }: AppLayoutProps) {
           },
         });
 
-        if (!r.ok) return; // network/server error — keep existing local state
+        if (!r.ok) return; // network/server error â€” keep existing local state
 
         const profiles = await r.json().catch(() => null);
         if (!Array.isArray(profiles)) return;
 
         const match = profiles.find((p: any) => p.id === profileId);
         if (match) {
-          // Profile still valid — refresh local data
+          // Profile still valid â€” refresh local data
           localStorage.setItem('currentProfile', JSON.stringify(match));
           setCurrentProfile(match);
           window.dispatchEvent(new CustomEvent('profileRefreshed', { detail: match }));
         } else if (profiles.length > 0) {
-          // Stored profile no longer exists (or belongs to different user) — auto-select first
+          // Stored profile no longer exists (or belongs to different user) â€” auto-select first
           const first = profiles[0];
           localStorage.setItem('currentProfile', JSON.stringify(first));
           setCurrentProfile(first);
@@ -170,14 +170,14 @@ export function AppLayout({ children }: AppLayoutProps) {
           window.dispatchEvent(new CustomEvent('profileChanged', { detail: { profileId: first.id } }));
           window.dispatchEvent(new CustomEvent('profileRefreshed', { detail: first }));
         } else {
-          // No profiles at all — redirect to create one
+          // No profiles at all â€” redirect to create one
           localStorage.removeItem('currentProfile');
           setCurrentProfile({});
           window.dispatchEvent(new CustomEvent('profileChanged', { detail: { profileId: null } }));
           navigate('/profiles');
         }
       } catch {
-        // Network error — keep existing local state silently
+        // Network error â€” keep existing local state silently
       }
     };
 
@@ -218,7 +218,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuLabel className="flex items-center justify-between">
             <span>Utility Menu</span>
-            <span className="text-[10px] font-normal px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">vv1.0.1</span>
+            <span className="text-[10px] font-normal px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">V1</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           
@@ -346,13 +346,13 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       const profileId = readCurrentProfile()?.id;
       if (!profileId) {
-        // Don't redirect here — the profile resolution effect handles it
+        // Don't redirect here â€” the profile resolution effect handles it
         // Just mark gate as checked so content can render
         setProfileGateChecked(true);
         return;
       }
 
-      // ── Cache-first on both native and web: show content instantly, revalidate in background ──
+      // â”€â”€ Cache-first on both native and web: show content instantly, revalidate in background â”€â”€
       const subCheck = await validateSubscriptionOffline(profileId);
       applySubscriptionResult(subCheck, 'cache');
       if (subCheck.status !== 'ok' && subCheck.status !== 'no_cache_allow') {
@@ -360,7 +360,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       }
       setProfileGateChecked(true);
 
-      // Background network revalidation — never blocks the UI
+      // Background network revalidation â€” never blocks the UI
       validateSubscriptionTokenOnline({ apiUrl: API_URL, accessToken, deviceId, profileId })
         .then(async (online) => {
           if (online.ok && online.token) {
@@ -617,7 +617,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* ── Native Android: delegate to MobileLayout ── */}
+      {/* â”€â”€ Native Android: delegate to MobileLayout â”€â”€ */}
       {isNative ? (
         // MobileLayout uses position:fixed inset-0 so it escapes this flex container
         <MobileLayout
@@ -642,7 +642,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           }
         }}
       />
-      {/* Desktop Sidebar — auto-hides after 2s, shows on hover */}
+      {/* Desktop Sidebar â€” auto-hides after 2s, shows on hover */}
       <aside
         className={`hidden lg:flex lg:flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 overflow-hidden ${sidebarVisible ? 'w-64' : 'w-0 border-r-0'}`}
         onMouseEnter={() => { setSidebarVisible(true); if (sidebarHideTimer.current) clearTimeout(sidebarHideTimer.current); }}
@@ -710,7 +710,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       </aside>
 
-      {/* Left-edge indicator — always visible, shows sidebar can be revealed */}
+      {/* Left-edge indicator â€” always visible, shows sidebar can be revealed */}
       <div
         className="hidden lg:flex fixed left-0 top-1/2 -translate-y-1/2 z-50 flex-col items-center gap-1 cursor-pointer"
         style={{ width: 6 }}
@@ -726,7 +726,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         )}
       </div>
 
-      {/* Hover strip — reveals sidebar when it's hidden */}
+      {/* Hover strip â€” reveals sidebar when it's hidden */}
       {!sidebarVisible && (
         <div
           className="hidden lg:block fixed left-0 top-0 h-full w-2 z-40 cursor-pointer"
@@ -734,7 +734,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         />
       )}
 
-      {/* Main Content — always fills remaining width */}
+      {/* Main Content â€” always fills remaining width */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* Mobile Header */}
         <header className="lg:hidden bg-background border-b border-border p-4 flex items-center justify-between">

@@ -1074,7 +1074,7 @@ export function CustomersPage() {
                           <DropdownMenuContent align="end" className="w-64">
                             <DropdownMenuLabel className="flex items-center justify-between">
                               <span>Party Insight</span>
-                              <span className="text-[10px] font-normal px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">vv1.0.1</span>
+                              <span className="text-[10px] font-normal px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">V1</span>
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             

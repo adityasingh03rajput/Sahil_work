@@ -10,6 +10,7 @@
 
 /* 1. Momentum scrolling on iOS + WebView (feels like native inertia) */
 html, body {
+  zoom: 0.67;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   overscroll-behavior: contain;        /* prevent page bouncing / chaining */
