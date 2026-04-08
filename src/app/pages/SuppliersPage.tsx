@@ -340,10 +340,7 @@ export function SuppliersPage() {
       return;
     }
 
-    if (!String(editFormData.ownerName || '').trim()) {
-      toast.error('Owner name is required');
-      return;
-    }
+    // Owner name is now optional
 
     const errs = validateContactFields({
       gstin: String(editFormData.gstin || ''),
@@ -404,10 +401,7 @@ export function SuppliersPage() {
       return;
     }
 
-    if (!String(formData.ownerName || '').trim()) {
-      toast.error('Owner name is required');
-      return;
-    }
+    // Owner name is now optional
 
     const errs = validateContactFields({
       gstin: String(formData.gstin || ''),
@@ -581,8 +575,8 @@ export function SuppliersPage() {
                     <Input id="s-name" required value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Enter name" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="s-owner">Owner Name *</Label>
-                    <Input id="s-owner" required value={String(formData.ownerName || '')} onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })} placeholder="Owner / Proprietor" />
+                    <Label htmlFor="s-owner">Owner Name <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                    <Input id="s-owner" value={String(formData.ownerName || '')} onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })} placeholder="Owner / Proprietor" />
                   </div>
                 </div>
                 <EmailInput label="Email" value={formData.email || ''} onChange={(v) => setFormData({ ...formData, email: v })} placeholder="supplier@email.com" error={formErrors.email} />
@@ -849,8 +843,8 @@ export function SuppliersPage() {
                     <Input id="edit-s-name" required value={editFormData.name || ''} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} placeholder="Enter name" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-s-owner">Owner Name *</Label>
-                    <Input id="edit-s-owner" required value={String(editFormData.ownerName || '')} onChange={(e) => setEditFormData({ ...editFormData, ownerName: e.target.value })} placeholder="Owner / Proprietor" />
+                    <Label htmlFor="edit-s-owner">Owner Name <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
+                    <Input id="edit-s-owner" value={String(editFormData.ownerName || '')} onChange={(e) => setEditFormData({ ...editFormData, ownerName: e.target.value })} placeholder="Owner / Proprietor" />
                   </div>
                 </div>
                 <EmailInput label="Email" value={editFormData.email || ''} onChange={(v) => setEditFormData({ ...editFormData, email: v })} placeholder="supplier@email.com" error={editFormErrors.email} />

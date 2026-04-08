@@ -55,7 +55,11 @@ export function FieldWrapper({ label, error, hint, required, children }: FieldWr
       {label && (
         <Label className="text-sm font-medium">
           {label}
-          {required && <span className="text-destructive ml-0.5">*</span>}
+          {required ? (
+            <span className="text-destructive ml-0.5">*</span>
+          ) : (
+            <span className="text-muted-foreground font-normal ml-1">(Optional)</span>
+          )}
         </Label>
       )}
       {children}
@@ -194,7 +198,7 @@ export function GstinInput({ value, onChange, label, required, disabled, error: 
             if (n !== value) onChange(n);
             onBlur?.();
           }}
-          placeholder="22AAAAA0000A1Z5"
+          placeholder="22AAAAA0000A1Z5 (Optional)"
           maxLength={15}
           disabled={disabled}
           className={`font-mono tracking-wider uppercase ${displayError ? 'border-destructive focus-visible:ring-destructive' : ''}`}
@@ -252,7 +256,7 @@ export function PanInput({ value, onChange, label, required, disabled, error: ex
             const n = normalizePan(value);
             if (n !== value) onChange(n);
           }}
-          placeholder="ABCDE1234F"
+          placeholder="ABCDE1234F (Optional)"
           maxLength={10}
           disabled={disabled}
           className={`font-mono tracking-wider uppercase ${displayError ? 'border-destructive focus-visible:ring-destructive' : ''}`}

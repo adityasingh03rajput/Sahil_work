@@ -430,10 +430,9 @@ export function ProfilesPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="editOwnerName">Owner Name *</Label>
+                    <Label htmlFor="editOwnerName">Owner Name <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                     <Input
                       id="editOwnerName"
-                      required
                       value={editFormData.ownerName || ''}
                       onChange={(e) => setEditFormData({ ...editFormData, ownerName: e.target.value })}
                     />
@@ -695,10 +694,9 @@ export function ProfilesPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="ownerName">Owner Name *</Label>
+                    <Label htmlFor="ownerName">Owner Name <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                     <Input
                       id="ownerName"
-                      required
                       value={formData.ownerName || ''}
                       onChange={(e) => setFormData({...formData, ownerName: e.target.value})}
                     />
@@ -728,24 +726,16 @@ export function ProfilesPage() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="gstin">GSTIN</Label>
-                    <Input
-                      id="gstin"
-                      value={formData.gstin || ''}
-                      onChange={(e) => setFormData({...formData, gstin: e.target.value})}
-                      placeholder="22AAAAA0000A1Z5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="pan">PAN</Label>
-                    <Input
-                      id="pan"
-                      value={formData.pan || ''}
-                      onChange={(e) => setFormData({...formData, pan: e.target.value})}
-                      placeholder="AAAAA0000A"
-                    />
-                  </div>
+                  <GstinInput
+                    label="GSTIN"
+                    value={formData.gstin || ''}
+                    onChange={(v) => setFormData({...formData, gstin: v})}
+                  />
+                  <PanInput
+                    label="PAN"
+                    value={formData.pan || ''}
+                    onChange={(v) => setFormData({...formData, pan: v})}
+                  />
                 </div>
 
                 <div>

@@ -5,7 +5,7 @@ const businessProfileSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
 
     businessName: { type: String, required: true },
-    ownerName: { type: String, required: true },
+    ownerName: { type: String, default: null },
     gstin: { type: String, default: null },
     pan: { type: String, default: null },
     email: { type: String, required: true },

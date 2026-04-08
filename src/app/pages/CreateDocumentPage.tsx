@@ -12,6 +12,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import { 
+  GstinInput, 
+  PanInput, 
+  EmailInput, 
+  PhoneInput,
+  FieldWrapper 
+} from '../components/FormattedInputs';
 import { MobileFormSheet, MobileFormSection, MobileFormActions } from '../components/MobileFormSheet';
 import { useCurrentProfile } from '../hooks/useCurrentProfile';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
@@ -3319,59 +3326,32 @@ export function CreateDocumentPage() {
                 />
               </div>
               <div>
-                <Label>Owner Name *</Label>
+                <Label>Owner Name <span className="text-muted-foreground font-normal ml-1">(Optional)</span></Label>
                 <Input
                   value={createCustomerForm.ownerName}
                   onChange={(e) => setCreateCustomerForm((p) => ({ ...p, ownerName: e.target.value }))}
                   placeholder="Owner / Proprietor"
                 />
               </div>
-              <div>
-                <Label>Email</Label>
-                <Input
-                  value={createCustomerForm.email}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setCreateCustomerForm((p) => ({ ...p, email: next }));
-                    if (createPartyContactErrors.email) setCreatePartyContactErrors((p) => ({ ...p, email: undefined }));
-                  }}
-                  onBlur={() => {
-                    const normalized = normalizeEmail(String(createCustomerForm.email || ''));
-                    if (normalized !== String(createCustomerForm.email || '')) setCreateCustomerForm((p) => ({ ...p, email: normalized }));
-                    const errs = validateContactFields({
-                      gstin: String(createCustomerForm.gstin || ''),
-                      phone: String(createCustomerForm.phone || ''),
-                      email: normalized,
-                    });
-                    setCreatePartyContactErrors((p) => ({ ...p, email: errs.email }));
-                  }}
-                  placeholder="customer@email.com"
-                />
-                {createPartyContactErrors.email ? <div className="text-xs text-destructive mt-1">{createPartyContactErrors.email}</div> : null}
-              </div>
-              <div>
-                <Label>Phone</Label>
-                <Input
-                  value={createCustomerForm.phone}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setCreateCustomerForm((p) => ({ ...p, phone: next }));
-                    if (createPartyContactErrors.phone) setCreatePartyContactErrors((p) => ({ ...p, phone: undefined }));
-                  }}
-                  onBlur={() => {
-                    const normalized = normalizePhone(String(createCustomerForm.phone || ''));
-                    if (normalized !== String(createCustomerForm.phone || '')) setCreateCustomerForm((p) => ({ ...p, phone: normalized }));
-                    const errs = validateContactFields({
-                      gstin: String(createCustomerForm.gstin || ''),
-                      phone: normalized,
-                      email: String(createCustomerForm.email || ''),
-                    });
-                    setCreatePartyContactErrors((p) => ({ ...p, phone: errs.phone }));
-                  }}
-                  placeholder="+91 99999 99999"
-                />
-                {createPartyContactErrors.phone ? <div className="text-xs text-destructive mt-1">{createPartyContactErrors.phone}</div> : null}
-              </div>
+              <EmailInput
+                label="Email"
+                value={createCustomerForm.email}
+                onChange={(v) => {
+                  setCreateCustomerForm((p) => ({ ...p, email: v }));
+                  if (createPartyContactErrors.email) setCreatePartyContactErrors((p) => ({ ...p, email: undefined }));
+                }}
+                placeholder="customer@email.com"
+                error={createPartyContactErrors.email}
+              />
+              <PhoneInput
+                label="Phone"
+                value={createCustomerForm.phone}
+                onChange={(v) => {
+                  setCreateCustomerForm((p) => ({ ...p, phone: v }));
+                  if (createPartyContactErrors.phone) setCreatePartyContactErrors((p) => ({ ...p, phone: undefined }));
+                }}
+                error={createPartyContactErrors.phone}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Opening Balance</Label>
@@ -3398,41 +3378,26 @@ export function CreateDocumentPage() {
                   </Select>
                 </div>
               </div>
-              <div>
-                <Label>GSTIN</Label>
-                <Input
-                  value={createCustomerForm.gstin}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setCreateCustomerForm((p) => ({ ...p, gstin: next }));
-                    if (createPartyContactErrors.gstin) setCreatePartyContactErrors((p) => ({ ...p, gstin: undefined }));
-                  }}
-                  onBlur={() => {
-                    const normalized = normalizeGstin(String(createCustomerForm.gstin || ''));
-                    if (normalized !== String(createCustomerForm.gstin || '')) setCreateCustomerForm((p) => ({ ...p, gstin: normalized }));
-                    const errs = validateContactFields({
-                      gstin: normalized,
-                      phone: String(createCustomerForm.phone || ''),
-                      email: String(createCustomerForm.email || ''),
-                    });
-                    setCreatePartyContactErrors((p) => ({ ...p, gstin: errs.gstin }));
-                    void handleCreateCustomerGstinLookup();
-                  }}
-                  placeholder="22AAAAA0000A1Z5"
-                />
-                {createPartyContactErrors.gstin ? <div className="text-xs text-destructive mt-1">{createPartyContactErrors.gstin}</div> : null}
-                {createCustomerGstinLookupLoading ? (
-                  <div className="text-xs text-muted-foreground mt-1">Fetching GST details...</div>
-                ) : null}
-              </div>
-              <div>
-                <Label>PAN</Label>
-                <Input
-                  value={createCustomerForm.pan}
-                  onChange={(e) => setCreateCustomerForm((p) => ({ ...p, pan: e.target.value }))}
-                  placeholder="AAAAA0000A"
-                />
-              </div>
+              <GstinInput
+                label="GSTIN"
+                value={createCustomerForm.gstin}
+                onChange={(v) => {
+                  setCreateCustomerForm((p) => ({ ...p, gstin: v }));
+                  if (createPartyContactErrors.gstin) setCreatePartyContactErrors((p) => ({ ...p, gstin: undefined }));
+                }}
+                onBlur={() => {
+                  void handleCreateCustomerGstinLookup();
+                }}
+                error={createPartyContactErrors.gstin}
+              />
+              {createCustomerGstinLookupLoading ? (
+                <div className="text-xs text-muted-foreground mt-1">Fetching GST details...</div>
+              ) : null}
+              <PanInput
+                label="PAN"
+                value={createCustomerForm.pan}
+                onChange={(v) => setCreateCustomerForm((p) => ({ ...p, pan: v }))}
+              />
               <div>
                 <Label>Billing Address</Label>
                 <Textarea
