@@ -102,6 +102,9 @@
     "vite": "6.3.5",
     "wait-on": "^8.0.1"
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "pnpm": {
     "overrides": {
       "vite": "6.3.5"
