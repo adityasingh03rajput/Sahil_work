@@ -1,8 +1,9 @@
 import React from 'react';
 import type { PdfTemplateProps } from '../types';
-import { Box, Hr, KeyValue, KeyValueOptional, Label, Money, Muted, safeText, SmallText, TemplateFrame, docTitleFromType, amountInWordsINR, displaySubtotal, formatInlineAddress, formatStateDisplay } from './TemplateFrame';
+import { Box, Hr, KeyValue, KeyValueOptional, Label, Money, Muted, safeText, SmallText, TemplateFrame, docTitleFromType, amountInWordsINR, displaySubtotal, formatInlineAddress, formatStateDisplay, useScale, s } from './TemplateFrame';
 
 export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
+  const sc = useScale();
   const taxes = Number(doc.totalCgst || 0) + Number(doc.totalSgst || 0) + Number(doc.totalIgst || 0);
   const receivedAmount = Math.max(0, Number((doc as any)?.receivedAmount || 0));
   const balanceAmount = Math.max(0, Number(doc.grandTotal || 0) - receivedAmount);
@@ -61,9 +62,9 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
     : [];
 
   return (
-    <TemplateFrame>
-      <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <div style={{ background: '#0B3A46', color: '#FFFFFF', padding: '10mm 12mm' }}>
+    <TemplateFrame itemCount={doc.items?.length ?? 0}>
+      <div style={{ borderRadius: s(12, sc), overflow: 'hidden', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <div style={{ background: '#0B3A46', color: '#FFFFFF', padding: `${s(10, sc)}mm ${s(12, sc)}mm` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
             <div style={{ display: 'flex', gap: 14, alignItems: 'center', minWidth: 0 }}>
               <div
@@ -91,18 +92,18 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
                 )}
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: '0.02em', lineHeight: '1.2' }}>
+                <div style={{ fontSize: s(24, sc), fontWeight: 800, letterSpacing: '0.02em', lineHeight: '1.2' }}>
                   {String(docTitleFromType(doc.type) || 'DOCUMENT').toUpperCase()}
                 </div>
                 {!!doc.invoiceNo && (
-                  <div style={{ fontSize: 10, opacity: 0.85, marginTop: 2, fontWeight: 600 }}>
+                  <div style={{ fontSize: s(10, sc), opacity: 0.85, marginTop: 2, fontWeight: 600 }}>
                     {safeText(doc.invoiceNo)}
                   </div>
                 )}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 13, fontWeight: 900 }}>{profile.businessName}</div>
+              <div style={{ fontSize: s(13, sc), fontWeight: 900 }}>{profile.businessName}</div>
               {!!profile.billingAddress && (
                 <div
                   style={{
@@ -128,19 +129,25 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
           </div>
         </div>
 
-        <div style={{ padding: '10mm', background: '#FFFFFF', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: `${s(10, sc)}mm`, background: '#FFFFFF', flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <Box>
                 <Label>Bill To</Label>
-                <div style={{ marginTop: 8, fontSize: 14, fontWeight: 900, color: '#111827' }}>
+                <div style={{ marginTop: 8, fontSize: 14, fontWeight: 900, color: '#111827', overflowWrap: 'anywhere' }}>
                   {safeText(doc.customerName) || '—'}
                 </div>
                 {!!doc.customerAddress && (
-                  <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>{formatInlineAddress(doc.customerAddress)}</div>
+                  <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280', overflowWrap: 'anywhere' }}>{formatInlineAddress(doc.customerAddress)}</div>
                 )}
                 {!!doc.customerMobile && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>Phone: {doc.customerMobile}</div>}
-                {!!doc.customerGstin && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>GSTIN: {doc.customerGstin}</div>}
+                {(doc.customerGstin || (doc as any).partyGstin || (doc as any).gstin) && (
+                  <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>
+                    GSTIN: {doc.customerGstin || (doc as any).partyGstin || (doc as any).gstin}
+                  </div>
+                )}
+                {!!doc.customerEmail && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>Email: {doc.customerEmail}</div>}
+                {!!doc.customerContactPerson && <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>Contact: {doc.customerContactPerson}</div>}
                 {(!!doc.customerStateCode || !!doc.placeOfSupply) && (
                   <div style={{ marginTop: 6, fontSize: 11, color: '#6B7280' }}>
                     State: {formatStateDisplay(doc.customerStateCode || null, doc.placeOfSupply || null)}
@@ -164,11 +171,15 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
                   <KeyValue label="Doc No" value={safeText(doc.invoiceNo) || doc.documentNumber} />
                   <KeyValueOptional label="Place of Supply" value={doc.placeOfSupply} />
                   <KeyValueOptional label="Due" value={doc.dueDate} />
+                  <KeyValueOptional label="Ref No." value={doc.referenceNo} />
+                  <KeyValueOptional label="Challan No" value={doc.challanNo} />
+                  <KeyValueOptional label="Order No" value={doc.orderNumber} />
+                  <KeyValueOptional label="Revision No" value={doc.revisionNumber} />
+                  <KeyValueOptional label="PO No" value={doc.purchaseOrderNo} />
+                  <KeyValueOptional label="PO Date" value={doc.poDate} />
                   {isOrder && !!doc.referenceDocumentNumber && (
                     <KeyValue label="Ref Quote" value={doc.referenceDocumentNumber} />
                   )}
-                  <KeyValueOptional label="Order" value={isQuoteLike ? doc.orderNumber : null} />
-                  <KeyValueOptional label="Challan No" value={doc.challanNo} />
                   <KeyValueOptional label="E-way Bill No" value={doc.ewayBillNo} />
                   <KeyValueOptional label="Vehicle No" value={doc.ewayBillVehicleNo} />
                   <KeyValueOptional label="Transport" value={doc.transport} />
@@ -206,11 +217,11 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
             </div>
           )}
 
-          <div style={{ marginTop: 10, border: '1px solid #E5E7EB', borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{ background: '#F3F4F6', padding: '6px 12px' }}>
-              <div style={{ display: 'flex', fontSize: 10, fontWeight: 900, color: '#111827', letterSpacing: 0.1 }}>
+          <div style={{ marginTop: s(10, sc), border: '1px solid #E5E7EB', borderRadius: s(10, sc), overflow: 'hidden' }}>
+            <div style={{ background: '#F3F4F6', padding: `${s(6, sc)}px ${s(12, sc)}px` }}>
+              <div style={{ display: 'flex', fontSize: s(10, sc), fontWeight: 900, color: '#111827', letterSpacing: 0.1 }}>
                 <div style={{ width: 34, textAlign: 'center' }}>S.N.</div>
-                <div style={{ flex: 1 }}>Item</div>
+                <div style={{ flex: 1, minWidth: 140 }}>Item</div>
                 <div style={{ width: 68, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6 }}>HSN/SAC</div>
                 <div style={{ width: 48, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6 }}>Qty</div>
                 <div style={{ width: 76, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6 }}>Price</div>
@@ -225,32 +236,32 @@ export function ModernTemplate({ doc, profile }: PdfTemplateProps) {
               const rowBg = idx % 2 ? '#FFFFFF' : '#FAFAFA';
               const c = lineComputed(it);
               return (
-                <div key={idx} style={{ padding: '9px 12px', background: rowBg, borderTop: '1px solid #E5E7EB' }}>
-                  <div style={{ display: 'flex', gap: 0, alignItems: 'flex-start' }}>
-                    <div style={{ width: 34, textAlign: 'center', fontSize: 11, color: '#111827', fontWeight: 800, paddingTop: 1 }}>{idx + 1}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: '#111827' }}>{it.name}</div>
-                      {!!it.sku && <div style={{ marginTop: 2, fontSize: 10, color: '#6B7280' }}>SKU: {it.sku}</div>}
-                      {!!it.servicePeriod && <div style={{ marginTop: 2, fontSize: 10, color: '#6B7280' }}>Service: {it.servicePeriod}</div>}
+                <div key={idx} style={{ padding: `${s(9, sc)}px ${s(12, sc)}px`, background: rowBg, borderTop: '1px solid #E5E7EB', minHeight: `${s(12, sc)}mm` }}>
+                  <div style={{ display: 'flex', gap: 0, alignItems: 'stretch' }}>
+                    <div style={{ width: 34, textAlign: 'center', fontSize: s(11, sc), color: '#111827', fontWeight: 800, paddingTop: 1 }}>{idx + 1}</div>
+                    <div style={{ flex: 1, minWidth: 140, paddingRight: 8 }}>
+                      <div style={{ fontSize: s(12, sc), fontWeight: 800, color: '#111827', overflowWrap: 'anywhere' }}>{it.name}</div>
+                      {!!it.sku && <div style={{ marginTop: 2, fontSize: s(10, sc), color: '#6B7280' }}>SKU: {it.sku}</div>}
+                      {!!it.servicePeriod && <div style={{ marginTop: 2, fontSize: s(10, sc), color: '#6B7280' }}>Service: {it.servicePeriod}</div>}
                       {!!it.description && (
-                        <div style={{ marginTop: 4, fontSize: 10, color: '#374151', whiteSpace: 'pre-line' }}>{it.description}</div>
+                        <div style={{ marginTop: 4, fontSize: s(10, sc), color: '#4B5563', whiteSpace: 'pre-line', overflowWrap: 'anywhere', lineHeight: 1.4 }}>{it.description}</div>
                       )}
                     </div>
-                    <div style={{ width: 72, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: 11, color: '#111827' }}>
+                    <div style={{ width: 72, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: s(11, sc), color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                       {safeText(it.hsnSac) || '—'}
                     </div>
-                    <div style={{ width: 52, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: 12, color: '#111827' }}>{c.qty}</div>
-                    <div style={{ width: 80, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: 12, color: '#111827' }}>
+                    <div style={{ width: 52, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: s(12, sc), color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>{c.qty}</div>
+                    <div style={{ width: 80, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: s(12, sc), color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                       <Money value={c.rate} />
                     </div>
-                    <div style={{ width: 86, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: 12, color: '#111827' }}>
+                    <div style={{ width: 86, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: s(12, sc), color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                       <Money value={c.taxable} />
                     </div>
-                    <div style={{ width: 56, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: 12, color: '#111827' }}>{c.taxPct.toFixed(2)}</div>
-                    <div style={{ width: 76, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: 12, color: '#111827' }}>
+                    <div style={{ width: 56, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: s(12, sc), color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>{c.taxPct.toFixed(1)}%</div>
+                    <div style={{ width: 76, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: s(12, sc), color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                       <Money value={c.taxAmount} />
                     </div>
-                    <div style={{ width: 92, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: 12, fontWeight: 900, color: '#111827' }}>
+                    <div style={{ width: 92, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 8, fontSize: s(12, sc), fontWeight: 900, color: '#111827', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                       <Money value={c.total} />
                     </div>
                   </div>

@@ -19,7 +19,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL } from '../config/api';
 import { TraceLoader } from '../components/TraceLoader';
-import { AnalyticsPageSkeleton } from '../components/PageSkeleton';
+import { GenericPageSkeleton } from '../components/PageSkeleton';
 import { prefetchRoutesOnIdle } from '../hooks/usePrefetch';
 import { DateRangePicker, DateRange } from '../components/ui/date-range-picker';
 import { usePageRefresh } from '../hooks/usePageRefresh';
@@ -136,7 +136,7 @@ export function DashboardPage() {
   };
 
   if (loading) {
-    return <AnalyticsPageSkeleton />;
+    return <GenericPageSkeleton />;
   }
 
   return (
@@ -206,8 +206,8 @@ export function DashboardPage() {
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
-                <div className="p-2 text-[10px] text-muted-foreground text-center" data-tour-id="app-version">
-                  V1 - Premium Edition
+                <div className="p-2 text-[10px] text-muted-foreground text-center">
+                  v1.0.6 - Premium Edition
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -246,7 +246,7 @@ export function DashboardPage() {
             <CardContent className="py-6">
               <div className="text-center max-w-2xl mx-auto">
                 <h2 className="text-2xl font-bold text-foreground mb-2">
-                  Welcome to BillVyapar V1! 🎉
+                  Welcome to BillVyapar v1.0.6! 🎉
                 </h2>
                 <p className="text-foreground/80 mb-4">
                   Your complete business documentation and billing ecosystem is ready. 

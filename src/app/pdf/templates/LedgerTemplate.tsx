@@ -12,6 +12,8 @@ import {
   formatInlineAddress,
   formatStateDisplay,
   safeText,
+  useScale,
+  s,
 } from './TemplateFrame';
 
 /**
@@ -19,6 +21,7 @@ import {
  * Maximizes data density. Ideal for printing on plain paper.
  */
 export function LedgerTemplate({ doc, profile }: PdfTemplateProps) {
+  const sc = useScale();
   const cgst = Number(doc.totalCgst || 0);
   const sgst = Number(doc.totalSgst || 0);
   const igst = Number(doc.totalIgst || 0);
@@ -69,7 +72,7 @@ export function LedgerTemplate({ doc, profile }: PdfTemplateProps) {
   );
 
   return (
-    <TemplateFrame>
+    <TemplateFrame itemCount={doc.items?.length ?? 0}>
       {/* HEADER: two-column ruled box */}
       <div style={{ border: '2px solid #111827', borderRadius: 0 }}>
         {/* Top title bar */}
@@ -108,16 +111,16 @@ export function LedgerTemplate({ doc, profile }: PdfTemplateProps) {
                 <span style={{ fontWeight: 700 }}>{doc.dueDate}</span>
               </div>
             )}
+            <KeyValueOptional label="Ref No." value={doc.referenceNo} />
+            <KeyValueOptional label="Challan No." value={doc.challanNo} />
+            <KeyValueOptional label="Order No" value={doc.orderNumber} />
+            <KeyValueOptional label="Revision No" value={doc.revisionNumber} />
+            <KeyValueOptional label="PO No" value={doc.purchaseOrderNo} />
+            <KeyValueOptional label="PO Date" value={doc.poDate} />
             {!!doc.placeOfSupply && (
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid #E5E7EB', fontSize: 11 }}>
                 <span style={{ color: '#6B7280', fontWeight: 600 }}>Place of Supply</span>
                 <span style={{ fontWeight: 700 }}>{doc.placeOfSupply}</span>
-              </div>
-            )}
-            {!!doc.challanNo && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid #E5E7EB', fontSize: 11 }}>
-                <span style={{ color: '#6B7280', fontWeight: 600 }}>Challan No.</span>
-                <span style={{ fontWeight: 700 }}>{doc.challanNo}</span>
               </div>
             )}
             {!!doc.ewayBillNo && (
@@ -136,10 +139,12 @@ export function LedgerTemplate({ doc, profile }: PdfTemplateProps) {
             <div style={{ fontSize: 13, fontWeight: 900 }}>{safeText(doc.customerName) || '—'}</div>
             {!!doc.customerAddress && <div style={{ fontSize: 10, color: '#374151', marginTop: 4 }}>{formatInlineAddress(doc.customerAddress)}</div>}
             {!!doc.customerGstin && <div style={{ fontSize: 10, fontWeight: 700, marginTop: 4 }}>GSTIN: {doc.customerGstin}</div>}
+            {!!doc.customerMobile && <div style={{ fontSize: 10, color: '#374151', marginTop: 2 }}>Ph: {doc.customerMobile}</div>}
+            {!!doc.customerEmail && <div style={{ fontSize: 10, color: '#374151', marginTop: 2 }}>Email: {doc.customerEmail}</div>}
+            {!!doc.customerContactPerson && <div style={{ fontSize: 10, color: '#374151', marginTop: 2 }}>Contact: {doc.customerContactPerson}</div>}
             {(!!doc.customerStateCode || !!doc.placeOfSupply) && (
               <div style={{ fontSize: 10, color: '#374151', marginTop: 2 }}>State: {formatStateDisplay(doc.customerStateCode || null, doc.placeOfSupply || null)}</div>
             )}
-            {!!doc.customerMobile && <div style={{ fontSize: 10, color: '#374151', marginTop: 2 }}>Ph: {doc.customerMobile}</div>}
           </div>
           {!!doc.deliveryAddress && (
             <div style={{ flex: 1, padding: '10px 14px' }}>

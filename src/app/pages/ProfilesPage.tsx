@@ -16,6 +16,7 @@ import { INDIAN_STATES } from '../utils/indianStates';
 import QRCode from 'qrcode';
 import { TraceLoader } from '../components/TraceLoader';
 import { PhoneInput, EmailInput, GstinInput, PanInput, AccountNumberInput, IfscInput, UpiInput, PostalCodeInput, AddressInput } from '../components/FormattedInputs';
+import { useIsNative } from '../hooks/useIsNative';
 
 interface BankAccount {
   _id?: string;
@@ -67,6 +68,7 @@ export function ProfilesPage() {
   const [profileUpiQrMap, setProfileUpiQrMap] = useState<Record<string, string>>({});
   const { user, accessToken, deviceId, signOut, reloadProfiles } = useAuth();
   const navigate = useNavigate();
+  const isNative = useIsNative();
 
   const apiUrl = API_URL;
 
@@ -306,12 +308,12 @@ export function ProfilesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen ${isNative ? 'bg-transparent' : 'bg-background'}`}>
       <div className="container mx-auto px-4 py-12">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Select Business Profile</h1>
+            <h1 className={`text-3xl font-bold ${isNative ? 'text-white' : 'text-foreground'}`}>Select Business Profile</h1>
             <p className="text-muted-foreground mt-1">Welcome back, {user?.name || user?.email}</p>
           </div>
           <div className="flex gap-2">

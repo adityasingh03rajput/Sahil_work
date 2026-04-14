@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { Plus, Search, User, Mail, Phone, MapPin, Edit, ChevronLeft, ChevronRight, Trash2, Info, BookOpen, BarChart, FileSpreadsheet, ExternalLink, Clock, Landmark } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { API_URL, mkCacheKey } from '../config/api';
 import { usePageRefresh } from '../hooks/usePageRefresh';
 import { INDIAN_STATES } from '../utils/indianStates';
@@ -32,6 +33,8 @@ import {
 } from '../components/ui/dropdown-menu';
 import { useCurrentProfile } from '../hooks/useCurrentProfile';
 import { FeatureInfo } from '../components/FeatureInfo';
+import { useIsNative } from '../hooks/useIsNative';
+import { MoreVertical } from 'lucide-react';
 
 interface Customer {
   id: string;
@@ -82,9 +85,11 @@ export function CustomersPage() {
   const [outstandingTotal, setOutstandingTotal] = useState(0);
   const [outstandingByCustomer, setOutstandingByCustomer] = useState<Array<{ customerName: string; amount: number }>>([]);
   const { accessToken, deviceId } = useAuth();
+  const { resolvedTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { profileId } = useCurrentProfile();
+  const { isNative } = useIsNative();
 
   const apiUrl = API_URL;
 
@@ -1027,9 +1032,25 @@ export function CustomersPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCustomers.slice(0, visibleCount).map((customer) => (
-                <Card key={customer.id} className="hover:shadow-lg transition-shadow">
+            {isNative ? (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {filteredCustomers.slice(0, visibleCount).map((customer) => (
+                  <MobileCustomerCard
+                    key={customer.id}
+                    customer={customer}
+                    balance={customerBalances[customer.id] || 0}
+                    onEdit={() => handleEditClick(customer)}
+                    onDelete={() => openDeleteDialog(customer)}
+                    onNavigate={navigate}
+                    formatCurrency={formatCurrency}
+                    resolvedTheme={resolvedTheme}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredCustomers.slice(0, visibleCount).map((customer) => (
+                  <Card key={customer.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-center gap-3 justify-between">
                       <div className="flex items-center gap-3">
@@ -1205,6 +1226,7 @@ export function CustomersPage() {
                 </Card>
               ))}
             </div>
+          )}
             {visibleCount < filteredCustomers.length && (
               <div className="flex justify-center pt-4">
                 <Button 
@@ -1291,3 +1313,68 @@ export function CustomersPage() {
     </>
   );
 }
+
+const MobileCustomerCard = ({ customer, balance, onEdit, onDelete, onNavigate, formatCurrency, resolvedTheme }: any) => {
+  return (
+    <div style={{ margin: '0 1.25rem 0.75rem', background: resolvedTheme === 'light' ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.04)', borderRadius: '1.15rem',
+      border: resolvedTheme === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.08)', padding: '0.9rem 1.08rem', fontFamily: 'system-ui,sans-serif',
+      display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
+
+      <div style={{ width: '3.1rem', height: '3.1rem', borderRadius: '50%', flexShrink: 0,
+        background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.25)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        {customer.logoUrl || customer.logoDataUrl ? (
+          <img src={String(customer.logoUrl || customer.logoDataUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <User style={{ width: '1.5rem', height: '1.5rem', color: '#60a5fa' }} />
+        )}
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 700, color: resolvedTheme === 'light' ? '#1e293b' : '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {customer.name}
+        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginTop: '0.15rem' }}>
+          {customer.phone && <span style={{ fontSize: '0.85rem', color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.45)' }}>{customer.phone}</span>}
+          {customer.phone && customer.gstin && <span style={{ width: '0.2rem', height: '0.2rem', borderRadius: '50%', background: resolvedTheme === 'light' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)' }} />}
+          {customer.gstin && <span style={{ fontSize: '0.75rem', color: '#818cf8', fontWeight: 600, fontFamily: 'monospace' }}>{customer.gstin}</span>}
+        </div>
+        {balance > 0 && (
+          <p style={{ margin: '0.15rem 0 0', fontSize: '0.85rem', fontWeight: 700, color: '#fb923c' }}>
+             Outstanding: {formatCurrency(balance)}
+          </p>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" aria-label="Quick Actions"
+              style={{ width: '2.45rem', height: '2.45rem', borderRadius: '0.75rem', border: 'none', cursor: 'pointer',
+                background: resolvedTheme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)', color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.6)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <MoreVertical style={{ width: '1.25rem', height: '1.25rem' }} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 !z-[200]">
+            <DropdownMenuLabel>Party Actions</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onEdit}>
+              <Edit className="h-4 w-4 mr-2" /> Edit Party
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onNavigate(`/ledger?partyId=${customer.id}&partyType=customer`)}>
+              <BookOpen className="h-4 w-4 mr-2" /> View Ledger
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onNavigate('/documents/create', { state: { customerId: customer.id } })}>
+              <Plus className="h-4 w-4 mr-2" /> Create Invoice
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDelete} className="text-red-500 hover:text-red-600">
+              <Trash2 className="h-4 w-4 mr-2" /> Delete Party
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+};

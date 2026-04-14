@@ -4,14 +4,24 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Plus, Search, Package, Tag, Edit } from 'lucide-react';
+import { Plus, Search, Package, Tag, Edit, MoreVertical, Trash2 } from 'lucide-react';
 import { MobileFormSheet, MobileFormSection, MobileFormActions } from '../components/MobileFormSheet';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { API_URL, mkCacheKey } from '../config/api';
 import { usePageRefresh } from '../hooks/usePageRefresh';
 import { TraceLoader } from '../components/TraceLoader';
 import { ItemsPageSkeleton } from '../components/PageSkeleton';
 import { useCurrentProfile } from '../hooks/useCurrentProfile';
+import { useIsNative } from '../hooks/useIsNative';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '../components/ui/dropdown-menu';
 import { toast } from 'sonner';
 
 interface Item {
@@ -53,9 +63,11 @@ export function ItemsPage() {
   });
   const [loading, setLoading] = useState(true);
   const { accessToken, deviceId } = useAuth();
+  const { resolvedTheme } = useTheme();
 
   const apiUrl = API_URL;
   const { profileId } = useCurrentProfile();
+  const { isNative } = useIsNative();
 
   // Reset all state when profile switches to prevent data bleed
   useEffect(() => {
@@ -394,9 +406,34 @@ export function ItemsPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredItems.slice(0, visibleCount).map((item) => (
-                <Card key={item.id} className="hover:shadow-lg transition-shadow">
+            {isNative ? (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {filteredItems.slice(0, visibleCount).map((item) => (
+                  <MobileItemCard
+                    key={item.id}
+                    item={item}
+                    onEdit={() => handleEditClick(item)}
+                    onDelete={async () => {
+                      if (!confirm('Delete this item?')) return;
+                      try {
+                        const res = await fetch(`${apiUrl}/items/${item.id}`, {
+                          method: 'DELETE',
+                          headers: { 'Authorization': `Bearer ${accessToken}`, 'X-Device-ID': deviceId, 'X-Profile-ID': profileId }
+                        });
+                        if (res.ok) {
+                          setItems(prev => prev.filter(i => i.id !== item.id));
+                          toast.success('Item deleted');
+                        }
+                      } catch { toast.error('Failed to delete item'); }
+                    }}
+                    resolvedTheme={resolvedTheme}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredItems.slice(0, visibleCount).map((item) => (
+                  <Card key={item.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -471,6 +508,7 @@ export function ItemsPage() {
                 </Card>
               ))}
             </div>
+          )}
             
             {visibleCount < filteredItems.length && (
               <div className="flex justify-center pt-4">
@@ -611,3 +649,52 @@ export function ItemsPage() {
       </div>
   );
 }
+
+const MobileItemCard = ({ item, onEdit, onDelete, resolvedTheme }: any) => {
+  return (
+    <div style={{ margin: '0 1.25rem 0.75rem', background: resolvedTheme === 'light' ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.04)', borderRadius: '1.15rem',
+      border: resolvedTheme === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.08)', padding: '0.9rem 1.08rem', fontFamily: 'system-ui,sans-serif',
+      display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
+
+      <div style={{ width: '3.1rem', height: '3.1rem', borderRadius: '0.9rem', flexShrink: 0,
+        background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.25)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Package style={{ width: '1.5rem', height: '1.5rem', color: '#4ade80' }} />
+      </div>
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <h3 style={{ margin: 0, fontSize: '1.08rem', fontWeight: 700, color: resolvedTheme === 'light' ? '#1e293b' : '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {item.name}
+        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.15rem' }}>
+          <span style={{ fontSize: '0.92rem', fontWeight: 700, color: '#60a5fa' }}>₹{Number(item.rate || 0).toFixed(2)}</span>
+          <span style={{ fontSize: '0.85rem', color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.4)' }}>/ {item.unit}</span>
+          {item.hsnSac && <span style={{ fontSize: '0.75rem', color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)', fontFamily: 'monospace' }}>• {item.hsnSac}</span>}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" aria-label="Quick Actions"
+              style={{ width: '2.45rem', height: '2.45rem', borderRadius: '0.75rem', border: 'none', cursor: 'pointer',
+                background: resolvedTheme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)', color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.6)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <MoreVertical style={{ width: '1.25rem', height: '1.25rem' }} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48 !z-[200]">
+            <DropdownMenuLabel>Item Actions</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onEdit}>
+              <Edit className="h-4 w-4 mr-2" /> Edit Item
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onDelete} className="text-red-500 hover:text-red-600">
+              <Trash2 className="h-4 w-4 mr-2" /> Delete Item
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  );
+};

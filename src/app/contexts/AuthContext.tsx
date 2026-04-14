@@ -53,13 +53,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     return id;
   });
-  // loading is false immediately — we read from localStorage synchronously above
-  const [loading, setLoading] = useState(false);
+  // loading indicates whether we are still resolving server-backed session state (like profiles list)
+  const [loading, setLoading] = useState(() => {
+    // If user is already signed in (accessToken exists) we should treat the app as loading
+    // until profiles are fetched, otherwise route guards may misfire on hard refresh.
+    try {
+      return !!localStorage.getItem('accessToken');
+    } catch {
+      return false;
+    }
+  });
   const [profiles, setProfiles] = useState<any[]>([]);
   const apiUrl = API_URL;
 
   const reloadProfiles = async () => {
     if (!accessToken || isEmployee) return;
+    setLoading(true);
     try {
       const res = await fetch(`${apiUrl}/profiles`, {
         headers: { 'Authorization': `Bearer ${accessToken}`, 'X-Device-ID': deviceId }
@@ -67,18 +76,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (Array.isArray(data)) setProfiles(data);
     } catch { /* ignore */ }
+    finally { setLoading(false); }
   };
 
   useEffect(() => {
-    if (accessToken && !isEmployee) reloadProfiles();
-    else setProfiles([]);
+    if (accessToken && !isEmployee) {
+      reloadProfiles();
+      return;
+    }
+    setProfiles([]);
+    setLoading(false);
   }, [accessToken, isEmployee]);
 
   // Global fetch interceptor — handles 402 subscription expiry + profile ID remapping
   useEffect(() => {
     const original = window.fetch.bind(window);
+    
+    // Resilient fetch with automatic retries for transient failures
+    const fetchWithRetry = async (input: RequestInfo | URL, init?: RequestInit, retries = 2): Promise<Response> => {
+      try {
+        const res = await original(input, init);
+        // Retry on server-side errors (cold starts, load balancer drops, etc)
+        if (res.status >= 500 && retries > 0) {
+          const delay = (3 - retries) * 1500;
+          console.warn(`[API] Server error ${res.status}, retrying in ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
+          return fetchWithRetry(input, init, retries - 1);
+        }
+        return res;
+      } catch (err: any) {
+        // Retry on network-level failures (lost signal, timeout)
+        const isNetworkError = err.name === 'TypeError' || err.name === 'NetworkError' || err.message?.includes('network');
+        if (isNetworkError && retries > 0) {
+          const delay = (3 - retries) * 1500;
+          console.warn(`[API] Network failure, retrying in ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
+          return fetchWithRetry(input, init, retries - 1);
+        }
+        throw err;
+      }
+    };
+
     window.fetch = async (...args) => {
-      // Cache-busting for API GET requests to ensure fresh data when switching profiles
+      // Cache-busting for API GET requests
       if (typeof args[0] === 'string' && args[0].startsWith(API_URL)) {
         const method = (args[1]?.method || 'GET').toUpperCase();
         if (method === 'GET') {
@@ -101,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 'Expires': '0'
               };
             }
-          } catch (e) { /* ignore url parsing errors */ }
+          } catch (e) { /* ignore */ }
         }
       }
 
@@ -116,23 +156,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (e) { /* ignore */ }
 
-      const res = await original(...args);
+      // Use the retry-enabled fetcher
+      const res = await fetchWithRetry(...args);
 
       if (requestProfileId) {
          try {
            const raw = localStorage.getItem('currentProfile');
            const currentProfileId = raw ? JSON.parse(raw)?.id : null;
-           // If request profile ID doesn't match the current standard profile ID,
-           // this is a stale fetch caused by race condition.
-           // Return a never-resolving promise to prevent it from executing .then/.catch blocks
-           // and corrupting the state of the new profile.
            if (currentProfileId && requestProfileId !== currentProfileId) {
              return new Promise(() => {});
            }
          } catch (e) { /* ignore */ }
       }
 
-      // If backend remapped the profileId (stale localStorage), update it
       const remapped = res.headers.get('X-Profile-ID-Remapped');
       if (remapped) {
         try {
@@ -146,7 +182,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (res.status === 402) {
         setSubscriptionExpired(true);
-        // Clone so the body can still be read by the caller
         return res.clone();
       }
       return res;

@@ -2,8 +2,8 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { savePdfWithDialog } from '../utils/saveFile';
 
-const smartSave = async (pdf: jsPDF, filename: string) => {
-  await savePdfWithDialog(pdf, filename);
+const smartSave = async (pdf: jsPDF, filename: string): Promise<boolean> => {
+  return await savePdfWithDialog(pdf, filename);
 };
 
 // Interventional Color Sanitization: Converts oklch/oklab to HEX strings for html2canvas compatibility.
@@ -58,28 +58,36 @@ export async function exportElementToPdf(params: {
   element: HTMLElement;
   filename: string;
   scale?: number;
-}) {
+}): Promise<boolean> {
   const { element, filename } = params;
-  const scale = 4; // High-Fidelity 4x Resolution
+  const scale = 2; // Optimized 2x Resolution (Faster on mobile, still good quality)
 
+  // Check if element contains multiple pages (for paginated templates)
+  // Look for divs with data-page-number attribute - must have more than 1 page
+  const pageElements = element.querySelectorAll<HTMLElement>('[data-page-number]');
+  
+  // Only use multi-page export if we actually have multiple pages
+  if (pageElements.length > 1) {
+    // Multi-page document - export each page separately
+    const pages = Array.from(pageElements);
+    return await exportHtmlPagesToPdf({ pages, filename });
+  }
+
+  // Single page document - use standard export
+  // For single-page templates, capture the entire content
   const canvas = await html2canvas(element, {
     scale,
     backgroundColor: '#ffffff',
     useCORS: true,
     logging: false,
-    width: 794,
-    height: 1123,
     onclone: (clonedDoc) => {
-      const target = clonedDoc.getElementById('pdf-capture-node') || clonedDoc.body;
+      // Find the main content element
+      const target = clonedDoc.getElementById('pdf-capture-node') || element;
       if (target instanceof HTMLElement) {
         target.style.transform = 'none';
         target.style.transformOrigin = 'unset';
         target.style.margin = '0';
-        target.style.position = 'absolute';
-        target.style.top = '0';
-        target.style.left = '0';
-        target.style.width = '210mm';
-        target.style.height = '297mm';
+        target.style.padding = '0';
 
         const nodes = target.querySelectorAll<HTMLElement>('*');
         normalizeElementColors(clonedDoc, target);
@@ -90,8 +98,13 @@ export async function exportElementToPdf(params: {
 
   const imgData = canvas.toDataURL('image/png');
   const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-  pdf.addImage(imgData, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
-  await smartSave(pdf, filename);
+  
+  // Calculate dimensions to fit content on A4
+  const imgWidth = 210; // A4 width in mm
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  
+  pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, undefined, 'FAST');
+  return await smartSave(pdf, filename);
 }
 
 export async function exportElementToPdfBlobUrl(params: {
@@ -99,7 +112,7 @@ export async function exportElementToPdfBlobUrl(params: {
   filename?: string;
 }) {
   const { element, filename } = params;
-  const scale = 4; // High-Fidelity 4x Resolution
+  const scale = 3; // Optimized 3x Resolution
 
   const canvas = await html2canvas(element, {
     scale,
@@ -142,17 +155,45 @@ export async function exportElementToPdfBlobUrl(params: {
 export async function exportHtmlPagesToPdf(params: {
   pages: HTMLElement[];
   filename: string;
-}) {
+}): Promise<boolean> {
   const { pages, filename } = params;
   const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
 
   for (let i = 0; i < pages.length; i += 1) {
     const el = pages[i];
-    const canvas = await html2canvas(el, { scale: 4, width: 794, height: 1123 });
+    const canvas = await html2canvas(el, { 
+      scale: 2, // Reduced from 3 for faster rendering
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false,
+      width: 794, 
+      height: 1123,
+      onclone: (clonedDoc) => {
+        // Find the cloned page element
+        const clonedPages = clonedDoc.querySelectorAll<HTMLElement>('[data-page-number]');
+        const target = clonedPages[i] || clonedDoc.body;
+        
+        if (target instanceof HTMLElement) {
+          target.style.transform = 'none';
+          target.style.transformOrigin = 'unset';
+          target.style.margin = '0';
+          target.style.position = 'absolute';
+          target.style.top = '0';
+          target.style.left = '0';
+          target.style.width = '210mm';
+          target.style.height = '297mm';
+          target.style.overflow = 'hidden';
+
+          const nodes = target.querySelectorAll<HTMLElement>('*');
+          normalizeElementColors(clonedDoc, target);
+          nodes.forEach((n) => normalizeElementColors(clonedDoc, n));
+        }
+      }
+    });
     const imgData = canvas.toDataURL('image/png');
     if (i > 0) pdf.addPage();
     pdf.addImage(imgData, 'PNG', 0, 0, 210, 297, undefined, 'FAST');
   }
 
-  await smartSave(pdf, filename);
+  return await smartSave(pdf, filename);
 }

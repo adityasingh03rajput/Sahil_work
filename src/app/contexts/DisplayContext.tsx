@@ -38,11 +38,10 @@ const DENSITY_PAD: Record<DisplayScale, string> = {
 
 function applyScale(scale: DisplayScale) {
   const html = document.documentElement;
-  // Only apply on native — class is set by main.tsx
-  if (!html.classList.contains('native-app')) return;
+  // Apply CSS custom properties
   html.style.setProperty('--native-font-size', ROOT_FONT[scale]);
   html.style.setProperty('--dp', DENSITY_PAD[scale]);
-  // Drive the root font-size
+  // Drive the root font-size — this scales all 'rem' units proportionally
   html.style.fontSize = ROOT_FONT[scale];
 }
 

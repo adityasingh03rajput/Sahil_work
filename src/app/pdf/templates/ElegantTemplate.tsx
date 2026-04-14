@@ -12,6 +12,8 @@ import {
   formatInlineAddress,
   formatStateDisplay,
   safeText,
+  useScale,
+  s,
 } from './TemplateFrame';
 
 /**
@@ -19,6 +21,7 @@ import {
  * Clean two-column header, full-width table with alternating rows, premium feel.
  */
 export function ElegantTemplate({ doc, profile }: PdfTemplateProps) {
+  const sc = useScale();
   const cgst = Number(doc.totalCgst || 0);
   const sgst = Number(doc.totalSgst || 0);
   const igst = Number(doc.totalIgst || 0);
@@ -69,7 +72,7 @@ export function ElegantTemplate({ doc, profile }: PdfTemplateProps) {
   });
 
   return (
-    <TemplateFrame>
+    <TemplateFrame itemCount={doc.items?.length ?? 0}>
       <div style={{ background: cream, minHeight: '100%', fontFamily: 'Georgia, "Times New Roman", serif' }}>
 
         {/* TOP DECORATIVE BAR */}
@@ -121,16 +124,23 @@ export function ElegantTemplate({ doc, profile }: PdfTemplateProps) {
             <div style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>{safeText(doc.customerName) || '—'}</div>
             {!!doc.customerAddress && <div style={{ fontSize: 11, color: muted, marginTop: 5, lineHeight: 1.5 }}>{formatInlineAddress(doc.customerAddress)}</div>}
             {!!doc.customerGstin && <div style={{ fontSize: 11, color: '#111827', marginTop: 5, fontWeight: 700 }}>GSTIN: {doc.customerGstin}</div>}
+            {!!doc.customerMobile && <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>Ph: {doc.customerMobile}</div>}
+            {!!doc.customerEmail && <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>Email: {doc.customerEmail}</div>}
+            {!!doc.customerContactPerson && <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>Contact: {doc.customerContactPerson}</div>}
             {(!!doc.customerStateCode || !!doc.placeOfSupply) && (
               <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>State: {formatStateDisplay(doc.customerStateCode || null, doc.placeOfSupply || null)}</div>
             )}
-            {!!doc.customerMobile && <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>Ph: {doc.customerMobile}</div>}
           </div>
 
           <div style={{ flex: 1, paddingLeft: 20 }}>
             <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.5, color: greenMid, marginBottom: 8 }}>Invoice Details</div>
-            <KeyValueOptional label="Place of Supply" value={doc.placeOfSupply} />
+            <KeyValueOptional label="Ref No." value={doc.referenceNo} />
             <KeyValueOptional label="Challan No." value={doc.challanNo} />
+            <KeyValueOptional label="Order No" value={doc.orderNumber} />
+            <KeyValueOptional label="Revision No" value={doc.revisionNumber} />
+            <KeyValueOptional label="PO No" value={doc.purchaseOrderNo} />
+            <KeyValueOptional label="PO Date" value={doc.poDate} />
+            <KeyValueOptional label="Place of Supply" value={doc.placeOfSupply} />
             <KeyValueOptional label="E-way Bill No." value={doc.ewayBillNo} />
             <KeyValueOptional label="Vehicle No." value={doc.ewayBillVehicleNo} />
             <KeyValueOptional label="Transport" value={doc.transport} />
@@ -227,6 +237,12 @@ export function ElegantTemplate({ doc, profile }: PdfTemplateProps) {
               {Number(doc.transportCharges || 0) > 0 && <KeyValue label="Transport" value={<Money value={Number(doc.transportCharges)} />} />}
               {Number(doc.additionalCharges || 0) > 0 && <KeyValue label="Additional" value={<Money value={Number(doc.additionalCharges)} />} />}
               {Number(doc.roundOff || 0) !== 0 && <KeyValue label="Round Off" value={<Money value={Number(doc.roundOff)} />} />}
+              {Number(doc.receivedAmount || 0) > 0 && (
+                <KeyValue label="Received" value={<Money value={Number(doc.receivedAmount)} />} />
+              )}
+              {Number(doc.receivedAmount || 0) > 0 && (
+                <KeyValue label="Balance" value={<Money value={Number(doc.grandTotal || 0) - Number(doc.receivedAmount)} />} />
+              )}
 
               {taxRows.length > 0 && (
                 <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${border}` }}>

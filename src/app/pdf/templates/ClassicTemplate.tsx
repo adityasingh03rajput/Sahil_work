@@ -17,9 +17,12 @@ import {
   displaySubtotal,
   formatInlineAddress,
   formatStateDisplay,
+  useScale,
+  s,
 } from './TemplateFrame';
 
 export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
+  const sc = useScale();
   const taxes = Number(doc.totalCgst || 0) + Number(doc.totalSgst || 0) + Number(doc.totalIgst || 0);
   const typeLower = String(doc.type || '').toLowerCase();
   const isQuotation = typeLower === 'quotation';
@@ -75,9 +78,9 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
     : [];
 
   return (
-    <TemplateFrame>
-      <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <div style={{ background: '#0E5A74', color: '#FFFFFF', padding: '10mm 12mm' }}>
+    <TemplateFrame itemCount={doc.items?.length ?? 0}>
+      <div style={{ borderRadius: s(12, sc), overflow: 'hidden', border: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <div style={{ background: '#0E5A74', color: '#FFFFFF', padding: `${s(10, sc)}mm ${s(12, sc)}mm` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
             <div>
               {!!(doc as any)?.partyLogoDataUrl && (
@@ -89,15 +92,15 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
                   />
                 </div>
               )}
-              <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: 1.2, lineHeight: 1 }}>
+              <div style={{ fontSize: s(28, sc), fontWeight: 900, letterSpacing: 1.2, lineHeight: 1 }}>
                 {String(docTitleFromType(doc.type) || 'DOCUMENT').toUpperCase()}
               </div>
-              <div style={{ fontSize: 11, opacity: 0.95, marginTop: 6, fontWeight: 600 }}>
+              <div style={{ fontSize: s(11, sc), opacity: 0.95, marginTop: 6, fontWeight: 600 }}>
                 {safeText(doc.invoiceNo) || safeText(doc.documentNumber)}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 13, fontWeight: 800 }}>{profile.businessName}</div>
+              <div style={{ fontSize: s(13, sc), fontWeight: 800 }}>{profile.businessName}</div>
               {!!profile.billingAddress && (
                 <div
                   style={{
@@ -120,18 +123,26 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
           </div>
         </div>
 
-        <div style={{ padding: '10mm', background: '#FFFFFF', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: `${s(10, sc)}mm`, background: '#FFFFFF', flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <Box>
                 <Label>Bill To</Label>
-                <div style={{ marginTop: 6, fontSize: 13, fontWeight: 800, color: '#111827' }}>
+                <div style={{ marginTop: 6, fontSize: s(13, sc), fontWeight: 800, color: '#111827' }}>
                   {safeText(doc.customerName)}
                 </div>
                 {!!doc.customerAddress && (
                   <div style={{ marginTop: 4, fontSize: 10, color: '#6B7280' }}>{formatInlineAddress(doc.customerAddress)}</div>
                 )}
+                {!!doc.customerGstin && <div style={{ marginTop: 4, fontSize: 10, color: '#111827', fontWeight: 700 }}>GSTIN: {doc.customerGstin}</div>}
                 {!!doc.customerMobile && <div style={{ marginTop: 2, fontSize: 10, color: '#6B7280' }}>Phone: {doc.customerMobile}</div>}
+                {!!doc.customerEmail && <div style={{ marginTop: 2, fontSize: 10, color: '#6B7280' }}>Email: {doc.customerEmail}</div>}
+                {!!doc.customerContactPerson && <div style={{ marginTop: 2, fontSize: 10, color: '#6B7280' }}>Contact: {doc.customerContactPerson}</div>}
+                {(!!doc.customerStateCode || !!doc.placeOfSupply) && (
+                  <div style={{ marginTop: 2, fontSize: 10, color: '#6B7280' }}>
+                    State: {formatStateDisplay(doc.customerStateCode || null, doc.placeOfSupply || null)}
+                  </div>
+                )}
               </Box>
 
               {!!doc.deliveryAddress && (
@@ -150,7 +161,14 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
                 <div style={{ marginTop: 8 }}>
                   <KeyValue label="Document" value={safeText(doc.invoiceNo) || safeText(doc.documentNumber)} />
                   <KeyValueOptional label="Date" value={doc.date} />
+                  <KeyValueOptional label="Due Date" value={doc.dueDate} />
                   <KeyValueOptional label="Place of Supply" value={doc.placeOfSupply} />
+                  <KeyValueOptional label="Ref No." value={doc.referenceNo} />
+                  <KeyValueOptional label="Challan No." value={doc.challanNo} />
+                  <KeyValueOptional label="Order No." value={doc.orderNumber} />
+                  <KeyValueOptional label="Revision No." value={doc.revisionNumber} />
+                  <KeyValueOptional label="PO No." value={doc.purchaseOrderNo} />
+                  <KeyValueOptional label="PO Date" value={doc.poDate} />
                   {isOrder && !!doc.referenceDocumentNumber && (
                     <KeyValue label="Ref Quote" value={doc.referenceDocumentNumber} />
                   )}
@@ -159,9 +177,9 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
             </div>
           </div>
 
-          <div style={{ marginTop: 12, border: '1px solid #E5E7EB', borderRadius: 10, overflow: 'hidden' }}>
-            <div style={{ background: '#F3F4F6', padding: '6px 12px' }}>
-              <div style={{ display: 'flex', fontSize: 10, fontWeight: 800, color: '#111827' }}>
+          <div style={{ marginTop: s(12, sc), border: '1px solid #E5E7EB', borderRadius: s(10, sc), overflow: 'hidden' }}>
+            <div style={{ background: '#F3F4F6', padding: `${s(6, sc)}px ${s(12, sc)}px` }}>
+              <div style={{ display: 'flex', fontSize: s(10, sc), fontWeight: 800, color: '#111827' }}>
                 <div style={{ width: 34, textAlign: 'center' }}>S.N.</div>
                 <div style={{ flex: 1 }}>Item</div>
                 <div style={{ width: 68, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6 }}>HSN/SAC</div>
@@ -178,30 +196,30 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
               const rowBg = idx % 2 ? '#FFFFFF' : '#FAFAFA';
               const c = lineComputed(it);
               return (
-                <div key={idx} style={{ padding: '8px 12px', background: rowBg, borderTop: '1px solid #E5E7EB' }}>
+                <div key={idx} style={{ padding: `${s(8, sc)}px ${s(12, sc)}px`, background: rowBg, borderTop: '1px solid #E5E7EB' }}>
                   <div style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
-                    <div style={{ width: 34, textAlign: 'center', fontSize: 10, color: '#111827', fontWeight: 800 }}>{idx + 1}</div>
+                    <div style={{ width: 34, textAlign: 'center', fontSize: s(10, sc), color: '#111827', fontWeight: 800 }}>{idx + 1}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#111827' }}>{it.name}</div>
+                      <div style={{ fontSize: s(11, sc), fontWeight: 700, color: '#111827' }}>{it.name}</div>
                       {!!it.description && (
-                        <div style={{ marginTop: 2, fontSize: 9, color: '#374151', whiteSpace: 'pre-line' }}>{it.description}</div>
+                        <div style={{ marginTop: 2, fontSize: s(9, sc), color: '#374151', whiteSpace: 'pre-line' }}>{it.description}</div>
                       )}
                     </div>
-                    <div style={{ width: 68, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: 10, color: '#111827' }}>
+                    <div style={{ width: 68, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: s(10, sc), color: '#111827' }}>
                       {safeText(it.hsnSac) || '—'}
                     </div>
-                    <div style={{ width: 48, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: 11, color: '#111827' }}>{c.qty}</div>
-                    <div style={{ width: 76, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: 11, color: '#111827' }}>
+                    <div style={{ width: 48, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: s(11, sc), color: '#111827' }}>{c.qty}</div>
+                    <div style={{ width: 76, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: s(11, sc), color: '#111827' }}>
                       <Money value={c.rate} />
                     </div>
-                    <div style={{ width: 80, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: 11, color: '#111827' }}>
+                    <div style={{ width: 80, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: s(11, sc), color: '#111827' }}>
                       <Money value={c.taxable} />
                     </div>
-                    <div style={{ width: 50, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: 11, color: '#111827' }}>{c.taxPct.toFixed(1)}</div>
-                    <div style={{ width: 70, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: 11, color: '#111827' }}>
+                    <div style={{ width: 50, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: s(11, sc), color: '#111827' }}>{c.taxPct.toFixed(1)}</div>
+                    <div style={{ width: 70, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: s(11, sc), color: '#111827' }}>
                       <Money value={c.taxAmount} />
                     </div>
-                    <div style={{ width: 86, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: 11, fontWeight: 800, color: '#111827' }}>
+                    <div style={{ width: 86, textAlign: 'right', borderLeft: '1px solid #E5E7EB', paddingLeft: 6, fontSize: s(11, sc), fontWeight: 800, color: '#111827' }}>
                       <Money value={c.total} />
                     </div>
                   </div>
@@ -210,58 +228,59 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
             })}
           </div>
 
-          <div style={{ display: 'flex', gap: 16, marginTop: 12, alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', gap: 20, marginTop: s(16, sc), alignItems: 'flex-start' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <Box>
-                <Label>Amount in Words</Label>
-                <div style={{ marginTop: 6 }}>
-                  <SmallText style={{ fontWeight: 700 } as any}>{amountInWordsINR(Number(doc.grandTotal || 0))}</SmallText>
-                </div>
-              </Box>
-
-              {!!doc.termsConditions && (
-                <div style={{ marginTop: 8 }}>
-                  <Box>
-                    <Label>Terms</Label>
-                    <div style={{ marginTop: 6 }}>
-                      <SmallText>
-                        <div style={{ whiteSpace: 'pre-line' }}>{doc.termsConditions}</div>
-                      </SmallText>
-                    </div>
-                  </Box>
-                </div>
-              )}
+              <div style={{ marginBottom: 12 }}>
+                <Box>
+                  <Label>Amount in Words</Label>
+                  <div style={{ marginTop: 8, paddingBottom: 4 }}>
+                    <SmallText style={{ fontWeight: 700, lineHeight: 1.4 } as any}>
+                      {amountInWordsINR(Number(doc.grandTotal || 0))}
+                    </SmallText>
+                  </div>
+                </Box>
+              </div>
 
               {(profile.upiId || doc.upiId) && (
-                <div style={{ marginTop: 8 }}>
+                <div style={{ marginBottom: 12 }}>
                   <Box>
-                    <Label>Payment</Label>
-                    <div style={{ marginTop: 8 }}>
-                      {!!doc.upiQrText && (
-                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
+                    <Label>Payment & QR</Label>
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+                        {!!doc.upiQrText && (
                           <img
                             src={String(doc.upiQrText)}
                             alt="UPI QR"
-                            style={{ width: 90, height: 90, borderRadius: 8, border: '1px solid #E5E7EB' }}
+                            style={{ width: 100, height: 100, borderRadius: 10, border: '1px solid #E5E7EB', padding: 4 }}
                           />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <SmallText>Scan to pay</SmallText>
-                            <Muted style={{ marginTop: 4 } as any}>UPI ID below</Muted>
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <SmallText style={{ fontWeight: 800, color: '#111827' } as any}>Scan to pay via UPI</SmallText>
+                          <div style={{ marginTop: 6, fontSize: 11, color: '#4B5563' }}>
+                            ID: <span style={{ fontWeight: 800, color: '#111827' }}>{safeText(doc.upiId || profile.upiId)}</span>
                           </div>
                         </div>
-                      )}
-                      <SmallText>
-                        UPI: <span style={{ fontWeight: 800 }}>{safeText(doc.upiId || profile.upiId)}</span>
-                      </SmallText>
+                      </div>
                     </div>
                   </Box>
                 </div>
               )}
+
+              {!!doc.termsConditions && (
+                <Box>
+                  <Label>Terms & Conditions</Label>
+                  <div style={{ marginTop: 6 }}>
+                    <SmallText style={{ lineHeight: 1.4 } as any}>
+                      <div style={{ whiteSpace: 'pre-line' }}>{doc.termsConditions}</div>
+                    </SmallText>
+                  </div>
+                </Box>
+              )}
             </div>
 
-            <div style={{ width: 260, minWidth: 260 }}>
+            <div style={{ width: 280, minWidth: 280 }}>
               <Box>
-                <Label>Summary</Label>
+                <Label>Invoice Summary</Label>
                 <div style={{ marginTop: 8 }}>
                   <KeyValue label="Subtotal" value={<Money value={displaySubtotal(doc)} />} />
                   <KeyValue label="Taxes" value={<Money value={taxes} />} />
@@ -319,17 +338,17 @@ export function ClassicTemplate({ doc, profile }: PdfTemplateProps) {
             </div>
           </div>
 
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: s(10, sc) }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
               <div />
               <div style={{ textAlign: 'right', minWidth: 260 }}>
-                <div style={{ fontSize: 11, fontWeight: 900, color: '#111827' }}>For: {profile.businessName}</div>
-                <div style={{ marginTop: 20, fontSize: 10, color: '#111827', fontWeight: 700 }}>Authorized Signatory</div>
+                <div style={{ fontSize: s(11, sc), fontWeight: 900, color: '#111827' }}>For: {profile.businessName}</div>
+                <div style={{ marginTop: s(20, sc), fontSize: s(10, sc), color: '#111827', fontWeight: 700 }}>Authorized Signatory</div>
               </div>
             </div>
           </div>
 
-          <div style={{ marginTop: 14, borderTop: '1px solid #E5E7EB', paddingTop: 10 }}>
+          <div style={{ marginTop: s(14, sc), borderTop: '1px solid #E5E7EB', paddingTop: s(10, sc) }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Muted>Thank you for your business!</Muted>
               <Muted>Generated by BillVyapar</Muted>

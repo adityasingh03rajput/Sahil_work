@@ -9,6 +9,9 @@
   },
 
   "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
     "SplashScreen": {
       "launchShowDuration": 3000,
       "launchAutoHide": false,
@@ -19,6 +22,12 @@
       "style": "DARK",
       "backgroundColor": "#0f172a",
       "overlaysWebView": false
+    },
+    "Filesystem": {
+      "ioTimeout": 30000
+    },
+    "Share": {
+      "enabled": true
     }
   }
 }

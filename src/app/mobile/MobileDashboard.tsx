@@ -4,37 +4,38 @@
  */
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { TrendingUp, Clock, FileText, Plus, CheckCircle2, AlertCircle } from 'lucide-react';
+import { TrendingUp, Clock, FileText, Plus, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrentProfile } from '../hooks/useCurrentProfile';
 import { API_URL } from '../config/api';
+import { MOBILE_TOKENS, MOBILE_STYLES, formatCurrency, formatDate } from './MobileDesignSystem';
 
 const S = {
-  page: { padding: '16px 16px 100px', fontFamily: 'system-ui,-apple-system,sans-serif' } as React.CSSProperties,
-  heading: { margin: '0 0 4px', fontSize: 24, fontWeight: 800, color: '#f1f5f9' } as React.CSSProperties,
-  sub: { margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.4)' } as React.CSSProperties,
-  card: { background: 'rgba(255,255,255,0.05)', borderRadius: 18, border: '1px solid rgba(255,255,255,0.08)', padding: 16, marginBottom: 12 } as React.CSSProperties,
-  statGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 } as React.CSSProperties,
-  statCard: { background: 'rgba(255,255,255,0.05)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)', padding: '14px 16px' } as React.CSSProperties,
-  statLabel: { margin: '0 0 4px', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' as const, letterSpacing: '0.08em' },
-  statValue: { margin: 0, fontSize: 20, fontWeight: 800, color: '#f1f5f9' } as React.CSSProperties,
-  sectionTitle: { margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: '#f1f5f9' } as React.CSSProperties,
-  docRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' } as React.CSSProperties,
-  btn: (color: string) => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 0', borderRadius: 14, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, color: '#fff', background: color, fontFamily: 'system-ui,sans-serif' } as React.CSSProperties),
+  page: { padding: `${MOBILE_TOKENS.spacing.lg}px ${MOBILE_TOKENS.spacing.lg}px calc(${MOBILE_TOKENS.safeAreaBottom} + 100px)`, fontFamily: 'system-ui,-apple-system,sans-serif' } as React.CSSProperties,
+  heading: { margin: '0 0 4px', fontSize: 24, fontWeight: 900, color: MOBILE_TOKENS.colors.text, letterSpacing: '-0.5px' } as React.CSSProperties,
+  sub: { margin: 0, fontSize: 13, color: MOBILE_TOKENS.colors.textSecondary } as React.CSSProperties,
+  card: { background: MOBILE_TOKENS.colors.surface, borderRadius: MOBILE_TOKENS.radius.xl, border: `1px solid ${MOBILE_TOKENS.colors.border}`, padding: MOBILE_TOKENS.spacing.lg, marginBottom: MOBILE_TOKENS.spacing.md, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' } as React.CSSProperties,
+  statGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: MOBILE_TOKENS.spacing.md, marginBottom: MOBILE_TOKENS.spacing.lg } as React.CSSProperties,
+  statCard: { background: MOBILE_TOKENS.colors.surface, borderRadius: MOBILE_TOKENS.radius.lg, border: `1px solid ${MOBILE_TOKENS.colors.border}`, padding: `${MOBILE_TOKENS.spacing.lg * 0.875}px ${MOBILE_TOKENS.spacing.lg}px`, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' } as React.CSSProperties,
+  statLabel: { margin: `0 0 ${MOBILE_TOKENS.spacing.xs}px`, fontSize: 11, fontWeight: 800, color: MOBILE_TOKENS.colors.textSecondary, textTransform: 'uppercase' as const, letterSpacing: '0.1em' },
+  statValue: { margin: 0, fontSize: 22, fontWeight: 900, color: MOBILE_TOKENS.colors.text } as React.CSSProperties,
+  sectionTitle: { margin: `0 0 ${MOBILE_TOKENS.spacing.md}px`, fontSize: 15, fontWeight: 800, color: MOBILE_TOKENS.colors.text } as React.CSSProperties,
+  docRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${MOBILE_TOKENS.spacing.md * 0.625}px 0`, borderBottom: `1px solid ${MOBILE_TOKENS.colors.border}` } as React.CSSProperties,
+  btn: (color: string) => ({ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: MOBILE_TOKENS.spacing.md, padding: `${MOBILE_TOKENS.spacing.lg * 0.8125}px 0`, borderRadius: MOBILE_TOKENS.radius.lg, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, color: 'var(--primary-foreground)', background: color, fontFamily: 'system-ui,sans-serif' } as React.CSSProperties),
 };
 
 function fmt(n: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
+  return formatCurrency(n);
 }
 function fmtDate(s: string) {
-  return new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  return formatDate(s);
 }
 
 function Skeleton() {
   return (
-    <div style={S.page}>
+    <div style={{ padding: `${MOBILE_TOKENS.spacing.lg}px ${MOBILE_TOKENS.spacing.lg}px calc(${MOBILE_TOKENS.safeAreaBottom} + 100px)` }}>
       {[1, 2, 3, 4].map(i => (
-        <div key={i} style={{ height: 80, borderRadius: 16, background: 'rgba(255,255,255,0.06)', marginBottom: 12, animation: 'mpulse 1.4s ease-in-out infinite' }} />
+        <div key={i} style={{ height: 80, borderRadius: MOBILE_TOKENS.radius.lg, background: 'rgba(255,255,255,0.06)', marginBottom: MOBILE_TOKENS.spacing.md, animation: 'mpulse 1.4s ease-in-out infinite' }} />
       ))}
       <style>{`@keyframes mpulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
     </div>
@@ -96,7 +97,7 @@ export function MobileDashboard() {
 
   return (
     <div style={S.page}>
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: MOBILE_TOKENS.spacing.lg * 1.25 }}>
         <h1 style={S.heading}>Dashboard</h1>
         <p style={S.sub}>Business overview</p>
       </div>
@@ -107,7 +108,7 @@ export function MobileDashboard() {
           const Icon = s.icon;
           return (
             <div key={s.label} style={S.statCard}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: MOBILE_TOKENS.spacing.xs, marginBottom: MOBILE_TOKENS.spacing.xs }}>
                 <Icon style={{ width: 14, height: 14, color: s.color }} />
                 <p style={S.statLabel}>{s.label}</p>
               </div>
@@ -118,9 +119,9 @@ export function MobileDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div style={{ ...S.card, padding: '16px' }}>
+      <div style={{ ...S.card, padding: MOBILE_TOKENS.spacing.lg }}>
         <p style={S.sectionTitle}>Quick Actions</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: MOBILE_TOKENS.spacing.md }}>
           {quickActions.map(a => (
             <button key={a.label} onClick={() => navigate(a.path)} style={S.btn(a.color)}>
               <Plus style={{ width: 16, height: 16 }} />
@@ -132,30 +133,30 @@ export function MobileDashboard() {
 
       {/* Recent Documents */}
       <div style={S.card}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: MOBILE_TOKENS.spacing.md }}>
           <p style={S.sectionTitle}>Recent Documents</p>
           <button onClick={() => navigate('/documents')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#818cf8', fontWeight: 600 }}>
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: MOBILE_TOKENS.colors.accent, fontWeight: 600 }}>
             View all →
           </button>
         </div>
         {recentDocs.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
-            <FileText style={{ width: 40, height: 40, color: 'rgba(255,255,255,0.2)', margin: '0 auto 8px' }} />
-            <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>No documents yet</p>
+            <FileText style={{ width: 40, height: 40, color: MOBILE_TOKENS.colors.textSecondary, margin: '0 auto 8px' }} />
+            <p style={{ margin: 0, fontSize: 13, color: MOBILE_TOKENS.colors.textSecondary }}>No documents yet</p>
           </div>
         ) : recentDocs.map(doc => (
           <div key={doc.id} style={S.docRow} onClick={() => navigate(`/documents/edit/${doc.id}`)}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 700, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p style={{ margin: `0 0 ${MOBILE_TOKENS.spacing.xs * 0.25}px`, fontSize: 13, fontWeight: 700, color: MOBILE_TOKENS.colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {doc.invoiceNo || doc.documentNumber}
               </p>
-              <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+              <p style={{ margin: 0, fontSize: 11, color: MOBILE_TOKENS.colors.textSecondary }}>
                 {doc.customerName} · {fmtDate(doc.date)}
               </p>
             </div>
-            <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 12 }}>
-              <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>{fmt(doc.grandTotal || 0)}</p>
+            <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: MOBILE_TOKENS.spacing.lg }}>
+              <p style={{ margin: `0 0 ${MOBILE_TOKENS.spacing.xs * 0.25}px`, fontSize: 13, fontWeight: 700, color: MOBILE_TOKENS.colors.text }}>{fmt(doc.grandTotal || 0)}</p>
               <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: doc.paymentStatus === 'paid' ? '#34d399' : '#fb923c' }}>
                 {doc.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
               </p>
@@ -169,12 +170,12 @@ export function MobileDashboard() {
         <div style={S.card}>
           <p style={S.sectionTitle}>Top Selling Items</p>
           {analytics.topItems.slice(0, 5).map((item: any, i: number) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < analytics.topItems.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${MOBILE_TOKENS.spacing.xs}px 0`, borderBottom: i < analytics.topItems.length - 1 ? `1px solid ${MOBILE_TOKENS.colors.border}` : 'none' }}>
               <div>
-                <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 600, color: '#f1f5f9' }}>{item.name}</p>
-                <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Qty: {item.quantity}</p>
+                <p style={{ margin: `0 0 ${MOBILE_TOKENS.spacing.xs * 0.25}px`, fontSize: 13, fontWeight: 600, color: MOBILE_TOKENS.colors.text }}>{item.name}</p>
+                <p style={{ margin: 0, fontSize: 11, color: MOBILE_TOKENS.colors.textSecondary }}>Qty: {item.quantity}</p>
               </div>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#60a5fa' }}>{fmt(item.revenue)}</p>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: MOBILE_TOKENS.colors.accent }}>{fmt(item.revenue)}</p>
             </div>
           ))}
         </div>
@@ -182,3 +183,4 @@ export function MobileDashboard() {
     </div>
   );
 }
+

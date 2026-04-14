@@ -81,6 +81,26 @@ profilesRouter.get('/', async (req, res, next) => {
   }
 });
 
+profilesRouter.get('/:id', async (req, res, next) => {
+  try {
+    const profile = await BusinessProfile.findOne({ _id: req.params.id, userId: req.userId });
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    res.json({
+      id: String(profile._id),
+      ...profile.toObject(),
+      _id: undefined,
+      userId: undefined,
+      createdAt: profile.createdAt?.toISOString?.() ?? profile.createdAt,
+      updatedAt: profile.updatedAt?.toISOString?.() ?? profile.updatedAt,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 profilesRouter.put('/:id', async (req, res, next) => {
   try {
     const profile = await BusinessProfile.findOne({ _id: req.params.id, userId: req.userId });

@@ -3,14 +3,13 @@
  * Falls back to false on web.
  */
 export function useIsNative(): boolean {
+  if (typeof window === 'undefined') return false;
+
+  // Only check for Capacitor native platform - don't include mobile browsers
   try {
-    // Capacitor sets window.Capacitor.isNativePlatform()
     const cap = (window as any)?.Capacitor;
-    if (cap && typeof cap.isNativePlatform === 'function') {
-      return cap.isNativePlatform();
-    }
-  } catch {
-    // ignore
-  }
+    if (cap?.isNativePlatform?.()) return true;
+  } catch { }
+
   return false;
 }

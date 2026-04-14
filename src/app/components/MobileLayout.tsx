@@ -9,7 +9,7 @@ import {
   LayoutDashboard, FileText, Users, BarChart3, MoreHorizontal,
   Plus, Package, Receipt, CreditCard, Landmark, LogOut, X,
   AlertCircle, ShoppingCart, Truck, ChevronRight,
-  UserCog, Palette, BadgeCheck,
+  UserCog, Palette, BadgeCheck, Moon, Sun, Flame, Waves, Leaf, Heart,
 } from 'lucide-react';
 const logoImg = './logo.png';
 import { useTheme, type ThemeMode } from '../contexts/ThemeContext';
@@ -18,6 +18,7 @@ import { useDisplay, type DisplayScale } from '../contexts/DisplayContext';
 import { TraceLoader } from './TraceLoader';
 import { prefetchRoute } from '../hooks/usePrefetch';
 import { App } from '@capacitor/app';
+import { MOBILE_TOKENS, MOBILE_STYLES } from '../mobile/MobileDesignSystem';
 
 interface MobileLayoutProps {
   children: ReactNode;
@@ -39,6 +40,7 @@ const MORE_ITEMS = [
   { icon: Package,      label: 'Items',        path: '/items',          color: '#f59e0b' },
   { icon: Receipt,      label: 'GST Reports',  path: '/reports/gst',    color: '#10b981' },
   { icon: CreditCard,   label: 'Vyapar Khata', path: '/vyapar-khata-new', color: '#6366f1' },
+  { icon: CreditCard,   label: 'Party Ledger', path: '/ledger',         color: '#8b5cf6' },
   { icon: Landmark,     label: 'Bank',         path: '/bank-accounts',  color: '#0ea5e9' },
   { icon: ShoppingCart, label: 'POS',          path: '/pos',            color: '#f97316' },
   { icon: Truck,        label: 'Expenses',     path: '/extra-expenses', color: '#e11d48' },
@@ -55,13 +57,13 @@ const SALES_TYPES = [
   { label: 'Sale Return',   type: 'invoice_cancellation', icon: '↩️', color: '#e11d48' },
 ];
 
-const THEME_OPTIONS: { id: ThemeMode; label: string; color: string; bg: string }[] = [
-  { id: 'dark',     label: 'Dark',    color: '#6366f1', bg: '#0f172a' },
-  { id: 'light',    label: 'Light',   color: '#f59e0b', bg: '#fafaf9' },
-  { id: 'warm',     label: 'Warm',    color: '#f97316', bg: '#1c0a03' },
-  { id: 'ocean',    label: 'Ocean',   color: '#0ea5e9', bg: '#0c1a2e' },
-  { id: 'emerald',  label: 'Emerald', color: '#10b981', bg: '#022c22' },
-  { id: 'rosewood', label: 'Rose',    color: '#e11d48', bg: '#1a0010' },
+const THEME_OPTIONS: { id: ThemeMode; label: string; color: string; bg: string; icon: any }[] = [
+  { id: 'dark',     label: 'Dark',    color: '#6366f1', bg: '#0f172a', icon: Moon },
+  { id: 'light',    label: 'Light',   color: '#f59e0b', bg: '#fafaf9', icon: Sun },
+  { id: 'warm',     label: 'Warm',    color: '#f97316', bg: '#1c0a03', icon: Flame },
+  { id: 'ocean',    label: 'Ocean',   color: '#0ea5e9', bg: '#0c1a2e', icon: Waves },
+  { id: 'emerald',  label: 'Emerald', color: '#10b981', bg: '#022c22', icon: Leaf },
+  { id: 'rosewood', label: 'Rose',    color: '#e11d48', bg: '#1a0010', icon: Heart },
 ];
 
 function readProfile() {
@@ -97,7 +99,7 @@ function usePageTransition() {
     if (location.pathname === prev.current) return;
     prev.current = location.pathname;
     setTransitioning(true);
-    const t = setTimeout(() => setTransitioning(false), 80);
+    const t = setTimeout(() => setTransitioning(false), 0);
     return () => clearTimeout(t);
   }, [location.pathname]);
   return transitioning;
@@ -109,7 +111,7 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
   const { signOut } = useAuth();
   const offline = useOffline();
   const transitioning = usePageTransition();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
 
   // ── More sheet ──────────────────────────────────────────────────────────────
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -305,64 +307,64 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
       {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
       <header style={{
         flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        paddingTop: 'calc(env(safe-area-inset-top,0px) + 8px)',
-        paddingBottom: 8, paddingLeft: 20, paddingRight: 20,
-        background: 'rgba(10, 10, 15, 0.6)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        paddingTop: 'calc(env(safe-area-inset-top,0px) + 0.6rem)',
+        paddingBottom: '0.6rem', paddingLeft: `${MOBILE_TOKENS.spacing.lg}px`, paddingRight: `${MOBILE_TOKENS.spacing.lg}px`,
+        background: 'rgba(var(--bg-rgb, 10, 10, 15), 0.6)',
+        borderBottom: `1px solid ${MOBILE_TOKENS.colors.border}`,
         backdropFilter: 'blur(24px) saturate(180%)',
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
         zIndex: 45,
         boxShadow: '0 10px 30px -10px rgba(0,0,0,0.5)'
       }}>
         {/* Logo + name */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 14, overflow: 'hidden',
-            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+        <div style={{ display: 'flex', alignItems: 'center', gap: `${MOBILE_TOKENS.spacing.lg * 0.6}px` }}>
+          <div style={{ width: '3rem', height: '3rem', borderRadius: `${MOBILE_TOKENS.radius.md}px`, overflow: 'hidden',
+            background: 'var(--primary)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 8px 20px -4px rgba(99, 102, 241, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.3)',
+            boxShadow: `0 8px 20px -4px rgba(99, 102, 241, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.3)`,
             animation: 'mobileLogoGlow 3s ease-in-out infinite' }}>
-            <img src={logoImg} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+            <img src={logoImg} alt="" style={{ width: '2.45rem', height: '2.45rem', objectFit: 'contain' }} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 17, fontStyle: 'italic', fontWeight: 900, color: '#fff', letterSpacing: '-0.03em',
-              lineHeight: 1, textTransform: 'uppercase', textShadow: '0 0 15px rgba(99,102,241,0.5)' }}>BillVyapar</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#818cf8', letterSpacing: '0.15em',
+            <span style={{ fontSize: '1.3rem', fontStyle: 'italic', fontWeight: 900, color: MOBILE_TOKENS.colors.text, letterSpacing: '-0.03em',
+              lineHeight: 1, textTransform: 'uppercase', textShadow: `0 0 15px ${MOBILE_TOKENS.colors.accent}` }}>BillVyapar</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: `${MOBILE_TOKENS.spacing.xs}px`, marginTop: '0.2rem' }}>
+              <span style={{ fontSize: '0.69rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.15em',
                 textTransform: 'uppercase', opacity: 0.9 }}>Enterprise</span>
-              <div style={{ width: 3, height: 3, borderRadius: '50%', background: '#4f46e5' }} />
-              <span style={{ fontSize: 9, fontWeight: 800, color: '#a5b4fc', letterSpacing: '0.15em',
-                textTransform: 'uppercase', opacity: 0.7 }}>HQ vv1.0.0</span>
+              <div style={{ width: '0.2rem', height: '0.2rem', borderRadius: '50%', background: MOBILE_TOKENS.colors.accent }} />
+              <span style={{ fontSize: '0.69rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.15em',
+                textTransform: 'uppercase', opacity: 0.7 }}>HQ vv1.0.1</span>
             </div>
           </div>
         </div>
 
         {/* Right side */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: `${MOBILE_TOKENS.spacing.lg * 0.6}px` }}>
           {offline ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
-              borderRadius: 20, background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', animation: 'mobilePulse 1s infinite' }} />
-              <span style={{ fontSize: 10, color: '#f87171', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Offline</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: `${MOBILE_TOKENS.spacing.xs}px`, padding: `${MOBILE_TOKENS.spacing.xs}px ${MOBILE_TOKENS.spacing.md}px`,
+              borderRadius: `${MOBILE_TOKENS.radius.full}px`, background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+              <div style={{ width: `${MOBILE_TOKENS.spacing.xs}px`, height: `${MOBILE_TOKENS.spacing.xs}px`, borderRadius: '50%', background: MOBILE_TOKENS.colors.error, animation: 'mobilePulse 1s infinite' }} />
+              <span style={{ fontSize: '0.75rem', color: 'var(--destructive)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Offline</span>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px',
-              borderRadius: 20, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)',
+            <div style={{ display: 'flex', alignItems: 'center', gap: `${MOBILE_TOKENS.spacing.xs}px`, padding: `${MOBILE_TOKENS.spacing.xs}px ${MOBILE_TOKENS.spacing.md}px`,
+              borderRadius: `${MOBILE_TOKENS.radius.full}px`, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)',
               boxShadow: 'inset 0 0 10px rgba(16,185,129,0.05)' }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
-              <span style={{ fontSize: 10, color: '#34d399', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Live Cloud</span>
+              <div style={{ width: `${MOBILE_TOKENS.spacing.xs}px`, height: `${MOBILE_TOKENS.spacing.xs}px`, borderRadius: '50%', background: MOBILE_TOKENS.colors.success, boxShadow: `0 0 10px ${MOBILE_TOKENS.colors.success}` }} />
+              <span style={{ fontSize: '0.75rem', color: 'var(--secondary)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Live Cloud</span>
             </div>
           )}
           
           {/* Profile avatar - Glass Design */}
           <button type="button"
             onClick={() => !subscriptionExpired && navigate('/profiles')}
-            style={{ width: 40, height: 40, borderRadius: 15,
-              border: '1.5px solid rgba(255, 255, 255, 0.2)',
-              background: 'rgba(255, 255, 255, 0.08)',
-              color: '#fff', fontWeight: 900, fontSize: 14, cursor: 'pointer',
+            style={{ width: '3rem', height: '3rem', borderRadius: `${MOBILE_TOKENS.radius.md}px`,
+              border: `1.5px solid ${MOBILE_TOKENS.colors.border}`,
+              background: MOBILE_TOKENS.colors.surface,
+              color: MOBILE_TOKENS.colors.text, fontWeight: 900, fontSize: '1.08rem', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               backdropFilter: 'blur(12px)',
-              boxShadow: '0 4px 15px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.05)',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
               transition: 'all 0.2s', fontFamily: 'system-ui,sans-serif' }}>
             {ini}
           </button>
@@ -371,15 +373,15 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
 
       {/* ── SUBSCRIPTION WARNING ─────────────────────────────────────────────── */}
       {subscriptionWarning && (
-        <div style={{ flexShrink: 0, margin: '8px 12px 0', padding: '10px 14px',
-          borderRadius: 14, background: 'rgba(245,158,11,0.1)',
+        <div style={{ flexShrink: 0, margin: `${MOBILE_TOKENS.spacing.xs}px ${MOBILE_TOKENS.spacing.md}px 0`, padding: `${MOBILE_TOKENS.spacing.md}px ${MOBILE_TOKENS.spacing.lg}px`,
+          borderRadius: `${MOBILE_TOKENS.radius.lg}px`, background: 'rgba(245,158,11,0.1)',
           border: '1px solid rgba(245,158,11,0.25)',
-          display: 'flex', alignItems: 'center', gap: 10 }}>
-          <AlertCircle style={{ width: 16, height: 16, color: '#f59e0b', flexShrink: 0 }} />
-          <p style={{ margin: 0, fontSize: 12, color: '#fbbf24', flex: 1, lineHeight: 1.4 }}>{subscriptionWarning}</p>
+          display: 'flex', alignItems: 'center', gap: MOBILE_TOKENS.spacing.md }}>
+          <AlertCircle style={{ width: 16, height: 16, color: MOBILE_TOKENS.colors.warning, flexShrink: 0 }} />
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--warning)', flex: 1, lineHeight: 1.4 }}>{subscriptionWarning}</p>
           <button type="button" onClick={() => navigate('/subscription')}
-            style={{ padding: '4px 10px', borderRadius: 8, background: 'rgba(245,158,11,0.2)',
-              border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24',
+            style={{ padding: `${MOBILE_TOKENS.spacing.xs}px ${MOBILE_TOKENS.spacing.md}px`, borderRadius: `${MOBILE_TOKENS.radius.md}px`, background: 'rgba(245,158,11,0.2)',
+              border: '1px solid rgba(245,158,11,0.3)', color: 'var(--warning)',
               fontSize: 11, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
             Renew
           </button>
@@ -388,16 +390,16 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
 
       {/* ── PAGE CONTENT ─────────────────────────────────────────────────────── */}
       <main ref={mainRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden',
-        WebkitOverflowScrolling: 'touch', background: 'var(--background,#0d1117)',
+        WebkitOverflowScrolling: 'touch', background: resolvedTheme === 'light' ? '#fafaf9' : MOBILE_TOKENS.colors.bg,
         touchAction: 'pan-y', overscrollBehavior: 'contain' } as any}>
         {!profileGateChecked ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
             <TraceLoader label="Loading..." />
           </div>
         ) : transitioning ? (
-          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ padding: MOBILE_TOKENS.spacing.md, display: 'flex', flexDirection: 'column', gap: MOBILE_TOKENS.spacing.md }}>
             {[80, 56, 120, 56, 56].map((h, i) => (
-              <div key={i} style={{ height: h, borderRadius: 16, background: 'rgba(255,255,255,0.05)',
+              <div key={i} style={{ height: h, borderRadius: MOBILE_TOKENS.radius.lg, background: resolvedTheme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)',
                 animation: 'mobilePulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
@@ -408,68 +410,58 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
 
       {/* ── FAB ──────────────────────────────────────────────────────────────── */}
       {!hideFab && (
-        <div ref={fabRef} style={{ position: 'fixed', right: 16, zIndex: 40,
-          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8,
-          bottom: 'calc(env(safe-area-inset-bottom,0px) + 88px)',
+        <div ref={fabRef} style={{ position: 'fixed', right: MOBILE_TOKENS.spacing.lg, zIndex: 40,
+          display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: MOBILE_TOKENS.spacing.md,
+          bottom: `calc(${MOBILE_TOKENS.safeAreaBottom} + 88px)`,
           pointerEvents: 'none' }}>
           {/* Sales type menu */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6,
-            transition: 'all 0.2s ease', transformOrigin: 'bottom',
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: MOBILE_TOKENS.spacing.xs,
+            transition: 'opacity 0.15s ease, transform 0.15s ease', transformOrigin: 'bottom',
             opacity: fabOpen ? 1 : 0, transform: fabOpen ? 'scale(1) translateY(0)' : 'scale(0.9) translateY(8px)',
             pointerEvents: fabOpen ? 'auto' : 'none' }}>
             {SALES_TYPES.map(s => (
               <button key={s.type} type="button"
                 onClick={() => goTo(`/documents/create?type=${encodeURIComponent(s.type)}`)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 16px 10px 12px', borderRadius: 16,
+                style={{ display: 'flex', alignItems: 'center', gap: MOBILE_TOKENS.spacing.md,
+                  padding: `${MOBILE_TOKENS.spacing.md}px ${MOBILE_TOKENS.spacing.lg}px ${MOBILE_TOKENS.spacing.md}px ${MOBILE_TOKENS.spacing.md}px`, borderRadius: MOBILE_TOKENS.radius.lg,
                   background: 'rgba(13,17,23,0.95)', border: `1px solid ${s.color}30`,
                   boxShadow: `0 4px 20px rgba(0,0,0,0.4), 0 0 0 1px ${s.color}20`,
                   cursor: 'pointer', backdropFilter: 'blur(12px)' }}>
-                <span style={{ width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                <span style={{ width: 32, height: 32, borderRadius: MOBILE_TOKENS.radius.md, flexShrink: 0,
                   background: `${s.color}20`, display: 'flex', alignItems: 'center',
                   justifyContent: 'center', fontSize: 16 }}>{s.icon}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9',
+                <span style={{ fontSize: 13, fontWeight: 600, color: MOBILE_TOKENS.colors.text,
                   whiteSpace: 'nowrap', fontFamily: 'system-ui,sans-serif' }}>{s.label}</span>
               </button>
             ))}
           </div>
           {/* FAB button — always receives pointer events */}
           <button type="button" className="fab-btn"
-            style={{ width: 56, height: 56, borderRadius: 18, border: 'none', cursor: 'pointer',
-              background: fabOpen ? '#1e293b' : 'linear-gradient(135deg,#4f46e5,#7c3aed)',
-              boxShadow: fabOpen ? 'none' : '0 6px 24px rgba(79,70,229,0.55)',
+            style={{ width: 56, height: 56, borderRadius: MOBILE_TOKENS.radius.lg, border: 'none', cursor: 'pointer',
+              background: fabOpen ? MOBILE_TOKENS.colors.surface : 'var(--primary)',
+              boxShadow: fabOpen ? 'none' : `0 6px 24px rgba(79,70,229,0.55)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transform: fabOpen ? 'rotate(45deg)' : '',
               transition: 'background 0.2s, box-shadow 0.2s, transform 0.2s',
-              touchAction: 'none', pointerEvents: 'auto' }}
-            onTouchStart={onJoyStart} onTouchMove={onJoyMove} onTouchEnd={onJoyEnd}
-            onClick={e => { if (Math.abs(joyDeltaY.current) < 10) setFabOpen(v => !v); else e.preventDefault(); }}
-            aria-label="Create document">
-            <Plus style={{ width: 24, height: 24, color: '#fff', strokeWidth: 2.5 }} />
+              touchAction: 'none', pointerEvents: 'auto' }} onClick={() => setFabOpen(!fabOpen)}>
+            <Plus style={{ width: 28, height: 28, color: fabOpen ? 'var(--foreground)' : 'var(--primary-foreground)' }} strokeWidth={2.5} />
           </button>
         </div>
       )}
 
-      {/* ── BOTTOM NAV BAR ────────────────────────────────────────────────────── */}
-      <nav style={{ 
-        flexShrink: 0, 
-        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
-        paddingTop: 12,
-        paddingLeft: 12,
-        paddingRight: 12,
-        background: 'linear-gradient(180deg, rgba(10, 10, 15, 0) 0%, rgba(10, 10, 15, 0.95) 100%)',
-        pointerEvents: 'none'
-      }}>
+      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+          padding: `${MOBILE_TOKENS.spacing.md * 0.6}px ${MOBILE_TOKENS.spacing.md}px calc(${MOBILE_TOKENS.safeAreaBottom} + ${MOBILE_TOKENS.spacing.md * 0.6}px)`,
+          pointerEvents: 'none' }}>
         <div style={{ 
           display: 'flex', 
           alignItems: 'stretch', 
-          height: 64,
-          background: 'rgba(25, 25, 35, 0.85)',
+          height: '4.95rem',
+          background: MOBILE_TOKENS.colors.surface,
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
-          borderRadius: 24,
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+          borderRadius: `${MOBILE_TOKENS.radius.xl}px`,
+          border: `1px solid ${MOBILE_TOKENS.colors.border}`,
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
           pointerEvents: 'auto'
         }}>
           {PRIMARY_TABS.map(tab => {
@@ -480,7 +472,7 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
                 onMouseEnter={() => tab.path !== '__more__' && prefetchRoute(tab.path)}
                 onClick={() => tab.path === '__more__' ? openMore() : goTo(tab.path)}
                 style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  justifyContent: 'center', gap: 4, background: 'none', border: 'none',
+                  justifyContent: 'center', gap: `${MOBILE_TOKENS.spacing.xs * 0.75}px`, background: 'none', border: 'none',
                   cursor: 'pointer', position: 'relative' }}>
                 
                 {/* Active Glow/Indicator */}
@@ -490,34 +482,34 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
                     top: 0, 
                     left: '50%', 
                     transform: 'translateX(-50%)',
-                    width: 32, 
-                    height: 2, 
-                    background: '#6366f1',
-                    boxShadow: '0 0 12px #6366f1',
-                    borderRadius: '0 0 4px 4px'
+                    width: '2.45rem', 
+                    height: '0.15rem', 
+                    background: MOBILE_TOKENS.colors.accent,
+                    boxShadow: `0 0 12px ${MOBILE_TOKENS.colors.accent}`,
+                    borderRadius: '0 0 0.3rem 0.3rem'
                   }} />
                 )}
-
-                <div style={{ 
-                  width: 44, height: 34, borderRadius: 12, display: 'flex',
+ 
+                <div style={{
+                  width: '3.4rem', height: '2.6rem', borderRadius: `${MOBILE_TOKENS.radius.md}px`, display: 'flex',
                   alignItems: 'center', justifyContent: 'center',
-                  background: active ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' 
+                  background: active ? `${MOBILE_TOKENS.colors.accent}18` : 'transparent',
+                  transition: 'background 0.2s ease'
                 }}>
-                  <Icon style={{ 
-                    width: 22, height: 22, 
-                    color: active ? '#818cf8' : 'rgba(255, 255, 255, 0.35)',
-                    strokeWidth: active ? 2.5 : 2, 
-                    filter: active ? 'drop-shadow(0 0 8px rgba(99, 102, 241, 0.5))' : 'none',
-                    transition: 'all 0.3s' 
+                  <Icon style={{
+                    width: '1.7rem', height: '1.7rem',
+                    color: active ? MOBILE_TOKENS.colors.accent : MOBILE_TOKENS.colors.textMuted,
+                    strokeWidth: active ? 2.5 : 2,
+                    filter: active ? `drop-shadow(0 0 8px ${MOBILE_TOKENS.colors.accent})` : 'none',
+                    transition: 'color 0.2s ease, filter 0.2s ease'
                   }} />
                 </div>
-                <span style={{ 
-                  fontSize: 10, fontWeight: active ? 800 : 600,
-                  color: active ? '#f1f5f9' : 'rgba(255, 255, 255, 0.35)',
+                <span style={{
+                  fontSize: '0.75rem', fontWeight: active ? 800 : 600,
+                  color: active ? MOBILE_TOKENS.colors.text : MOBILE_TOKENS.colors.textMuted,
                   letterSpacing: '0.02em',
                   textTransform: 'uppercase',
-                  transition: 'color 0.3s' 
+                  transition: 'color 0.2s ease'
                 }}>{tab.label}</span>
               </button>
             );
@@ -528,83 +520,100 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
       {/* ── MORE DRAWER ──────────────────────────────────────────────────────── */}
       {sheetVisible && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', flexDirection: 'column',
-          background: sheetOpen ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0)',
+          background: sheetOpen ? MOBILE_TOKENS.colors.overlay : 'rgba(0,0,0,0)',
           backdropFilter: sheetOpen ? 'blur(4px)' : 'none',
           transition: 'background 0.35s ease, backdrop-filter 0.35s ease' } as any}>
           <div style={{ flex: 1 }} onClick={closeMore} />
 
-          <div ref={sheetRef} style={{ background: '#111827',
-            borderRadius: '28px 28px 0 0',
+          <div ref={sheetRef} style={{ background: MOBILE_TOKENS.colors.surface,
+            borderRadius: `${MOBILE_TOKENS.radius.xl}px ${MOBILE_TOKENS.radius.xl}px 0 0`,
             boxShadow: '0 -12px 60px rgba(0,0,0,0.6)',
             maxHeight: '88vh',
             transform: sheetOpen ? 'translateY(0)' : 'translateY(100%)',
             transition: 'transform 0.35s cubic-bezier(0.32,0.72,0,1)',
-            willChange: 'transform', display: 'flex', flexDirection: 'column' }}>
+            display: 'flex', flexDirection: 'column' }}>
 
             {/* Drag handle zone */}
             <div style={{ flexShrink: 0 }}
               onTouchStart={onSheetTouchStart} onTouchMove={onSheetTouchMove} onTouchEnd={onSheetTouchEnd}>
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
-                <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)' }} />
+              <div style={{ display: 'flex', justifyContent: 'center', padding: `${MOBILE_TOKENS.spacing.md}px 0 ${MOBILE_TOKENS.spacing.xs}px` }}>
+                <div style={{ width: 40, height: 4, borderRadius: 2, background: MOBILE_TOKENS.colors.borderLight }} />
               </div>
             </div>
 
             {/* Scrollable content */}
             <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden',
-              paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 24px)' }}
+              paddingBottom: `calc(${MOBILE_TOKENS.safeAreaBottom} + ${MOBILE_TOKENS.spacing.lg}px)` }}
               onTouchStart={onSheetTouchStart} onTouchMove={onSheetTouchMove} onTouchEnd={onSheetTouchEnd}>
 
+              {/* Header with close button */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: `${MOBILE_TOKENS.spacing.lg}px ${MOBILE_TOKENS.spacing.lg}px 0`, marginBottom: MOBILE_TOKENS.spacing.lg }}>
+                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: MOBILE_TOKENS.colors.text, fontFamily: 'system-ui,sans-serif' }}>Menu</h2>
+                <button type="button" onClick={closeMore}
+                  style={{ width: '2.45rem', height: '2.45rem', borderRadius: MOBILE_TOKENS.radius.md, border: 'none', cursor: 'pointer',
+                    background: 'var(--muted)', color: MOBILE_TOKENS.colors.text,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <X style={{ width: '1.25rem', height: '1.25rem' }} />
+                </button>
+              </div>
+
               {/* Business card header */}
-              <div style={{ margin: '0 16px 16px', padding: '14px 16px', borderRadius: 20,
-                background: 'linear-gradient(135deg,#1e1b4b,#312e81)',
-                border: '1px solid rgba(99,102,241,0.3)',
-                display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 14, flexShrink: 0,
-                  background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.3)',
+              <div style={{ margin: `0 ${MOBILE_TOKENS.spacing.lg}px ${MOBILE_TOKENS.spacing.lg}px`, padding: `${MOBILE_TOKENS.spacing.lg * 0.85}px ${MOBILE_TOKENS.spacing.lg}px`, borderRadius: MOBILE_TOKENS.radius.lg,
+                background: 'var(--primary)',
+                border: `1px solid var(--border)`,
+                display: 'flex', alignItems: 'center', gap: `${MOBILE_TOKENS.spacing.lg * 0.6}px` }}>
+                <div style={{ width: '3.4rem', height: '3.4rem', borderRadius: MOBILE_TOKENS.radius.md, flexShrink: 0,
+                  background: 'var(--primary-foreground)20', border: '2px solid var(--primary-foreground)30',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 800, fontSize: 15, color: '#fff',
+                  fontWeight: 800, fontSize: '1.15rem', color: 'var(--primary-foreground)',
                   fontFamily: 'system-ui,sans-serif' }}>{ini}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#fff',
+                  <p style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary-foreground)',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {profile.businessName || 'My Business'}
                   </p>
-                  <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(199,210,254,0.7)',
+                  <p style={{ margin: `${MOBILE_TOKENS.spacing.xs * 0.15}rem 0 0`, fontSize: '0.92rem', color: 'var(--primary-foreground)',
+                    opacity: 0.7,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {profile.ownerName || ''}
                   </p>
                 </div>
-                <button type="button" onClick={closeMore}
-                  style={{ width: 32, height: 32, borderRadius: 10, border: 'none', cursor: 'pointer',
-                    background: 'rgba(255,255,255,0.15)', color: '#fff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <X style={{ width: 16, height: 16 }} />
-                </button>
               </div>
 
-              {/* Nav grid — 4 columns, icon + label + color accent */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, padding: '0 16px 16px' }}>
+              {/* Nav grid — 3 columns, larger items */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: `${MOBILE_TOKENS.spacing.md}px`, padding: `${MOBILE_TOKENS.spacing.lg}px ${MOBILE_TOKENS.spacing.lg}px 0` }}>
+                {(() => {
+                  console.log('DEBUG MORE_ITEMS:', MORE_ITEMS);
+                  console.log('DEBUG MORE_ITEMS length:', MORE_ITEMS.length);
+                  console.log('DEBUG resolvedTheme:', resolvedTheme);
+                  return null;
+                })()}
                 {MORE_ITEMS.map(item => {
                   const Icon = item.icon;
                   const active = location.pathname.startsWith(item.path);
+                  const isLightTheme = resolvedTheme === 'light';
+                  
                   return (
                     <button key={item.path} type="button"
                       onMouseEnter={() => prefetchRoute(item.path)}
                       onClick={() => goTo(item.path)}
-                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                        padding: '14px 4px 12px', borderRadius: 18, cursor: 'pointer',
-                        minHeight: 72,
-                        background: active ? `${item.color}20` : 'rgba(255,255,255,0.04)',
-                        border: active ? `1.5px solid ${item.color}40` : '1.5px solid rgba(255,255,255,0.06)',
-                        transition: 'all 0.15s' }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 12,
-                        background: active ? `${item.color}25` : 'rgba(255,255,255,0.07)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon style={{ width: 18, height: 18, color: active ? item.color : 'rgba(255,255,255,0.55)',
-                          strokeWidth: active ? 2.5 : 1.8 }} />
+                      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: `${MOBILE_TOKENS.spacing.md}px`,
+                        padding: `${MOBILE_TOKENS.spacing.lg}px ${MOBILE_TOKENS.spacing.md}px`, borderRadius: `${MOBILE_TOKENS.radius.lg}px`, cursor: 'pointer',
+                        minHeight: '7rem',
+                        background: active ? item.color : 'var(--muted)',
+                        border: active ? `1.5px solid ${item.color}` : '1.5px solid var(--border)',
+                        transition: 'all 0.2s ease',
+                        boxShadow: active ? `0 4px 12px ${item.color}30` : 'none' }}>
+                      <div style={{ width: '3.2rem', height: '3.2rem', borderRadius: MOBILE_TOKENS.radius.md,
+                        background: active ? 'rgba(255,255,255,0.25)' : `${item.color}40`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: active ? 'none' : `0 2px 8px ${item.color}25` }}>
+                        <Icon style={{ width: '1.6rem', height: '1.6rem', color: active ? '#ffffff' : item.color,
+                          strokeWidth: 2.5,
+                          filter: active ? 'drop-shadow(0 0 4px rgba(255,255,255,0.3))' : 'none' }} />
                       </div>
-                      <span style={{ fontSize: 10, fontWeight: 600, textAlign: 'center', lineHeight: 1.2,
-                        color: active ? item.color : 'rgba(255,255,255,0.55)',
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center', lineHeight: 1.2,
+                        color: active ? '#ffffff' : MOBILE_TOKENS.colors.text,
                         fontFamily: 'system-ui,sans-serif' }}>{item.label}</span>
                     </button>
                   );
@@ -612,34 +621,39 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
               </div>
 
               {/* Theme picker */}
-              <div style={{ margin: '0 16px 12px', padding: '14px', borderRadius: 20,
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <Palette style={{ width: 16, height: 16, color: currentTheme.color }} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9',
+              <div style={{ padding: `${MOBILE_TOKENS.spacing.lg}px`, background: resolvedTheme === 'light' ? '#ffffff' : '#1e293b', borderRadius: MOBILE_TOKENS.radius.xl, border: `1px solid ${MOBILE_TOKENS.colors.border}`, margin: `${MOBILE_TOKENS.spacing.lg}px` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: MOBILE_TOKENS.spacing.md, marginBottom: `${MOBILE_TOKENS.spacing.lg}px` }}>
+                  <Palette style={{ width: '1.25rem', height: '1.25rem', color: currentTheme.color }} />
+                  <span style={{ fontSize: '0.95rem', fontWeight: 700, color: MOBILE_TOKENS.colors.text,
                     fontFamily: 'system-ui,sans-serif' }}>Appearance</span>
-                  <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700,
-                    padding: '2px 8px', borderRadius: 20,
+                  <span style={{ marginLeft: 'auto', fontSize: '0.8rem', fontWeight: 700,
+                    padding: `${MOBILE_TOKENS.spacing.xs * 0.2}rem ${MOBILE_TOKENS.spacing.md * 0.5}px`, borderRadius: MOBILE_TOKENS.radius.full,
                     background: `${currentTheme.color}20`, color: currentTheme.color }}>
                     {currentTheme.label}
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: `${MOBILE_TOKENS.spacing.xs}px`, flexWrap: 'wrap' }}>
                   {THEME_OPTIONS.map(opt => {
                     const isActive = theme === opt.id;
+                    const isLightTheme = opt.id === 'light' || opt.id === 'warm' || opt.id === 'ocean' || opt.id === 'emerald' || opt.id === 'rosewood';
+                    const iconColor = isLightTheme ? '#000000' : '#ffffff';
+                    const Icon = opt.icon;
                     return (
                       <button key={opt.id} type="button" onClick={() => setTheme(opt.id)}
                         aria-label={opt.label}
-                        style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                          gap: 5, padding: '8px 2px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                        style={{ flex: '1 1 calc(50% - 4px)', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                          gap: `${MOBILE_TOKENS.spacing.xs * 0.5}px`, padding: `${MOBILE_TOKENS.spacing.md}px ${MOBILE_TOKENS.spacing.xs}px`, borderRadius: MOBILE_TOKENS.radius.md, border: 'none', cursor: 'pointer',
                           background: isActive ? `${opt.color}18` : 'transparent',
                           outline: isActive ? `2px solid ${opt.color}` : '2px solid transparent',
                           transition: 'all 0.15s' }}>
-                        <div style={{ width: 22, height: 22, borderRadius: '50%', background: opt.color,
+                        <div style={{ width: '2rem', height: '2rem', borderRadius: '50%', background: opt.color,
                           boxShadow: isActive ? `0 0 12px ${opt.color}80` : 'none',
-                          transition: 'box-shadow 0.15s' }} />
-                        <span style={{ fontSize: 9, fontWeight: 700,
-                          color: isActive ? opt.color : 'rgba(255,255,255,0.35)',
+                          transition: 'box-shadow 0.15s',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Icon style={{ width: '1rem', height: '1rem', color: iconColor, strokeWidth: 2.5 }} />
+                        </div>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700,
+                          color: isActive ? opt.color : 'var(--muted-foreground)',
                           fontFamily: 'system-ui,sans-serif' }}>{opt.label}</span>
                       </button>
                     );
@@ -648,32 +662,31 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
               </div>
 
               {/* Display density / font size settings */}
-              <div style={{ margin: '0 16px 12px', padding: '14px', borderRadius: 20,
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <div style={{ margin: `0 ${MOBILE_TOKENS.spacing.lg}px ${MOBILE_TOKENS.spacing.lg}px`, padding: MOBILE_TOKENS.spacing.lg, borderRadius: MOBILE_TOKENS.radius.lg,
+                background: resolvedTheme === 'light' ? '#ffffff' : '#1e293b', border: `1px solid var(--border)` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: MOBILE_TOKENS.spacing.md, marginBottom: `${MOBILE_TOKENS.spacing.lg}px` }}>
+                  <svg width="1.25rem" height="1.25rem" viewBox="0 0 24 24" fill="none" stroke="var(--muted-foreground)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
                   </svg>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9', fontFamily: 'system-ui,sans-serif' }}>Display Size</span>
+                  <span style={{ fontSize: '0.95rem', fontWeight: 700, color: MOBILE_TOKENS.colors.text, fontFamily: 'system-ui,sans-serif' }}>Display Size</span>
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: `${MOBILE_TOKENS.spacing.xs}px` }}>
                   {([
-                    { id: 'compact', label: 'Compact', icon: 'A', size: 11 },
-                    { id: 'medium',  label: 'Medium',  icon: 'A', size: 14 },
-                    { id: 'large',   label: 'Large',   icon: 'A', size: 18 },
-                  ] as { id: DisplayScale; label: string; icon: string; size: number }[]).map(opt => {
+                    { id: 'compact', label: 'Compact', icon: 'A', size: '0.85rem' },
+                    { id: 'medium',  label: 'Medium',  icon: 'A', size: '1.08rem' },
+                    { id: 'large',   label: 'Large',   icon: 'A', size: '1.38rem' },
+                  ] as { id: DisplayScale; label: string; icon: string; size: string }[]).map(opt => {
                     const active = scale === opt.id;
                     return (
                       <button key={opt.id} type="button" onClick={() => setScale(opt.id)}
                         style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                          gap: 5, padding: '10px 4px', borderRadius: 14, border: 'none', cursor: 'pointer',
-                          background: active ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.04)',
-                          outline: active ? '2px solid rgba(99,102,241,0.6)' : '2px solid transparent',
+                          gap: `${MOBILE_TOKENS.spacing.xs * 0.5}px`, padding: `${MOBILE_TOKENS.spacing.md}px ${MOBILE_TOKENS.spacing.xs}px`, borderRadius: MOBILE_TOKENS.radius.md, border: `1.5px solid ${active ? 'var(--primary)' : 'var(--border)'}`, cursor: 'pointer',
+                          background: active ? `var(--primary)30` : (resolvedTheme === 'light' ? '#f3f4f6' : '#2d3748'),
                           transition: 'all 0.15s' }}>
-                        <span style={{ fontSize: opt.size, fontWeight: 800, color: active ? '#a5b4fc' : 'rgba(255,255,255,0.45)', lineHeight: 1, fontFamily: 'system-ui,sans-serif' }}>
+                        <span style={{ fontSize: opt.size, fontWeight: 800, color: active ? 'var(--primary)' : 'var(--foreground)', lineHeight: 1, fontFamily: 'system-ui,sans-serif' }}>
                           {opt.icon}
                         </span>
-                        <span style={{ fontSize: 10, fontWeight: 600, color: active ? '#a5b4fc' : 'rgba(255,255,255,0.35)', fontFamily: 'system-ui,sans-serif' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: active ? 'var(--primary)' : 'var(--muted-foreground)', fontFamily: 'system-ui,sans-serif' }}>
                           {opt.label}
                         </span>
                       </button>
@@ -683,21 +696,21 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
               </div>
 
               {/* Sign out */}
-              <div style={{ margin: '0 16px' }}>
+              <div style={{ margin: `0 ${MOBILE_TOKENS.spacing.lg}px ${MOBILE_TOKENS.spacing.lg}px` }}>
                 <button type="button" onClick={() => setConfirmSignOutVisible(true)}
                   style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '14px 16px', borderRadius: 16, cursor: 'pointer',
-                    background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 10,
+                    padding: `${MOBILE_TOKENS.spacing.lg}px ${MOBILE_TOKENS.spacing.lg}px`, borderRadius: MOBILE_TOKENS.radius.lg, cursor: 'pointer',
+                    background: resolvedTheme === 'light' ? '#fff1f1' : '#2d1a1a', border: '1.5px solid rgba(239,68,68,0.2)', transition: 'all 0.2s' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: `${MOBILE_TOKENS.spacing.md}px` }}>
+                    <div style={{ width: '2.6rem', height: '2.6rem', borderRadius: MOBILE_TOKENS.radius.md,
                       background: 'rgba(239,68,68,0.15)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <LogOut style={{ width: 16, height: 16, color: '#f87171' }} />
+                      <LogOut style={{ width: '1.3rem', height: '1.3rem', color: 'var(--destructive)' }} />
                     </div>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#f87171',
+                    <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--destructive)',
                       fontFamily: 'system-ui,sans-serif' }}>Sign Out</span>
                   </div>
-                  <ChevronRight style={{ width: 16, height: 16, color: 'rgba(248,113,113,0.5)' }} />
+                  <ChevronRight style={{ width: '1.3rem', height: '1.3rem', color: 'rgba(248,113,113,0.5)' }} />
                 </button>
               </div>
             </div>
@@ -713,45 +726,45 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
           onClick={() => setConfirmSignOutVisible(false)}>
           <div onClick={e => e.stopPropagation()}
             style={{ width: '100%', maxWidth: 480,
-              background: '#1e293b',
-              borderRadius: '24px 24px 0 0',
-              padding: '8px 20px 0',
-              paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 20px)',
+              background: MOBILE_TOKENS.colors.surface,
+              borderRadius: `${MOBILE_TOKENS.radius.xl}px ${MOBILE_TOKENS.radius.xl}px 0 0`,
+              padding: `${MOBILE_TOKENS.spacing.xs}px ${MOBILE_TOKENS.spacing.lg}px 0`,
+              paddingBottom: `calc(${MOBILE_TOKENS.safeAreaBottom} + ${MOBILE_TOKENS.spacing.lg}px)`,
               boxShadow: '0 -12px 48px rgba(0,0,0,0.4)' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 16px' }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)' }} />
+            <div style={{ display: 'flex', justifyContent: 'center', padding: `${MOBILE_TOKENS.spacing.md}px 0 ${MOBILE_TOKENS.spacing.lg * 0.6}px` }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: MOBILE_TOKENS.colors.borderLight }} />
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-              <div style={{ width: 56, height: 56, borderRadius: 18,
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: MOBILE_TOKENS.spacing.lg }}>
+              <div style={{ width: 56, height: 56, borderRadius: MOBILE_TOKENS.radius.lg,
                 background: 'rgba(239,68,68,0.15)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <LogOut style={{ width: 26, height: 26, color: '#f87171' }} />
+                <LogOut style={{ width: 26, height: 26, color: 'var(--destructive)' }} />
               </div>
             </div>
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <p style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 800, color: '#f1f5f9',
+            <div style={{ textAlign: 'center', marginBottom: MOBILE_TOKENS.spacing.lg * 1.5 }}>
+              <p style={{ margin: `0 0 ${MOBILE_TOKENS.spacing.xs}px`, fontSize: 18, fontWeight: 800, color: MOBILE_TOKENS.colors.text,
                 fontFamily: 'system-ui,sans-serif' }}>Sign Out?</p>
-              <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.5)',
+              <p style={{ margin: 0, fontSize: 13, color: MOBILE_TOKENS.colors.textMuted,
                 fontFamily: 'system-ui,sans-serif', lineHeight: 1.5 }}>
                 You'll need to sign in again to access your account.
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: MOBILE_TOKENS.spacing.md, marginBottom: MOBILE_TOKENS.spacing.xs }}>
               <button type="button" onClick={() => setConfirmSignOutVisible(false)}
-                style={{ flex: 1, height: 50, borderRadius: 14, cursor: 'pointer',
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: '#f1f5f9', fontSize: 15, fontWeight: 600,
+                style={{ flex: 1, height: 50, borderRadius: MOBILE_TOKENS.radius.lg, cursor: 'pointer',
+                  background: 'var(--muted)',
+                  border: `1px solid var(--border)`,
+                  color: MOBILE_TOKENS.colors.text, fontSize: 15, fontWeight: 600,
                   fontFamily: 'system-ui,sans-serif' }}>
                 Cancel
               </button>
               <button type="button" onClick={() => { setConfirmSignOutVisible(false); signOut(); }}
-                style={{ flex: 1, height: 50, borderRadius: 14, cursor: 'pointer',
-                  background: '#dc2626',
+                style={{ flex: 1, height: 50, borderRadius: MOBILE_TOKENS.radius.lg, cursor: 'pointer',
+                  background: MOBILE_TOKENS.colors.error,
                   border: 'none',
-                  color: '#fff', fontSize: 15, fontWeight: 700,
+                  color: 'var(--destructive-foreground)', fontSize: 15, fontWeight: 700,
                   fontFamily: 'system-ui,sans-serif',
-                  boxShadow: '0 4px 16px rgba(220,38,38,0.3)' }}>
+                  boxShadow: `0 4px 16px rgba(220,38,38,0.3)` }}>
                 Sign Out
               </button>
             </div>
@@ -768,39 +781,39 @@ export function MobileLayout({ children, subscriptionWarning, subscriptionExpire
           <div style={{ position: 'fixed', inset: 0, zIndex: 50,
             background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
             display: 'flex', alignItems: 'flex-end' }}>
-            <div style={{ width: '100%', background: '#1e293b',
-              borderRadius: '28px 28px 0 0', padding: '24px 20px',
-              paddingBottom: 'calc(env(safe-area-inset-bottom,0px) + 24px)',
+            <div style={{ width: '100%', background: MOBILE_TOKENS.colors.surface,
+              borderRadius: `${MOBILE_TOKENS.radius.xl}px ${MOBILE_TOKENS.radius.xl}px 0 0`, padding: `${MOBILE_TOKENS.spacing.lg}px ${MOBILE_TOKENS.spacing.lg}px`,
+              paddingBottom: `calc(${MOBILE_TOKENS.safeAreaBottom} + ${MOBILE_TOKENS.spacing.lg}px)`,
               boxShadow: '0 -12px 60px rgba(0,0,0,0.4)' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: MOBILE_TOKENS.spacing.lg, marginBottom: MOBILE_TOKENS.spacing.lg }}>
+                <div style={{ width: 44, height: 44, borderRadius: MOBILE_TOKENS.radius.lg, flexShrink: 0,
                   background: 'rgba(239,68,68,0.15)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <AlertCircle style={{ width: 22, height: 22, color: '#f87171' }} />
+                  <AlertCircle style={{ width: 22, height: 22, color: 'var(--destructive)' }} />
                 </div>
                 <div>
-                  <p style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#f1f5f9',
+                  <p style={{ margin: `0 0 ${MOBILE_TOKENS.spacing.xs}px`, fontSize: 16, fontWeight: 700, color: MOBILE_TOKENS.colors.text,
                     fontFamily: 'system-ui,sans-serif' }}>Subscription Expired</p>
-                  <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.5)',
+                  <p style={{ margin: 0, fontSize: 13, color: MOBILE_TOKENS.colors.textMuted,
                     fontFamily: 'system-ui,sans-serif' }}>Renew to continue using BillVyapar.</p>
                   {typeof daysRemaining === 'number' && daysRemaining >= 0 && (
-                    <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.35)',
+                    <p style={{ margin: `${MOBILE_TOKENS.spacing.xs}px 0 0`, fontSize: 12, color: MOBILE_TOKENS.colors.textSecondary,
                       fontFamily: 'system-ui,sans-serif' }}>Days remaining: {daysRemaining}</p>
                   )}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ display: 'flex', gap: MOBILE_TOKENS.spacing.md }}>
                 <button type="button" onClick={() => navigate('/subscription')}
-                  style={{ flex: 1, height: 50, borderRadius: 14, border: 'none', cursor: 'pointer',
-                    background: '#4f46e5', color: '#fff',
+                  style={{ flex: 1, height: 50, borderRadius: MOBILE_TOKENS.radius.lg, border: 'none', cursor: 'pointer',
+                    background: MOBILE_TOKENS.colors.accent, color: 'var(--primary-foreground)',
                     fontSize: 15, fontWeight: 700, fontFamily: 'system-ui,sans-serif',
-                    boxShadow: '0 4px 16px rgba(79,70,229,0.4)' }}>
+                    boxShadow: `0 4px 16px rgba(79,70,229,0.4)` }}>
                   Renew Now
                 </button>
                 <button type="button" onClick={signOut}
-                  style={{ flex: 1, height: 50, borderRadius: 14, cursor: 'pointer',
-                    background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)',
-                    color: '#f1f5f9', fontSize: 15, fontWeight: 600,
+                  style={{ flex: 1, height: 50, borderRadius: MOBILE_TOKENS.radius.lg, cursor: 'pointer',
+                    background: 'var(--muted)', border: `1px solid var(--border)`,
+                    color: MOBILE_TOKENS.colors.text, fontSize: 15, fontWeight: 600,
                     fontFamily: 'system-ui,sans-serif' }}>
                   Sign Out
                 </button>

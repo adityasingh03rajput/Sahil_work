@@ -98,14 +98,117 @@ export function EmployeeLoginPage() {
   const statusColor = backendOnline ? '#22c55e' : backendOnline === false ? '#ef4444' : '#f59e0b';
   const statusText = backendOnline ? 'Online' : backendOnline === false ? 'Offline' : '…';
 
+  if (isNative) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0,
+        backgroundImage: 'url("mobile_auth_bg.png"), linear-gradient(160deg, #070a14 0%, #1e293b 100%)',
+        backgroundSize: 'cover', backgroundPosition: 'center',
+        fontFamily: 'system-ui,-apple-system,sans-serif',
+        overflow: 'hidden',
+      }}>
+        {/* Animated Background Glows */}
+        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '60%', height: '40%', background: 'rgba(59,130,246,0.12)', filter: 'blur(100px)', borderRadius: '50%' }} />
+        <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '60%', height: '40%', background: 'rgba(34,197,94,0.12)', filter: 'blur(100px)', borderRadius: '50%' }} />
+
+        {/* Dark overlay */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(15,23,42,0.5) 0%, rgba(15,23,42,0.9) 100%)' }} />
+
+        <style>{`
+          @keyframes empSpin{to{transform:rotate(360deg)}}
+          @keyframes empPulse { 0% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 0.8; } }
+        `}</style>
+
+        {/* Status */}
+        <div style={{
+          position: 'absolute', top: 'calc(env(safe-area-inset-top,0px) + 12px)', right: 16,
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'rgba(255,255,255,0.08)', padding: '6px 12px', borderRadius: 20,
+          backdropFilter: 'blur(12px)', zIndex: 10,
+          border: '1px solid rgba(255,255,255,0.12)',
+        }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusColor, boxShadow: `0 0 8px ${statusColor}`, flexShrink: 0 }} />
+          <span style={{ fontSize: 9, fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{statusText}</span>
+        </div>
+
+        {/* Content */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 28px' }}>
+          
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+            <div style={{ display: 'inline-flex', width: 80, height: 80, borderRadius: 28,
+              background: 'linear-gradient(135deg,#3b82f6,#2dd4bf)',
+              alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 15px 35px rgba(59,130,246,0.4), inset 0 0 0 1px rgba(255,255,255,0.3)',
+              marginBottom: 16 }}>
+              <FingerprintIcon />
+            </div>
+            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>Staff Portal</h1>
+            <p style={{ margin: '6px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.45)', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Secure Attendance Access</p>
+          </div>
+
+          {/* Card */}
+          <div style={{
+            background: 'rgba(255,255,255,0.06)',
+            backdropFilter: 'blur(32px)',
+            borderRadius: 32,
+            padding: '36px 24px',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 30px 60px -12px rgba(0,0,0,0.6)',
+          }}>
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ position: 'relative' }}>
+                <input type="email" placeholder="Employee Email" value={email}
+                  onChange={e => setEmail(e.target.value)} required 
+                  style={{ width: '100%', padding: '17px 20px', borderRadius: 18, border: '1.5px solid rgba(255,255,255,0.08)',
+                    background: 'rgba(255,255,255,0.04)', color: '#fff', fontSize: 16, outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ position: 'relative' }}>
+                <input type={showPass ? 'text' : 'password'} placeholder="Access Password" value={password}
+                  onChange={e => setPassword(e.target.value)} required
+                  style={{ width: '100%', padding: '17px 20px', borderRadius: 18, border: '1.5px solid rgba(255,255,255,0.08)',
+                    background: 'rgba(255,255,255,0.04)', color: '#fff', fontSize: 16, outline: 'none', boxSizing: 'border-box' }} />
+                <button type="button" onClick={() => setShowPass(!showPass)}
+                  style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 11, fontWeight: 800 }}>
+                  {showPass ? 'HIDE' : 'SHOW'}
+                </button>
+              </div>
+
+              <button type="submit" disabled={loading}
+                style={{ width: '100%', padding: '18px', borderRadius: 20, border: 'none', marginTop: 10,
+                  background: loading ? 'rgba(59,130,246,0.5)' : 'linear-gradient(135deg,#3b82f6,#2563eb)',
+                  color: '#fff', fontWeight: 900, fontSize: 16, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  boxShadow: loading ? 'none' : '0 12px 24px rgba(37,99,235,0.4)',
+                  transition: 'all 0.3s' }}>
+                {loading ? <div style={{ width: 20, height: 20, border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'empSpin 0.6s linear infinite' }} /> : 'Sign In Now'}
+              </button>
+            </form>
+
+            <div style={{ textAlign: 'center', marginTop: 28 }}>
+              <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                🏢 Switch to Owner Login
+              </button>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: 32 }}>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', fontWeight: 600, letterSpacing: '0.02em' }}>© 2026 BillVyapar · Enterprise Security</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', fontFamily: 'Manrope, sans-serif', backgroundImage: 'url(/background.png)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#2a3a5c', overflowY: 'auto', width: '100vw', height: '100vh', maxWidth: 'none' }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', fontFamily: 'Manrope, sans-serif', backgroundImage: 'url("background.png")', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#2a3a5c', overflowY: 'auto', width: '100vw', height: '100vh', maxWidth: 'none' }}>
       
       <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'clamp(16px,4vw,32px) 16px' }}>
         <div style={{ width: '100%', maxWidth: 500, background: 'rgba(255,252,240,0.55)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', borderRadius: 4, border: '1px solid rgba(255,255,255,0.18)', boxShadow: '0 8px 40px rgba(0,0,0,0.18)', padding: 'clamp(20px,5vw,36px) clamp(16px,6vw,44px)', position: 'relative' }}>
 
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 60, height: 60, borderRadius: 14, background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', boxShadow: '0 4px 16px rgba(79,70,229,0.35)', marginBottom: 10 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 60, height: 60, borderRadius: 14, background: 'linear-gradient(135deg,#3b6ef5,#5585ff)', boxShadow: '0 4px 16px rgba(59,110,245,0.35)', marginBottom: 10 }}>
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><circle cx="12" cy="11" r="2.5" fill="white" stroke="none" opacity="0.7"/><line x1="12" y1="13.5" x2="12" y2="16" strokeWidth="2.5"/></svg>
             </div>
             <h1 style={{ fontFamily: 'Newsreader, serif', fontSize: 'clamp(22px,6vw,30px)', fontWeight: 700, color: '#1a1a14', margin: 0, letterSpacing: '-0.3px' }}>Employee Portal</h1>

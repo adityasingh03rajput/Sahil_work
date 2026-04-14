@@ -166,42 +166,51 @@ public class TrackingService extends Service {
         }
 
         networkExecutor.submit(() -> {
-            try {
-                // POST to our backend's REST endpoint (no socket needed)
-                String endpoint = sBackendUrl.replaceAll("/$", "") + "/attendance/live-location";
-                URL url = new URL(endpoint);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setRequestProperty("User-Agent", "BillVyapar-NativeTracker/1.0");
-                conn.setDoOutput(true);
-                conn.setConnectTimeout(12000);
-                conn.setReadTimeout(12000);
+            int retries = 2;
+            boolean success = false;
+            while (retries >= 0 && !success) {
+                try {
+                    String endpoint = sBackendUrl.replaceAll("/$", "") + "/attendance/live-location";
+                    URL url = new URL(endpoint);
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.setRequestProperty("Content-Type", "application/json");
+                    conn.setRequestProperty("User-Agent", "BillVyapar-NativeTracker/1.0");
+                    conn.setDoOutput(true);
+                    
+                    // Increased timeouts for cold starts (Fly.dev)
+                    conn.setConnectTimeout(25000); 
+                    conn.setReadTimeout(25000);
 
-                JSONObject body = new JSONObject();
-                body.put("employeeId", sEmployeeId);
-                body.put("ownerUserId", sOwnerUserId);
-                body.put("name", sName);
-                body.put("lat", loc.getLatitude());
-                body.put("lng", loc.getLongitude());
-                body.put("accuracy", loc.hasAccuracy() ? loc.getAccuracy() : 0);
-                body.put("speed", loc.hasSpeed() ? loc.getSpeed() : 0);
-                body.put("updatedAt", new Date(loc.getTime()).toInstant().toString());
+                    JSONObject body = new JSONObject();
+                    body.put("employeeId", sEmployeeId);
+                    body.put("ownerUserId", sOwnerUserId);
+                    body.put("name", sName);
+                    body.put("lat", loc.getLatitude());
+                    body.put("lng", loc.getLongitude());
+                    body.put("accuracy", loc.hasAccuracy() ? loc.getAccuracy() : 0);
+                    body.put("speed", loc.hasSpeed() ? loc.getSpeed() : 0);
+                    body.put("updatedAt", new Date(loc.getTime()).toInstant().toString());
 
-                byte[] bodyBytes = body.toString().getBytes("UTF-8");
-                conn.setRequestProperty("Content-Length", String.valueOf(bodyBytes.length));
+                    byte[] bodyBytes = body.toString().getBytes("UTF-8");
+                    conn.setRequestProperty("Content-Length", String.valueOf(bodyBytes.length));
 
-                OutputStream os = conn.getOutputStream();
-                os.write(bodyBytes);
-                os.flush();
-                os.close();
+                    OutputStream os = conn.getOutputStream();
+                    os.write(bodyBytes);
+                    os.flush();
+                    os.close();
 
-                int code = conn.getResponseCode();
-                Log.d(TAG, "Posted location → HTTP " + code);
-                conn.disconnect();
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to post location: " + e.getMessage());
-                // Will retry on next GPS tick (every 15s)
+                    int code = conn.getResponseCode();
+                    Log.d(TAG, "Posted location → HTTP " + code);
+                    conn.disconnect();
+                    success = true; 
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to post location (retries left: " + retries + "): " + e.getMessage());
+                    retries--;
+                    if (retries >= 0) {
+                        try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+                    }
+                }
             }
         });
     }

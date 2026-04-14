@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { toast } from 'sonner';
 import { API_URL, clearApiUrlOverride, getApiUrlOverride, setApiUrlOverride, getApiUrl } from '../config/api';
 import { useIsNative } from '../hooks/useIsNative';
@@ -8,27 +9,30 @@ import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Label } from '../components/ui/label';
 
 // ── Mobile-only helpers ───────────────────────────────────────────────────────
-const mobileInp: React.CSSProperties = {
+const getMobileInp = (resolvedTheme: 'light' | 'dark'): React.CSSProperties => ({
   width: '100%', padding: '14px 16px', borderRadius: 14,
-  border: '1.5px solid rgba(255,255,255,0.1)',
-  background: 'rgba(255,255,255,0.06)', color: '#f1f5f9',
+  border: resolvedTheme === 'light' ? '1.5px solid rgba(0,0,0,0.1)' : '1.5px solid rgba(255,255,255,0.1)',
+  background: resolvedTheme === 'light' ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.06)',
+  color: resolvedTheme === 'light' ? '#1e293b' : '#f1f5f9',
   fontSize: 16, outline: 'none', boxSizing: 'border-box',
   fontFamily: 'system-ui,-apple-system,sans-serif',
   WebkitAppearance: 'none',
-};
-function MobileFieldLabel({ children }: { children: React.ReactNode }) {
+});
+function MobileFieldLabel({ children, resolvedTheme }: { children: React.ReactNode; resolvedTheme: 'light' | 'dark' }) {
   return <label style={{ display: 'block', fontSize: 11, fontWeight: 700,
-    color: 'rgba(255,255,255,0.45)', letterSpacing: '0.1em', textTransform: 'uppercase',
+    color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.45)', letterSpacing: '0.1em', textTransform: 'uppercase',
     marginBottom: 7, fontFamily: 'system-ui,sans-serif' }}>{children}</label>;
 }
-function Spinner() {
+function Spinner({ resolvedTheme }: { resolvedTheme: 'light' | 'dark' }) {
   return <div style={{ width: 18, height: 18, borderRadius: '50%',
-    border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff',
+    border: `2px solid ${resolvedTheme === 'light' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.3)'}`,
+    borderTopColor: resolvedTheme === 'light' ? '#1e293b' : '#fff',
     animation: 'authSpin 0.7s linear infinite', flexShrink: 0 }} />;
 }
 
 export function AuthPage() {
   const isNative = useIsNative();
+  const { resolvedTheme } = useTheme();
   const [isSignUp, setIsSignUp] = useState(false);
   const [loginTab, setLoginTab] = useState<'owner' | 'employee'>('owner');
   const [mode, setMode] = useState<'auth' | 'forgot' | 'reset'>('auth');
@@ -48,6 +52,7 @@ export function AuthPage() {
   const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
   const [checkingBackend, setCheckingBackend] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+  const [clickCount, setClickCount] = useState(0);
   const { signIn, signUp, signInAsEmployee, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
@@ -63,31 +68,47 @@ export function AuthPage() {
 
   useEffect(() => {
     let cancelled = false;
+    let failCount = 0;
     const check = async () => {
       setCheckingBackend(true);
       try {
         const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 20000);
-        const res = await fetch(`${getApiUrl()}/health`, { signal: ctrl.signal });
+        const t = setTimeout(() => ctrl.abort(), 15000);
+        // Cache buster + high-fidelity check
+        const url = `${getApiUrl().replace(/\/$/, '')}/health?t=${Date.now()}`;
+        const res = await fetch(url, { 
+          signal: ctrl.signal,
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        });
         clearTimeout(t);
-        if (!cancelled) setBackendOnline(res.ok);
-      } catch { if (!cancelled) setBackendOnline(false); }
-      finally { if (!cancelled) setCheckingBackend(false); }
+        if (!cancelled) {
+          setBackendOnline(res.ok);
+          if (res.ok) failCount = 0;
+          else failCount++;
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error("[Auth] Health check failed:", err.message);
+          setBackendOnline(false);
+          failCount++;
+        }
+      } finally {
+        if (!cancelled) setCheckingBackend(false);
+      }
     };
-    void check();
-    const id = setInterval(check, 30000);
-    return () => { cancelled = true; clearInterval(id); };
+
+    // Initial delay to allow network hardware to stabilize on app boot
+    const initTimer = setTimeout(() => void check(), 1000);
+    const id = setInterval(check, 15000); // More frequent checks initially (15s)
+    
+    return () => { 
+      cancelled = true; 
+      clearTimeout(initTimer);
+      clearInterval(id); 
+    };
   }, []);
 
   useEffect(() => { if (apiEditOpen) setApiDraft(getApiUrl()); }, [apiEditOpen]);
-
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.id = 'auth-fullscreen';
-    style.textContent = `html,body,#root{width:100%!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden!important;}`;
-    document.head.appendChild(style);
-    return () => { document.getElementById('auth-fullscreen')?.remove(); };
-  }, []);
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -95,10 +116,24 @@ export function AuthPage() {
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
+  const handleLogoClick = () => {
+    const now = Date.now();
+    setClickCount(prev => {
+      const next = prev + 1;
+      if (next >= 5) {
+        setApiEditOpen(true);
+        return 0;
+      }
+      return next;
+    });
+    // Reset count after 2s of inactivity
+    setTimeout(() => setClickCount(0), 2000);
+  };
+
   if (user) {
     return (
-      <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: resolvedTheme === 'light' ? '#f8fafc' : '#0f172a' }}>
+        <div onClick={handleLogoClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
           <div style={{ width: 64, height: 64, borderRadius: 16, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           </div>
@@ -188,8 +223,330 @@ export function AuthPage() {
     : mode === 'forgot' ? 'Send OTP' : mode === 'reset' ? 'Reset Password'
     : loginTab === 'employee' ? 'Sign In as Employee' : isSignUp ? 'Create Account' : 'Sign In';
 
+  if (isNative) {
+    // ── NATIVE UI (Clean, Theme-Aware Design) ────────────────────────────────
+    return (
+      <div style={{
+        position: 'fixed', inset: 0,
+        backgroundColor: resolvedTheme === 'light' ? '#f8fafc' : '#0f172a',
+        display: 'flex', flexDirection: 'column',
+        fontFamily: 'system-ui, sans-serif',
+        overflow: 'auto',
+        padding: '20px'
+      }}>
+        {/* Status indicator (top right) - Only green dot */}
+        <div onClick={handleLogoClick} style={{
+          position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 16px)',
+          right: 16, display: 'flex', alignItems: 'center', gap: 6,
+          background: resolvedTheme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)', 
+          padding: '6px 10px', borderRadius: 20,
+          backdropFilter: 'blur(4px)', zIndex: 10
+        }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor }} />
+        </div>
+
+        {/* Developer Settings Modal */}
+        {apiEditOpen && (
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)',
+            zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 20
+          }}>
+            <div style={{ background: resolvedTheme === 'light' ? '#ffffff' : '#1e293b', width: '100%', maxWidth: 400, borderRadius: 16, padding: 24, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)' }}>
+              <h3 style={{ color: resolvedTheme === 'light' ? '#1e293b' : '#fff', fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Developer Settings</h3>
+
+              <div style={{ marginBottom: 20 }}>
+                <Label style={{ color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)', fontSize: 12, display: 'block', marginBottom: 8 }}>API SERVER URL</Label>
+                <input
+                  type="text"
+                  value={apiDraft}
+                  onChange={e => setApiDraft(e.target.value)}
+                  placeholder="https://api.example.com"
+                  style={{
+                    width: '100%', background: resolvedTheme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)', border: resolvedTheme === 'light' ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 8, padding: '12px', color: resolvedTheme === 'light' ? '#1e293b' : '#fff', fontSize: 14, outline: 'none'
+                  }}
+                />
+                <p style={{ color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 8 }}>
+                  Current: <span style={{ color: '#818cf8' }}>{getApiUrl()}</span>
+                  <br />
+                  Hint: Point to <span style={{ color: '#fbbf24' }}>http://192.168.83.31:4000</span> for local testing.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (apiDraft.trim()) {
+                      setApiUrlOverride(apiDraft);
+                      window.location.reload();
+                    }
+                  }}
+                  style={{ flex: 1, background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 600 }}
+                >
+                  Save & Reload
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearApiUrlOverride();
+                    window.location.reload();
+                  }}
+                  style={{ flex: 1, background: resolvedTheme === 'light' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)', color: resolvedTheme === 'light' ? '#1e293b' : '#fff', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 600 }}
+                >
+                  Reset Default
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setApiEditOpen(false)}
+                style={{ width: '100%', marginTop: 12, background: 'transparent', color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)', border: 'none', padding: '8px', fontSize: 13 }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div style={{ 
+          flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
+          maxWidth: 400, margin: '0 auto', width: '100%'
+        }}>
+          {/* Logo */}
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div style={{ 
+              width: 64, height: 64, borderRadius: 16, 
+              background: 'linear-gradient(135deg,#6366f1,#818cf8)', 
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 12
+            }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </div>
+            <h1 style={{ 
+              fontSize: 28, fontWeight: 800, 
+              color: resolvedTheme === 'light' ? '#1e293b' : '#f1f5f9',
+              margin: 0, marginBottom: 4
+            }}>BillVyapar</h1>
+            <p style={{ 
+              fontSize: 14, 
+              color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)',
+              margin: 0
+            }}>Business Billing & Documentation</p>
+          </div>
+
+          {/* Tab Switcher */}
+          {mode === 'auth' && !isSignUp && (
+            <div style={{ 
+              display: 'flex', 
+              background: resolvedTheme === 'light' ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)', 
+              borderRadius: 12, padding: 4, marginBottom: 24, gap: 4 
+            }}>
+              <button 
+                type="button" 
+                onClick={() => setLoginTab('owner')}
+                style={{ 
+                  flex: 1, padding: '10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                  fontWeight: 600, fontSize: 14, transition: 'all 0.2s',
+                  background: loginTab === 'owner' ? (resolvedTheme === 'light' ? '#fff' : 'rgba(255,255,255,0.1)') : 'transparent',
+                  color: loginTab === 'owner' ? (resolvedTheme === 'light' ? '#1e293b' : '#fff') : (resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)'),
+                  boxShadow: loginTab === 'owner' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                Owner
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setLoginTab('employee')}
+                style={{ 
+                  flex: 1, padding: '10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                  fontWeight: 600, fontSize: 14, transition: 'all 0.2s',
+                  background: loginTab === 'employee' ? (resolvedTheme === 'light' ? '#fff' : 'rgba(255,255,255,0.1)') : 'transparent',
+                  color: loginTab === 'employee' ? (resolvedTheme === 'light' ? '#1e293b' : '#fff') : (resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)'),
+                  boxShadow: loginTab === 'employee' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                }}
+              >
+                Employee
+              </button>
+            </div>
+          )}
+
+          {/* Title */}
+          <div style={{ marginBottom: 24 }}>
+            <h2 style={{ 
+              fontSize: 22, fontWeight: 700, 
+              color: resolvedTheme === 'light' ? '#1e293b' : '#f1f5f9',
+              margin: 0, marginBottom: 4
+            }}>{title}</h2>
+            <p style={{ 
+              fontSize: 14, 
+              color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)',
+              margin: 0
+            }}>{subtitle}</p>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {mode === 'auth' && isSignUp && (
+              <>
+                <div>
+                  <MobileFieldLabel resolvedTheme={resolvedTheme}>Full Name</MobileFieldLabel>
+                  <input 
+                    type="text" 
+                    placeholder="John Doe" 
+                    value={name} 
+                    onChange={e => setName(e.target.value)} 
+                    required
+                    style={getMobileInp(resolvedTheme)} 
+                  />
+                </div>
+                <div>
+                  <MobileFieldLabel resolvedTheme={resolvedTheme}>Phone Number</MobileFieldLabel>
+                  <input 
+                    type="tel" 
+                    placeholder="+91 99999 99999" 
+                    value={phone} 
+                    onChange={e => setPhone(e.target.value)} 
+                    required
+                    style={getMobileInp(resolvedTheme)} 
+                  />
+                </div>
+              </>
+            )}
+
+            <div>
+              <MobileFieldLabel resolvedTheme={resolvedTheme}>Email</MobileFieldLabel>
+              <input 
+                type="email" 
+                placeholder="you@example.com" 
+                value={email} 
+                onChange={e => setEmail(e.target.value)} 
+                required
+                style={getMobileInp(resolvedTheme)} 
+              />
+            </div>
+
+            {mode !== 'forgot' && (
+              <div>
+                <MobileFieldLabel resolvedTheme={resolvedTheme}>Password</MobileFieldLabel>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type={showPass ? 'text' : 'password'} 
+                    placeholder="••••••••" 
+                    value={mode === 'reset' ? newPassword : password} 
+                    onChange={e => mode === 'reset' ? setNewPassword(e.target.value) : setPassword(e.target.value)} 
+                    required
+                    style={getMobileInp(resolvedTheme)} 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPass(!showPass)}
+                    style={{
+                      position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', 
+                      color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)',
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                    }}
+                  >
+                    {showPass ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {mode === 'reset' && (
+              <div>
+                <MobileFieldLabel resolvedTheme={resolvedTheme}>OTP</MobileFieldLabel>
+                <input 
+                  type="text" 
+                  placeholder="Enter OTP" 
+                  value={otp} 
+                  onChange={e => setOtp(e.target.value)} 
+                  required
+                  style={getMobileInp(resolvedTheme)} 
+                />
+              </div>
+            )}
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              style={{
+                marginTop: 8, padding: 16, borderRadius: 12, border: 'none',
+                background: 'linear-gradient(135deg, #6366f1, #818cf8)', 
+                color: '#fff',
+                fontWeight: 700, fontSize: 16, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: loading ? 0.7 : 1
+              }}
+            >
+              {loading ? <Spinner resolvedTheme={resolvedTheme} /> : btnLabel}
+            </button>
+
+            {/* Links */}
+            <div style={{ 
+              display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8,
+              alignItems: 'center'
+            }}>
+              {mode === 'auth' && !isSignUp && (
+                <button 
+                  type="button" 
+                  onClick={() => setMode('forgot')}
+                  style={{
+                    background: 'none', border: 'none', 
+                    color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)',
+                    fontSize: 14, fontWeight: 600, textDecoration: 'underline',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Forgot Password?
+                </button>
+              )}
+              {mode === 'auth' && !isSignUp && loginTab === 'owner' && (
+                <button 
+                  type="button" 
+                  onClick={() => setIsSignUp(true)}
+                  style={{
+                    background: 'none', border: 'none', 
+                    color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)',
+                    fontSize: 14, fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Don't have an account? <span style={{ textDecoration: 'underline' }}>Sign Up</span>
+                </button>
+              )}
+              {(mode === 'forgot' || mode === 'reset' || isSignUp) && (
+                <button 
+                  type="button" 
+                  onClick={() => { setMode('auth'); setIsSignUp(false); }}
+                  style={{
+                    background: 'none', border: 'none', 
+                    color: resolvedTheme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)',
+                    fontSize: 14, fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  ← Back to Sign In
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // ── WEB layout (original parchment design) ────────────────────────────────
+
   return (
-    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', fontFamily: 'Manrope, sans-serif', backgroundImage: 'url(/background.png)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#2a3a5c', overflowY: 'auto', width: '100vw', height: '100vh', maxWidth: 'none' }}>
+    <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', fontFamily: 'Manrope, sans-serif', backgroundImage: 'url("background.png")', backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#2a3a5c', overflowY: 'auto', width: '100vw', height: '100vh', maxWidth: 'none' }}>
 
       {/* Fullscreen button */}
       <button type="button" title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
@@ -212,10 +569,10 @@ export function AuthPage() {
 
           {/* Logo */}
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 60, height: 60, borderRadius: 14, background: 'linear-gradient(135deg,#4f7df3,#2350db)', boxShadow: '0 4px 16px rgba(31,78,216,0.35)', marginBottom: 10 }}>
+            <div onClick={handleLogoClick} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 60, height: 60, borderRadius: 14, background: 'linear-gradient(135deg,#4f7df3,#2350db)', boxShadow: '0 4px 16px rgba(31,78,216,0.35)', marginBottom: 10, cursor: 'pointer' }}>
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
-            <h1 style={{ fontFamily: 'Newsreader, serif', fontSize: 'clamp(22px,6vw,30px)', fontWeight: 700, color: '#1a1a14', margin: 0, letterSpacing: '-0.3px' }}>BillVyapar</h1>
+            <h1 onClick={handleLogoClick} style={{ fontFamily: 'Newsreader, serif', fontSize: 'clamp(22px,6vw,30px)', fontWeight: 700, color: '#1a1a14', margin: 0, letterSpacing: '-0.3px', cursor: 'pointer' }}>BillVyapar+{apiOverrideActive ? ' (DEV)' : ''}</h1>
             <p style={{ fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontSize: 14, color: '#4a4a3a', margin: '4px 0 0' }}>Business Billing &amp; Documentation</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 14 }}>
               {[{label:'GST Invoices',rot:'-1deg'},{label:'Multi-Business',rot:'2deg'},{label:'Offline Ready',rot:'-2deg'}].map(({label,rot}) => (

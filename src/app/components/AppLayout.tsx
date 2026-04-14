@@ -1,4 +1,4 @@
-﻿import { ReactNode, useEffect, useState, useCallback, useRef } from 'react';
+import { ReactNode, useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { Button } from './ui/button';
 import {
@@ -433,7 +433,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     { icon: CreditCard, label: 'Ledger', path: '/ledger' },
     { icon: Landmark, label: 'Bank Accounts', path: '/bank-accounts' },
     { icon: UserCog, label: 'Employees', path: '/employees' },
-    { icon: CreditCard, label: 'Subscription', path: '/subscription' },
+    { icon: Crown, label: 'Subscription', path: '/subscription', isPremium: true },
   ];
 
   const menuTourId = (path: string) => {
@@ -494,11 +494,16 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <Icon className={`h-5 w-5 neon-target neon-hover ${isActive ? 'neon-active' : ''}`} />
               </span>
               <span
-                className={`font-medium neon-target neon-hover travel-glow-text travel-glow-text-hover ${
+                className={`font-medium neon-target neon-hover travel-glow-text travel-glow-text-hover flex items-center justify-between flex-1 ${
                   isActive ? 'neon-active travel-glow-text-active' : ''
                 }`}
               >
-                {item.label}
+                <span>{item.label}</span>
+                {(item as any).isPremium && (
+                  <span className="ml-auto text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-full shadow-sm animate-pulse flex items-center gap-1 border border-amber-200/50">
+                    Pro
+                  </span>
+                )}
               </span>
             </button>
 

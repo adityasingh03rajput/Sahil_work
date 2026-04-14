@@ -21,6 +21,8 @@ const WelcomePageWrapper        = lazy(() => import('./pages/WelcomePageWrapper'
 const ProfilesPageWrapper       = lazy(() => import('./pages/ProfilesPageWrapper').then(m => ({ default: m.ProfilesPageWrapper })));
 const DashboardPageWrapper      = lazy(() => import('./pages/DashboardPageWrapper').then(m => ({ default: m.DashboardPageWrapper })));
 const DocumentsPageWrapper      = lazy(() => import('./pages/DocumentsPageWrapper').then(m => ({ default: m.DocumentsPageWrapper })));
+const MobileDocumentsPageWrapper = lazy(() => import('./pages/MobileDocumentsPageWrapper').then(m => ({ default: m.MobileDocumentsPageWrapper })));
+const MobileLedgerPageWrapper = lazy(() => import('./pages/MobileLedgerPageWrapper').then(m => ({ default: m.MobileLedgerPageWrapper })));
 const CreateDocumentPageWrapper = lazy(() => import('./pages/CreateDocumentPageWrapper').then(m => ({ default: m.CreateDocumentPageWrapper })));
 const CustomersPageWrapper      = lazy(() => import('./pages/CustomersPageWrapper').then(m => ({ default: m.CustomersPageWrapper })));
 const SuppliersPageWrapper      = lazy(() => import('./pages/SuppliersPageWrapper').then(m => ({ default: m.SuppliersPageWrapper })));
@@ -51,6 +53,18 @@ function PageSkeleton() {
       </div>
     </div>
   );
+}
+
+/** Conditional Documents Page - uses mobile version on native, desktop version on web */
+function ConditionalDocumentsPage() {
+  const isNative = useIsNative();
+  return isNative ? wrap(MobileDocumentsPageWrapper) : wrap(DocumentsPageWrapper);
+}
+
+/** Conditional Ledger Page - uses mobile version on native, desktop version on web */
+function ConditionalLedgerPage() {
+  const isNative = useIsNative();
+  return isNative ? wrap(MobileLedgerPageWrapper) : wrap(PartyLedgerPageWrapper);
 }
 
 function wrap(Component: React.ComponentType) {
@@ -108,7 +122,7 @@ function buildRouter() {
         { path: "/profiles",            element: wrap(ProfilesPageWrapper) },
         { path: "/welcome",             element: <Navigate to="/profiles" replace /> },
         { path: "/dashboard",           element: wrap(DashboardPageWrapper) },
-        { path: "/documents",           element: wrap(DocumentsPageWrapper) },
+        { path: "/documents",           element: <ConditionalDocumentsPage /> },
         { path: "/documents/create",    element: wrap(CreateDocumentPageWrapper) },
         { path: "/documents/edit/:id",  element: wrap(CreateDocumentPageWrapper) },
         { path: "/customers",           element: wrap(CustomersPageWrapper) },
@@ -116,7 +130,7 @@ function buildRouter() {
         { path: "/items",               element: wrap(ItemsPageWrapper) },
         { path: "/analytics",           element: wrap(AnalyticsPageWrapper) },
         { path: "/reports/gst",         element: wrap(GstReportsPage) },
-        { path: "/ledger",              element: wrap(PartyLedgerPageWrapper) },
+        { path: "/ledger",              element: <ConditionalLedgerPage /> },
         { path: "/subscription",        element: wrap(SubscriptionPageWrapper) },
         { path: "/bank-accounts",       element: wrap(BankAccountsPageWrapper) },
         { path: "/pos",                 element: wrap(PosPageWrapper) },
@@ -143,6 +157,14 @@ function AppInner() {
     if (!_router) _router = buildRouter();
     routerRef.current = _router;
   }
+  useEffect(() => {
+    if (isNative) {
+      document.documentElement.classList.add('native-app');
+    } else {
+      document.documentElement.classList.remove('native-app');
+    }
+  }, [isNative]);
+
   return (
     <>
       {!isNative && <OfflineBanner />}

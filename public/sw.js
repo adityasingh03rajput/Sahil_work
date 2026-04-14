@@ -3,9 +3,26 @@ const API_CACHE = 'bv-api-v4';
 const TILE_CACHE = 'bv-tiles-v1';
 const TILE_MAX = 500; // max tiles to store (~10MB)
 
+// Pre-cache critical app shell on install
+const CRITICAL_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/assets/index.js',
+  '/assets/index.css',
+];
+
 self.addEventListener('install', e => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/'])));
+  e.waitUntil(
+    caches.open(CACHE).then(c => {
+      // Cache critical assets for offline shell
+      return Promise.all([
+        c.addAll(CRITICAL_ASSETS).catch(() => {}),
+        c.add('/').catch(() => {}),
+      ]);
+    })
+  );
 });
 
 self.addEventListener('activate', e => {
@@ -125,7 +142,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // ── HTML navigation — network first ──────────────────────────────────────
+  // ── HTML navigation — network first, fallback to cache ──────────────────
   if (request.mode === 'navigate') {
     e.respondWith(
       fetch(request)
@@ -136,7 +153,16 @@ self.addEventListener('fetch', e => {
           }
           return res;
         })
-        .catch(() => caches.match(request).then(c => c || caches.match('/')))
+        .catch(() => {
+          // Try cache first
+          return caches.match(request)
+            .then(cached => {
+              if (cached) return cached;
+              // Fall back to home page (which is pre-cached)
+              return caches.match('/');
+            })
+            .catch(() => caches.match('/'));
+        })
     );
     return;
   }

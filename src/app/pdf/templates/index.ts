@@ -11,7 +11,7 @@ import { BoldTypeTemplate } from './BoldTypeTemplate';
 import { GstInvoiceTemplate } from './GstInvoiceTemplate';
 
 export const PDF_TEMPLATES: Array<{ id: PdfTemplateId; label: string }> = [
-  { id: 'gstinvoice', label: 'GST Invoice' },
+  { id: 'gst-invoice', label: 'GST Invoice' },
   { id: 'classic', label: 'Classic' },
   { id: 'modern', label: 'Modern' },
   { id: 'professional', label: 'Professional' },
@@ -23,6 +23,7 @@ export const PDF_TEMPLATES: Array<{ id: PdfTemplateId; label: string }> = [
 ];
 
 export function renderTemplate(templateId: PdfTemplateId, props: PdfTemplateProps) {
+  if (templateId === 'gst-invoice') return React.createElement(GstInvoiceTemplate, props);
   if (templateId === 'gstinvoice') return React.createElement(GstInvoiceTemplate, props);
   if (templateId === 'modern') return React.createElement(ModernTemplate, props);
   if (templateId === 'professional') return React.createElement(ProfessionalTemplate, props);

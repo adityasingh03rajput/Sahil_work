@@ -12,6 +12,8 @@ import {
   formatInlineAddress,
   formatStateDisplay,
   safeText,
+  useScale,
+  s,
 } from './TemplateFrame';
 
 /**
@@ -19,6 +21,7 @@ import {
  * Print-optimized: no shadows, solid borders, high contrast.
  */
 export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
+  const sc = useScale();
   const cgst = Number(doc.totalCgst || 0);
   const sgst = Number(doc.totalSgst || 0);
   const igst = Number(doc.totalIgst || 0);
@@ -68,9 +71,9 @@ export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
   });
 
   return (
-    <TemplateFrame>
+    <TemplateFrame itemCount={doc.items?.length ?? 0}>
       {/* TOP HEADER BAND */}
-      <div style={{ background: accent, borderRadius: '10px 10px 0 0', padding: '22px 28px 18px 28px' }}>
+      <div style={{ background: accent, borderRadius: `${s(10, sc)}px ${s(10, sc)}px 0 0`, padding: `${s(22, sc)}px ${s(28, sc)}px ${s(18, sc)}px ${s(28, sc)}px` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
           {/* Left: Logo + Business */}
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', minWidth: 0 }}>
@@ -78,7 +81,7 @@ export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
               <img src={partyLogo} alt="Logo" style={{ width: 56, height: 56, borderRadius: 8, border: '2px solid rgba(255,255,255,0.3)', objectFit: 'cover', background: '#fff' }} />
             ) : null}
             <div>
-              <div style={{ color: '#FFFFFF', fontSize: 22, fontWeight: 900, letterSpacing: -0.3 }}>{profile.businessName}</div>
+              <div style={{ color: '#FFFFFF', fontSize: s(22, sc), fontWeight: 900, letterSpacing: -0.3 }}>{profile.businessName}</div>
               {!!profile.billingAddress && (
                 <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 10, marginTop: 4, maxWidth: 300 }}>{formatInlineAddress(profile.billingAddress)}</div>
               )}
@@ -91,7 +94,7 @@ export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
           </div>
           {/* Right: Doc type + number */}
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 900, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+            <div style={{ color: '#FFFFFF', fontSize: s(20, sc), fontWeight: 900, letterSpacing: 1.5, textTransform: 'uppercase' }}>
               {docTitleFromType(doc.type)}
             </div>
             <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 6 }}>
@@ -104,29 +107,43 @@ export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
       </div>
 
       {/* BLUE ACCENT STRIP */}
-      <div style={{ background: accentMid, height: 5 }} />
+      <div style={{ background: accentMid, height: s(5, sc) }} />
 
       {/* BODY */}
-      <div style={{ border: `1px solid ${border}`, borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '20px 28px' }}>
+      <div style={{ border: `1px solid ${border}`, borderTop: 'none', borderRadius: `0 0 ${s(10, sc)}px ${s(10, sc)}px`, padding: `${s(20, sc)}px ${s(28, sc)}px` }}>
 
         {/* BILL TO + DETAILS ROW */}
-        <div style={{ display: 'flex', gap: 20, marginBottom: 20 }}>
-          <div style={{ flex: 1.5, background: accentLight, borderRadius: 8, padding: '14px 16px', border: `1px solid ${border}` }}>
+        <div style={{ display: 'flex', gap: s(20, sc), marginBottom: s(20, sc) }}>
+          <div style={{ flex: 1.5, background: accentLight, borderRadius: s(8, sc), padding: `${s(14, sc)}px ${s(16, sc)}px`, border: `1px solid ${border}` }}>
             <div style={{ fontSize: 10, fontWeight: 900, color: accentMid, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bill To</div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: '#111827' }}>{safeText(doc.customerName) || '—'}</div>
-            {!!doc.customerAddress && <div style={{ fontSize: 11, color: muted, marginTop: 5 }}>{formatInlineAddress(doc.customerAddress)}</div>}
-            {!!doc.customerGstin && <div style={{ fontSize: 11, color: '#111827', marginTop: 5, fontWeight: 700 }}>GSTIN: {doc.customerGstin}</div>}
-            {(!!doc.customerStateCode || !!doc.placeOfSupply) && (
-              <div style={{ fontSize: 11, color: muted, marginTop: 3 }}>State: {formatStateDisplay(doc.customerStateCode || null, doc.placeOfSupply || null)}</div>
+            <div style={{ fontSize: 14, fontWeight: 900, color: '#111827', overflowWrap: 'anywhere' }}>{safeText(doc.customerName) || '—'}</div>
+            {!!doc.customerAddress && <div style={{ fontSize: 11, color: muted, marginTop: 4, overflowWrap: 'anywhere' }}>{formatInlineAddress(doc.customerAddress)}</div>}
+            {(doc.customerGstin || (doc as any).partyGstin || (doc as any).gstin) && (
+              <div style={{ fontSize: 11, color: '#111827', marginTop: 5, fontWeight: 700 }}>
+                GSTIN: {doc.customerGstin || (doc as any).partyGstin || (doc as any).gstin}
+              </div>
             )}
             {!!doc.customerMobile && <div style={{ fontSize: 11, color: muted, marginTop: 3 }}>Phone: {doc.customerMobile}</div>}
+            {!!doc.customerEmail && <div style={{ fontSize: 11, color: muted, marginTop: 3, overflowWrap: 'anywhere' }}>Email: {doc.customerEmail}</div>}
+            {!!doc.customerContactPerson && <div style={{ fontSize: 11, color: muted, marginTop: 3 }}>Contact: {doc.customerContactPerson}</div>}
+            {(!!doc.customerStateCode || !!doc.placeOfSupply) && (
+              <div style={{ fontSize: 11, color: muted, marginTop: 3 }}>
+                State: {formatStateDisplay(doc.customerStateCode || null, doc.placeOfSupply || null)}
+              </div>
+            )}
           </div>
 
-          <div style={{ flex: 1, background: accentLight, borderRadius: 8, padding: '14px 16px', border: `1px solid ${border}` }}>
+          <div style={{ flex: 1, background: accentLight, borderRadius: s(8, sc), padding: `${s(14, sc)}px ${s(16, sc)}px`, border: `1px solid ${border}` }}>
             <div style={{ fontSize: 10, fontWeight: 900, color: accentMid, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Invoice Details</div>
             <KeyValue label="Invoice No." value={safeText(doc.invoiceNo) || safeText(doc.documentNumber)} />
             <KeyValueOptional label="Date" value={doc.date} />
             <KeyValueOptional label="Due Date" value={doc.dueDate} />
+            <KeyValueOptional label="Ref No." value={doc.referenceNo} />
+            <KeyValueOptional label="Challan No." value={doc.challanNo} />
+            <KeyValueOptional label="Order No." value={doc.orderNumber} />
+            <KeyValueOptional label="Revision No." value={doc.revisionNumber} />
+            <KeyValueOptional label="PO No." value={doc.purchaseOrderNo} />
+            <KeyValueOptional label="PO Date" value={doc.poDate} />
             <KeyValueOptional label="Place of Supply" value={doc.placeOfSupply} />
             <KeyValueOptional label="Challan No." value={doc.challanNo} />
             <KeyValueOptional label="E-way Bill" value={doc.ewayBillNo} />
@@ -135,15 +152,15 @@ export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
         </div>
 
         {!!doc.deliveryAddress && (
-          <div style={{ background: accentLight, borderRadius: 8, padding: '10px 16px', border: `1px solid ${border}`, marginBottom: 20 }}>
+          <div style={{ background: accentLight, borderRadius: s(8, sc), padding: `${s(10, sc)}px ${s(16, sc)}px`, border: `1px solid ${border}`, marginBottom: s(20, sc) }}>
             <div style={{ fontSize: 10, fontWeight: 900, color: accentMid, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Ship To</div>
             <div style={{ fontSize: 11, color: muted }}>{formatInlineAddress(doc.deliveryAddress)}</div>
           </div>
         )}
 
         {/* ITEMS TABLE */}
-        <div style={{ borderRadius: 8, overflow: 'hidden', border: `1px solid ${border}` }}>
-          <div style={{ display: 'flex', background: accent, color: '#FFFFFF', padding: '10px 12px', fontSize: 10, fontWeight: 900, letterSpacing: 0.5 }}>
+        <div style={{ borderRadius: s(8, sc), overflow: 'hidden', border: `1px solid ${border}` }}>
+          <div style={{ display: 'flex', background: accent, color: '#FFFFFF', padding: `${s(10, sc)}px ${s(12, sc)}px`, fontSize: s(10, sc), fontWeight: 900, letterSpacing: 0.5 }}>
             <div style={{ width: 36 }}>#</div>
             <div style={{ flex: 2 }}>Item / Description</div>
             <div style={{ width: 72, textAlign: 'right' }}>HSN/SAC</div>
@@ -156,7 +173,7 @@ export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
           {(doc.items || []).map((it, idx) => {
             const c = lineComputed(it);
             return (
-              <div key={idx} style={{ display: 'flex', padding: '9px 12px', borderTop: `1px solid ${border}`, fontSize: 11, background: idx % 2 === 0 ? '#FFFFFF' : accentLight, alignItems: 'flex-start' }}>
+              <div key={idx} style={{ display: 'flex', padding: `${s(9, sc)}px ${s(12, sc)}px`, borderTop: `1px solid ${border}`, fontSize: s(11, sc), background: idx % 2 === 0 ? '#FFFFFF' : accentLight, alignItems: 'flex-start' }}>
                 <div style={{ width: 36, color: muted, paddingTop: 1 }}>{idx + 1}</div>
                 <div style={{ flex: 2, minWidth: 0 }}>
                   <div style={{ fontWeight: 800, color: '#111827' }}>{safeText(it?.name)}</div>
@@ -174,16 +191,16 @@ export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
         </div>
 
         {/* TOTALS + TAX + BANK */}
-        <div style={{ display: 'flex', gap: 20, marginTop: 20, alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', gap: s(20, sc), marginTop: s(20, sc), alignItems: 'flex-start' }}>
           {/* Left: bank + words */}
-          <div style={{ flex: 1.2, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ background: accentLight, borderRadius: 8, padding: '12px 14px', border: `1px solid ${border}` }}>
+          <div style={{ flex: 1.2, display: 'flex', flexDirection: 'column', gap: s(14, sc) }}>
+            <div style={{ background: accentLight, borderRadius: s(8, sc), padding: `${s(12, sc)}px ${s(14, sc)}px`, border: `1px solid ${border}` }}>
               <div style={{ fontSize: 10, fontWeight: 900, color: accentMid, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Amount in Words</div>
               <div style={{ fontSize: 11, fontStyle: 'italic', color: '#111827', fontWeight: 700, lineHeight: 1.5 }}>{amountInWordsINR(grandTotal)}</div>
             </div>
 
             {(profile.bankName || (profile as any).accountNumber || doc.bankName || doc.bankAccountNumber) && (
-              <div style={{ background: accentLight, borderRadius: 8, padding: '12px 14px', border: `1px solid ${border}` }}>
+              <div style={{ background: accentLight, borderRadius: s(8, sc), padding: `${s(12, sc)}px ${s(14, sc)}px`, border: `1px solid ${border}` }}>
                 <div style={{ fontSize: 10, fontWeight: 900, color: accentMid, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Bank Details</div>
                 <KeyValueOptional label="Bank" value={doc.bankName || profile.bankName} />
                 <KeyValueOptional label="Account Holder" value={(doc as any).bankAccountHolderName || profile.businessName} />
@@ -193,7 +210,7 @@ export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
             )}
 
             {(profile.upiId || doc.upiId) && (
-              <div style={{ background: accentLight, borderRadius: 8, padding: '12px 14px', border: `1px solid ${border}` }}>
+              <div style={{ background: accentLight, borderRadius: s(8, sc), padding: `${s(12, sc)}px ${s(14, sc)}px`, border: `1px solid ${border}` }}>
                 <div style={{ fontSize: 10, fontWeight: 900, color: accentMid, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>UPI Payment</div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   {!!doc.upiQrText && (
@@ -207,16 +224,22 @@ export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
 
           {/* Right: summary */}
           <div style={{ flex: 1 }}>
-            <div style={{ background: accentLight, borderRadius: 8, padding: '14px 16px', border: `1px solid ${border}` }}>
+            <div style={{ background: accentLight, borderRadius: s(8, sc), padding: `${s(14, sc)}px ${s(16, sc)}px`, border: `1px solid ${border}` }}>
               <div style={{ fontSize: 10, fontWeight: 900, color: accentMid, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Summary</div>
               <KeyValue label="Subtotal" value={<Money value={displaySubtotal(doc)} />} />
               <KeyValue label="Total Tax" value={<Money value={taxes} />} />
               {Number(doc.transportCharges || 0) > 0 && <KeyValue label="Transport" value={<Money value={Number(doc.transportCharges)} />} />}
               {Number(doc.additionalCharges || 0) > 0 && <KeyValue label="Additional" value={<Money value={Number(doc.additionalCharges)} />} />}
               {Number(doc.roundOff || 0) !== 0 && <KeyValue label="Round Off" value={<Money value={Number(doc.roundOff)} />} />}
+              {Number(doc.receivedAmount || 0) > 0 && (
+                <KeyValue label="Received" value={<Money value={Number(doc.receivedAmount)} />} />
+              )}
+              {Number(doc.receivedAmount || 0) > 0 && (
+                <KeyValue label="Balance" value={<Money value={Number(doc.grandTotal || 0) - Number(doc.receivedAmount)} />} />
+              )}
 
               {taxRows.length > 0 && (
-                <div style={{ marginTop: 10, borderTop: `1px solid ${border}`, paddingTop: 10 }}>
+                <div style={{ marginTop: s(10, sc), borderTop: `1px solid ${border}`, paddingTop: s(10, sc) }}>
                   <div style={{ fontSize: 10, fontWeight: 900, color: muted, marginBottom: 6 }}>Tax Breakdown</div>
                   {taxRows.map((r, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, padding: '3px 0', color: muted }}>
@@ -227,8 +250,8 @@ export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
                 </div>
               )}
 
-              <div style={{ marginTop: 12, borderTop: `2px solid ${accent}`, paddingTop: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 900, color: accent }}>
+              <div style={{ marginTop: s(12, sc), borderTop: `2px solid ${accent}`, paddingTop: s(10, sc) }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: s(16, sc), fontWeight: 900, color: accent }}>
                   <span>Grand Total</span>
                   <span><Money value={grandTotal} /></span>
                 </div>
@@ -239,18 +262,18 @@ export function CorporateTemplate({ doc, profile }: PdfTemplateProps) {
 
         {/* TERMS */}
         {!!doc.termsConditions && (
-          <div style={{ marginTop: 18, background: accentLight, borderRadius: 8, padding: '12px 14px', border: `1px solid ${border}` }}>
+          <div style={{ marginTop: s(18, sc), background: accentLight, borderRadius: s(8, sc), padding: `${s(12, sc)}px ${s(14, sc)}px`, border: `1px solid ${border}` }}>
             <div style={{ fontSize: 10, fontWeight: 900, color: accentMid, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Terms & Conditions</div>
             <div style={{ fontSize: 11, color: muted, whiteSpace: 'pre-line', lineHeight: 1.6 }}>{doc.termsConditions}</div>
           </div>
         )}
 
         {/* SIGNATURE + FOOTER */}
-        <div style={{ marginTop: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div style={{ marginTop: s(28, sc), display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div style={{ fontSize: 10, color: muted }}>Generated by BillVyapar</div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 12, fontWeight: 900, color: accent }}>For {profile.businessName}</div>
-            <div style={{ height: 36 }} />
+            <div style={{ height: s(36, sc) }} />
             <div style={{ fontSize: 10, color: muted, borderTop: `1px solid ${border}`, paddingTop: 4, display: 'inline-block' }}>Authorized Signatory</div>
           </div>
         </div>

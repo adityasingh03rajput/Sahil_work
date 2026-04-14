@@ -14,9 +14,12 @@ import {
   displaySubtotal,
   formatInlineAddress,
   formatStateDisplay,
+  useScale,
+  s,
 } from './TemplateFrame';
 
 export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
+  const sc = useScale();
   const cgst = Number(doc.totalCgst || 0);
   const sgst = Number(doc.totalSgst || 0);
   const igst = Number(doc.totalIgst || 0);
@@ -28,7 +31,7 @@ export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
     : [];
 
   return (
-    <TemplateFrame>
+    <TemplateFrame itemCount={doc.items?.length ?? 0}>
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ maxWidth: 420 }}>
@@ -76,12 +79,14 @@ export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
             </SmallText>
           )}
           {!!doc.customerGstin && <SmallText>GSTIN: {doc.customerGstin}</SmallText>}
+          {!!doc.customerMobile && <SmallText>Phone: {doc.customerMobile}</SmallText>}
+          {!!doc.customerEmail && <SmallText>Email: {doc.customerEmail}</SmallText>}
+          {!!doc.customerContactPerson && <SmallText>Contact: {doc.customerContactPerson}</SmallText>}
           {(!!doc.customerStateCode || !!doc.placeOfSupply) && (
             <SmallText>
               State: {formatStateDisplay(doc.customerStateCode || null, doc.placeOfSupply || null)}
             </SmallText>
           )}
-          {!!doc.customerMobile && <SmallText>Phone: {doc.customerMobile}</SmallText>}
           {!!doc.deliveryAddress && (
             <div style={{ marginTop: 10 }}>
               <Label>Ship To</Label>
@@ -97,8 +102,13 @@ export function MinimalTemplate({ doc, profile }: PdfTemplateProps) {
             <KeyValue label="Invoice No." value={safeText(doc.invoiceNo) || safeText(doc.documentNumber)} />
             <KeyValueOptional label="Date" value={doc.date} />
             <KeyValueOptional label="Due Date" value={doc.dueDate} />
-            <KeyValueOptional label="Place of Supply" value={doc.placeOfSupply} />
+            <KeyValueOptional label="Ref No." value={doc.referenceNo} />
             <KeyValueOptional label="Challan No" value={doc.challanNo} />
+            <KeyValueOptional label="Order No" value={doc.orderNumber} />
+            <KeyValueOptional label="Revision No" value={doc.revisionNumber} />
+            <KeyValueOptional label="PO No" value={doc.purchaseOrderNo} />
+            <KeyValueOptional label="PO Date" value={doc.poDate} />
+            <KeyValueOptional label="Place of Supply" value={doc.placeOfSupply} />
             <KeyValueOptional label="E-way Bill No" value={doc.ewayBillNo} />
             <KeyValueOptional label="Vehicle No" value={doc.ewayBillVehicleNo} />
             <KeyValueOptional label="Transport" value={doc.transport} />

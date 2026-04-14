@@ -697,53 +697,16 @@ export function CreateDocumentPage() {
     // Add other state resets here if needed
   }, [profile?.id]);
 
-  // Demo Mode Pre-fill
+  // Demo Mode Pre-fill — DISABLED for real document creation
+  // Only pre-fill if explicitly in tour mode AND not editing an existing document
   useEffect(() => {
-    if (!isDemoMode) return;
+    if (!isDemoMode || isEdit) return;
     
-    // Virtual delay to simulate real app feel
-    const timer = setTimeout(() => {
-      setCustomerName('Global Tech Solutions Pvt Ltd');
-      setCustomerAddress('123, Dynamic Tower, Silicon Valley, Bengaluru, KA - 560001');
-      setCustomerGstin('29ABCDE1234F1Z5');
-      setCustomerMobile('9876543210');
-      setCustomerEmail('purchasing@globaltech.com');
-      setPlaceOfSupply('Karnataka');
-      setItems([
-        {
-          name: 'Professional Business Laptop',
-          hsnSac: '8471',
-          description: 'High performance laptop with 32GB RAM',
-          quantity: 2,
-          unit: 'pcs',
-          rate: 55000,
-          currency: 'INR',
-          discount: 10,
-          cgst: 9,
-          sgst: 9,
-          igst: 0,
-          total: 99000
-        },
-        {
-          name: 'Cloud Infrastructure Setup',
-          hsnSac: '9983',
-          description: 'One-time setup fee',
-          quantity: 1,
-          unit: 'set',
-          rate: 15000,
-          currency: 'INR',
-          discount: 0,
-          cgst: 9,
-          sgst: 9,
-          igst: 0,
-          total: 17700
-        }
-      ]);
-      toast.info('Demo Mode: Pre-filled with virtual data.');
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, [isDemoMode]);
+    // Check if this is a real document creation (not a tour demo)
+    // Demo mode should only apply during actual tour, not when user creates documents
+    // For now, disable auto-fill to prevent virtual data pollution
+    return;
+  }, [isDemoMode, isEdit]);
 
   // Keep in sync when AppLayout refreshes profile from the server on mount
   // Handled by useCurrentProfile hook now

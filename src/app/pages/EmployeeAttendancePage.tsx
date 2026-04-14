@@ -77,7 +77,7 @@ function fmtElapsed(min: number) {
   if (min < 60) return `${min}m`; return `${Math.floor(min / 60)}h ${min % 60}m`;
 }
 function getSocketUrl() {
-  return (typeof localStorage !== "undefined" && localStorage.getItem("apiUrlOverride")) || API_URL || window.location.origin;
+  return API_URL;
 }
 
 
@@ -111,9 +111,9 @@ function Pill({ color, children }: { color: "green"|"yellow"|"indigo"|"red"|"gra
   );
 }
 
-function Skeleton({ h = 72, r = 16 }: { h?: number; r?: number }) {
-  return <div style={{ height: h, borderRadius: r, background: "rgba(255,255,255,0.05)",
-    animation: "pulse 1.5s ease-in-out infinite" }} />;
+function Skeleton({ h = 72, r = 16, w = "100%", margin = "0 0 12px" }: { h?: number | string; r?: number; w?: string | number; margin?: string }) {
+  return <div style={{ height: h, width: w, borderRadius: r, background: "rgba(255,255,255,0.05)",
+    margin, animation: "pulse 1.5s ease-in-out infinite" }} />;
 }
 
 function EmptyState({ emoji, title, sub }: { emoji: string; title: string; sub: string }) {
@@ -537,14 +537,14 @@ export function EmployeeAttendancePage() {
                 animation: "spin 0.7s linear infinite" }}
               />
             ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2.5"
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5"
                 style={{ transform: pullDist >= threshold ? "rotate(180deg)" : "rotate(0deg)",
                   transition: "transform 0.2s" }}>
                 <polyline points="7 13 12 18 17 13"/>
                 <line x1="12" y1="6" x2="12" y2="18"/>
               </svg>
             )}
-            <span style={{ fontSize: 12, color: "#818cf8", fontWeight: 600 }}>
+            <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 600 }}>
               {refreshing ? "Refreshing…" : pullDist >= threshold ? "Release to refresh" : "Pull to refresh"}
             </span>
           </div>
@@ -584,130 +584,147 @@ export function EmployeeAttendancePage() {
 
             {/* Stats row — 2 cards */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-              {/* Streak */}
-              <div style={{ borderRadius: 18, padding: "16px", overflow: "hidden", position: "relative",
-                background: "linear-gradient(135deg,#431407,#1c0a03)",
-                border: "1px solid rgba(251,146,60,0.2)" }}>
-                <div style={{ position: "absolute", top: -16, right: -16, width: 72, height: 72,
-                  borderRadius: "50%", background: "rgba(251,146,60,0.12)", pointerEvents: "none" }} />
-                <p style={{ margin: "0 0 8px", fontSize: 24 }}>🔥</p>
-                <p style={{ margin: "0 0 2px", fontSize: 32, fontWeight: 900, color: "#fff", lineHeight: 1 }}>{streak}</p>
-                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "rgba(251,146,60,0.7)",
-                  textTransform: "uppercase", letterSpacing: "0.08em" }}>Day Streak</p>
-              </div>
-              {/* Month */}
-              <div style={{ borderRadius: 18, padding: "16px", overflow: "hidden", position: "relative",
-                background: "linear-gradient(135deg,#0c1a3a,#071228)",
-                border: "1px solid rgba(99,102,241,0.2)" }}>
-                <div style={{ position: "absolute", top: -16, right: -16, width: 72, height: 72,
-                  borderRadius: "50%", background: "rgba(99,102,241,0.12)", pointerEvents: "none" }} />
-                <p style={{ margin: "0 0 8px", fontSize: 24 }}>📅</p>
-                <p style={{ margin: "0 0 2px", fontSize: 32, fontWeight: 900, color: "#fff", lineHeight: 1 }}>{monthCount}</p>
-                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "rgba(99,102,241,0.7)",
-                  textTransform: "uppercase", letterSpacing: "0.08em" }}>This Month</p>
-              </div>
+              {loading ? (
+                <>
+                  <Skeleton h={110} r={18} margin="0" />
+                  <Skeleton h={110} r={18} margin="0" />
+                </>
+              ) : (
+                <>
+                  {/* Streak */}
+                  <div style={{ borderRadius: 18, padding: "16px", overflow: "hidden", position: "relative",
+                    background: "linear-gradient(135deg,#431407,#1c0a03)",
+                    border: "1px solid rgba(251,146,60,0.2)" }}>
+                    <div style={{ position: "absolute", top: -16, right: -16, width: 72, height: 72,
+                      borderRadius: "50%", background: "rgba(251,146,60,0.12)", pointerEvents: "none" }} />
+                    <p style={{ margin: "0 0 8px", fontSize: 24 }}>🔥</p>
+                    <p style={{ margin: "0 0 2px", fontSize: 32, fontWeight: 900, color: "#fff", lineHeight: 1 }}>{streak}</p>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "rgba(251,146,60,0.7)",
+                      textTransform: "uppercase", letterSpacing: "0.08em" }}>Day Streak</p>
+                  </div>
+                  {/* Month */}
+                  <div style={{ borderRadius: 18, padding: "16px", overflow: "hidden", position: "relative",
+                    background: "linear-gradient(135deg,#0c1a3a,#071228)",
+                    border: "1px solid rgba(99,102,241,0.2)" }}>
+                    <div style={{ position: "absolute", top: -16, right: -16, width: 72, height: 72,
+                      borderRadius: "50%", background: "rgba(99,102,241,0.12)", pointerEvents: "none" }} />
+                    <p style={{ margin: "0 0 8px", fontSize: 24 }}>📅</p>
+                    <p style={{ margin: "0 0 2px", fontSize: 32, fontWeight: 900, color: "#fff", lineHeight: 1 }}>{monthCount}</p>
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: "rgba(99,102,241,0.7)",
+                      textTransform: "uppercase", letterSpacing: "0.08em" }}>This Month</p>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Check-in / Check-out card */}
-            <div style={{ borderRadius: 22, padding: "20px", marginBottom: 16,
-              background: "#161b27", border: "1px solid rgba(255,255,255,0.07)" }}>
-              <p style={{ margin: "0 0 14px", fontSize: 11, fontWeight: 700,
-                color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                Today's Attendance
-              </p>
+            {loading ? (
+              <Skeleton h={180} r={22} margin="0 0 16px" />
+            ) : (
+              <div style={{ borderRadius: 22, padding: "20px", marginBottom: 16,
+                background: "#161b27", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <p style={{ margin: "0 0 14px", fontSize: 11, fontWeight: 700,
+                  color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                  Today's Attendance
+                </p>
 
-              {/* Time slots */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center", marginBottom: 18 }}>
-                {/* Check-in */}
-                <div style={{ borderRadius: 14, padding: "14px",
-                  background: checkedIn ? "rgba(79,70,229,0.15)" : "rgba(255,255,255,0.03)",
-                  border: `1.5px solid ${checkedIn ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.06)"}` }}>
-                  <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 700,
-                    color: checkedIn ? "#818cf8" : "rgba(255,255,255,0.25)",
-                    textTransform: "uppercase", letterSpacing: "0.08em" }}>In</p>
-                  <p style={{ margin: 0, fontSize: 20, fontWeight: 800,
-                    color: checkedIn ? "#fff" : "rgba(255,255,255,0.15)" }}>
-                    {fmtTime(todayRecord?.checkInTime)}
-                  </p>
+                {/* Time slots */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center", marginBottom: 18 }}>
+                  {/* Check-in */}
+                  <div style={{ borderRadius: 14, padding: "14px",
+                    background: checkedIn ? "rgba(79,70,229,0.15)" : "rgba(255,255,255,0.03)",
+                    border: `1.5px solid ${checkedIn ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.06)"}` }}>
+                    <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 700,
+                      color: checkedIn ? "#818cf8" : "rgba(255,255,255,0.25)",
+                      textTransform: "uppercase", letterSpacing: "0.08em" }}>In</p>
+                    <p style={{ margin: 0, fontSize: 20, fontWeight: 800,
+                      color: checkedIn ? "#fff" : "rgba(255,255,255,0.15)" }}>
+                      {fmtTime(todayRecord?.checkInTime)}
+                    </p>
+                  </div>
+                  <div style={{ fontSize: 16, color: "rgba(255,255,255,0.15)", textAlign: "center" }}>→</div>
+                  {/* Check-out */}
+                  <div style={{ borderRadius: 14, padding: "14px",
+                    background: checkedOut ? "rgba(234,88,12,0.12)" : "rgba(255,255,255,0.03)",
+                    border: `1.5px solid ${checkedOut ? "rgba(234,88,12,0.35)" : "rgba(255,255,255,0.06)"}` }}>
+                    <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 700,
+                      color: checkedOut ? "#fb923c" : "rgba(255,255,255,0.25)",
+                      textTransform: "uppercase", letterSpacing: "0.08em" }}>Out</p>
+                    <p style={{ margin: 0, fontSize: 20, fontWeight: 800,
+                      color: checkedOut ? "#fff" : "rgba(255,255,255,0.15)" }}>
+                      {fmtTime(todayRecord?.checkOutTime)}
+                    </p>
+                  </div>
                 </div>
-                <div style={{ fontSize: 16, color: "rgba(255,255,255,0.15)", textAlign: "center" }}>→</div>
-                {/* Check-out */}
-                <div style={{ borderRadius: 14, padding: "14px",
-                  background: checkedOut ? "rgba(234,88,12,0.12)" : "rgba(255,255,255,0.03)",
-                  border: `1.5px solid ${checkedOut ? "rgba(234,88,12,0.35)" : "rgba(255,255,255,0.06)"}` }}>
-                  <p style={{ margin: "0 0 4px", fontSize: 10, fontWeight: 700,
-                    color: checkedOut ? "#fb923c" : "rgba(255,255,255,0.25)",
-                    textTransform: "uppercase", letterSpacing: "0.08em" }}>Out</p>
-                  <p style={{ margin: 0, fontSize: 20, fontWeight: 800,
-                    color: checkedOut ? "#fff" : "rgba(255,255,255,0.15)" }}>
-                    {fmtTime(todayRecord?.checkOutTime)}
-                  </p>
-                </div>
+
+                {/* Big action button */}
+                <button type="button" onClick={isComplete ? undefined : handleMark}
+                  disabled={marking || isComplete}
+                  style={{
+                    width: "100%", height: 62, borderRadius: 18, border: "none",
+                    cursor: isComplete ? "default" : "pointer",
+                    background: isComplete
+                      ? "linear-gradient(135deg,#15803d,#166534)"
+                      : checkedIn
+                      ? "linear-gradient(135deg,#c2410c,#9a3412)"
+                      : "linear-gradient(135deg,#4f46e5,#7c3aed)",
+                    boxShadow: isComplete
+                      ? "0 8px 24px rgba(21,128,61,0.4)"
+                      : checkedIn
+                      ? "0 8px 24px rgba(194,65,12,0.4)"
+                      : "0 8px 24px rgba(79,70,229,0.5)",
+                    color: "#fff", fontSize: 18, fontWeight: 800,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                    opacity: marking ? 0.7 : 1,
+                    transition: "transform 0.1s",
+                  }}
+                  onTouchStart={e => { if (!isComplete && !marking) e.currentTarget.style.transform = "scale(0.97)"; }}
+                  onTouchEnd={e => { e.currentTarget.style.transform = "scale(1)"; }}>
+                  {marking ? (
+                    <><div style={{ width: 20, height: 20, borderRadius: "50%",
+                      border: "2.5px solid rgba(255,255,255,0.3)", borderTopColor: "#fff",
+                      animation: "spin 0.7s linear infinite" }} />Please wait…</>
+                  ) : isComplete ? (
+                    <><IcoCheck />Attendance Complete</>
+                  ) : checkedIn ? "Mark Check-Out" : "Mark Present"}
+                </button>
               </div>
-
-              {/* Big action button */}
-              <button type="button" onClick={isComplete ? undefined : handleMark}
-                disabled={marking || isComplete}
-                style={{
-                  width: "100%", height: 62, borderRadius: 18, border: "none",
-                  cursor: isComplete ? "default" : "pointer",
-                  background: isComplete
-                    ? "linear-gradient(135deg,#15803d,#166534)"
-                    : checkedIn
-                    ? "linear-gradient(135deg,#c2410c,#9a3412)"
-                    : "linear-gradient(135deg,#4f46e5,#7c3aed)",
-                  boxShadow: isComplete
-                    ? "0 8px 24px rgba(21,128,61,0.4)"
-                    : checkedIn
-                    ? "0 8px 24px rgba(194,65,12,0.4)"
-                    : "0 8px 24px rgba(79,70,229,0.5)",
-                  color: "#fff", fontSize: 18, fontWeight: 800,
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                  opacity: marking ? 0.7 : 1,
-                  transition: "transform 0.1s",
-                }}
-                onTouchStart={e => { if (!isComplete && !marking) e.currentTarget.style.transform = "scale(0.97)"; }}
-                onTouchEnd={e => { e.currentTarget.style.transform = "scale(1)"; }}>
-                {marking ? (
-                  <><div style={{ width: 20, height: 20, borderRadius: "50%",
-                    border: "2.5px solid rgba(255,255,255,0.3)", borderTopColor: "#fff",
-                    animation: "spin 0.7s linear infinite" }} />Please wait…</>
-                ) : isComplete ? (
-                  <><IcoCheck />Attendance Complete</>
-                ) : checkedIn ? "Mark Check-Out" : "Mark Present"}
-              </button>
-            </div>
+            )}
 
             {/* Last 7 days strip */}
-            <div style={{ borderRadius: 18, padding: "16px",
-              background: "#161b27", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <p style={{ margin: "0 0 12px", fontSize: 11, fontWeight: 700,
-                color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                Last 7 Days
-              </p>
-              <div style={{ display: "flex", gap: 6 }}>
-                {last7.map(d => {
-                  const rec = recordMap.get(d);
-                  const isToday = d === today;
-                  const dotColor = rec?.status === "present" ? "#4ade80"
-                    : rec?.status === "half_day" ? "#facc15"
-                    : rec?.status === "absent" ? "#f87171"
-                    : "rgba(255,255,255,0.1)";
-                  return (
-                    <div key={d} style={{ flex: 1, borderRadius: 12, padding: "10px 4px",
-                      background: isToday ? "rgba(79,70,229,0.2)" : rec ? "rgba(255,255,255,0.04)" : "transparent",
-                      border: `1px solid ${isToday ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.05)"}`,
-                      display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase",
-                        color: isToday ? "#818cf8" : "rgba(255,255,255,0.3)" }}>{fmtWeekday(d)}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700,
-                        color: isToday ? "#fff" : "rgba(255,255,255,0.55)" }}>{d.split("-")[2]}</span>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor }} />
-                    </div>
-                  );
-                })}
+            {loading ? (
+              <Skeleton h={80} r={18} margin="0" />
+            ) : (
+              <div style={{ borderRadius: 18, padding: "16px",
+                background: "#161b27", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p style={{ margin: "0 0 12px", fontSize: 11, fontWeight: 700,
+                  color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                  Last 7 Days
+                </p>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {last7.map(d => {
+                    const rec = recordMap.get(d);
+                    const isToday = d === today;
+                    const dotColor = rec?.status === "present" ? "#4ade80"
+                      : rec?.status === "half_day" ? "#facc15"
+                      : rec?.status === "absent" ? "#f87171"
+                      : "rgba(255,255,255,0.1)";
+                    return (
+                      <div key={d} style={{ flex: 1, borderRadius: 12, padding: "10px 4px",
+                        background: isToday ? "rgba(79,70,229,0.2)" : rec ? "rgba(255,255,255,0.04)" : "transparent",
+                        border: `1px solid ${isToday ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.05)"}`,
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase",
+                          color: isToday ? "#818cf8" : "rgba(255,255,255,0.3)" }}>{fmtWeekday(d)}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700,
+                          color: isToday ? "#fff" : "rgba(255,255,255,0.55)" }}>{d.split("-")[2]}</span>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor }} />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -753,7 +770,18 @@ export function EmployeeAttendancePage() {
 
             {tasksLoading ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {[1,2,3].map(i => <Skeleton key={i} h={100} r={18} />)}
+                {[1,2,3].map(i => (
+                  <div key={i} style={{ borderRadius: 18, padding: "16px", background: "#161b27", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <Skeleton h={20} w="70%" margin="0 0 8px" />
+                        <Skeleton h={14} w="40%" margin="0" />
+                      </div>
+                      <Skeleton h={22} w={60} r={10} margin="0" />
+                    </div>
+                    <Skeleton h={44} r={12} margin="0" />
+                  </div>
+                ))}
               </div>
             ) : tasks.length === 0 ? (
               <EmptyState emoji="📋" title="No tasks today" sub="Your manager will assign tasks here" />
@@ -781,13 +809,14 @@ export function EmployeeAttendancePage() {
                               <p style={{ margin: 0, fontSize: 15, fontWeight: 700,
                                 color: isDone ? "rgba(255,255,255,0.35)" : "#fff",
                                 textDecoration: isDone ? "line-through" : "none",
-                                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                                overflow: "hidden", lineHeight: 1.3 }}>
                                 {task.title}
                               </p>
                               {((task.geofenceMeters ?? 0) > 0) && (
-                                <div style={{ padding: "1px 6px", borderRadius: 6, 
+                                <div style={{ padding: "2px 8px", borderRadius: 6, 
                                   background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)",
-                                  fontSize: 8, fontWeight: 800, color: "#818cf8", textTransform: "uppercase" }}>
+                                  fontSize: 10, fontWeight: 800, color: "#818cf8", textTransform: "uppercase" }}>
                                   📍 {task.geofenceMeters}m
                                 </div>
                               )}
@@ -893,7 +922,15 @@ export function EmployeeAttendancePage() {
 
             {projLoading ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {[1,2].map(i => <Skeleton key={i} h={120} r={20} />)}
+                {[1,2].map(i => (
+                  <div key={i} style={{ borderRadius: 20, padding: "16px", background: "#161b27", border: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 14 }}>
+                    <Skeleton h={52} w={52} r={26} margin="0" />
+                    <div style={{ flex: 1 }}>
+                      <Skeleton h={18} w="60%" margin="0 0 8px" />
+                      <Skeleton h={14} w="40%" margin="0" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : projects.length === 0 ? (
               <EmptyState emoji="📁" title="No projects assigned" sub="You'll see projects here when your manager adds you" />
@@ -980,7 +1017,7 @@ export function EmployeeAttendancePage() {
                                     background: isDone ? "#4ade80" : "transparent",
                                     display: "flex", alignItems: "center", justifyContent: "center",
                                     cursor: isAssigned ? "pointer" : "default", padding: 0, minWidth: 24 }}>
-                                  {isDone && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                                  {isDone && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--foreground)" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
                                   {isTaskActive && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#facc15" }} />}
                                 </button>
                                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -1025,8 +1062,15 @@ export function EmployeeAttendancePage() {
             </div>
 
             {loading ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {[1,2,3,4,5].map(i => <Skeleton key={i} h={68} r={14} />)}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {[1,2,3,4,5].map(i => (
+                  <div key={i} style={{ display: "flex", gap: 14 }}>
+                    <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <Skeleton h={14} w={14} r={7} margin="14px 0 0" />
+                    </div>
+                    <Skeleton h={72} r={14} margin="0" />
+                  </div>
+                ))}
               </div>
             ) : records.length === 0 ? (
               <EmptyState emoji="📆" title="No records yet" sub="Your attendance history will appear here" />

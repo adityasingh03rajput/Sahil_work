@@ -22,23 +22,21 @@ allprojects {
         google()
         mavenCentral()
     }
-    
-    tasks.withType(JavaCompile).configureEach {
-        sourceCompatibility = '17'
-        targetCompatibility = '17'
-    }
-    tasks.configureEach { task ->
-        if (task.class.name.contains("KotlinCompile")) {
-            task.kotlinOptions.jvmTarget = "17"
-        }
-    }
-    
+}
+
+subprojects {
     afterEvaluate { project ->
         if (project.hasProperty('android')) {
-            project.android {
+            android {
                 compileOptions {
                     sourceCompatibility JavaVersion.VERSION_17
                     targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+            // Add Kotlin target compatibility override
+            tasks.configureEach { task ->
+                if (task.name.contains("Kotlin") && task.hasProperty("kotlinOptions")) {
+                    task.kotlinOptions.jvmTarget = "17"
                 }
             }
         }

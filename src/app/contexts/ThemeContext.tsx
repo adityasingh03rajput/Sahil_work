@@ -19,10 +19,13 @@ const getSystemTheme = (): 'light' | 'dark' => {
 
 const THEME_CLASSES = ['theme-warm', 'theme-ocean', 'theme-emerald', 'theme-rosewood'] as const;
 
-const applyResolvedTheme = (resolvedTheme: 'light' | 'dark', themeClass: (typeof THEME_CLASSES)[number] | null) => {
+const applyResolvedTheme = (resolvedTheme: 'light' | 'dark', themeClass: (typeof THEME_CLASSES)[number] | null, theme: string) => {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  root.classList.toggle('dark', resolvedTheme === 'dark');
+  // Set data-theme attribute for CSS selectors
+  root.setAttribute('data-theme', theme);
+  // Only apply 'dark' class if no theme class is active
+  root.classList.toggle('dark', resolvedTheme === 'dark' && !themeClass);
   THEME_CLASSES.forEach((c) => root.classList.remove(c));
   if (themeClass) root.classList.add(themeClass);
 };
@@ -47,7 +50,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const resolvedTheme = useMemo(() => {
     if (theme === 'system') return getSystemTheme();
-    if (theme === 'warm' || theme === 'ocean' || theme === 'emerald' || theme === 'rosewood') return 'light';
+    if (theme === 'warm' || theme === 'ocean' || theme === 'emerald' || theme === 'rosewood') return 'dark';
     return theme;
   }, [theme]);
 
@@ -60,8 +63,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   useEffect(() => {
-    applyResolvedTheme(resolvedTheme, themeClass);
-  }, [resolvedTheme, theme]);
+    applyResolvedTheme(resolvedTheme, themeClass, theme);
+  }, [resolvedTheme, theme, themeClass]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -70,7 +73,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
-      applyResolvedTheme(getSystemTheme(), null);
+      const systemTheme = getSystemTheme();
+      applyResolvedTheme(systemTheme, null, 'system');
     };
 
     if (typeof mql.addEventListener === 'function') {

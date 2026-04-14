@@ -4,7 +4,7 @@
 
 The app is configured to connect to:
 ```
-https://accounts-8rx9.onrender.com
+
 ```
 
 This is set in:
