@@ -218,7 +218,12 @@ export function EmployeesPage() {
 
   const loadEmployees = async (search = '') => {
     try {
-      const res = await fetch(`${API_URL}/employees?search=${search}`, { headers });
+      const raw = localStorage.getItem('currentProfile');
+      const p = raw ? JSON.parse(raw) : null;
+      const pid = (typeof p === 'string' ? JSON.parse(p) : p)?.id ?? '';
+      const params = new URLSearchParams({ search });
+      if (pid) params.set('profileId', pid);
+      const res = await fetch(`${API_URL}/employees?${params}`, { headers });
       const data = await res.json();
       setEmployees(Array.isArray(data) ? data : []);
     } catch { toast.error('Network delay'); }
@@ -283,6 +288,11 @@ export function EmployeesPage() {
           return (typeof p === 'string' ? JSON.parse(p) : p)?.id ?? null;
         } catch { return null; }
       })();
+
+      if (!profileId) {
+        setEmpSaving(false);
+        return toast.error('No active profile found. Please refresh the page.');
+      }
       const finalRole = empForm.role === 'custom' ? 'viewer' : empForm.role;
       const finalCustomRoleId = empForm.role === 'custom' ? empForm.customRoleId : null;
 
