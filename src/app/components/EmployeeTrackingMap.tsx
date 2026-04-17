@@ -80,6 +80,7 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
   const [mapReady,  setMapReady]  = useState(false);
   const [loading,   setLoading]   = useState(true);
   const [mapType, setMapType]     = useState<"roadmap" | "satellite" | "hybrid" | "terrain">("roadmap");
+  const [, setTick] = useState(0); // forces re-render every second to update "last seen" timestamps
 
   // ── Load last-known locations from REST (initial snapshot) ─────────────────
   const loadSnapshot = useCallback(async () => {
@@ -91,31 +92,38 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
       });
       const data = await res.json();
       if (Array.isArray(data)) {
+        const freshStale = new Set<string>();
         setEmployees((prev) => {
           const next = new Map(prev);
           for (const r of data) {
             if (!r.lastLocation?.lat) continue;
             const id = String(r.employeeId._id ?? r.employeeId);
-            // Consider employee 'online' if their last location update is within
-            // the stale window. This prevents HTTP-only (native) employees from
-            // showing as 'Offline' on initial page load before the first socket
-            // employee-online event arrives.
             const lastUpdatedMs = r.lastLocation?.updatedAt
               ? Date.now() - new Date(r.lastLocation.updatedAt).getTime()
               : Infinity;
             const wasRecentlyActive = lastUpdatedMs < STALE_THRESHOLD_MS;
+            if (!wasRecentlyActive) freshStale.add(id);
             next.set(id, {
               employeeId: id,
               name:       r.employeeId?.name ?? "Employee",
               lat:        r.lastLocation.lat,
               lng:        r.lastLocation.lng,
               updatedAt:  r.lastLocation.updatedAt,
+              // Only mark online if recently active; socket events will update this
               online:     next.get(id)?.online ?? wasRecentlyActive,
               schedule:   r.employeeId?.schedule,
             });
           }
           return next;
         });
+        // Immediately mark stale employees so they show grey, not green
+        if (freshStale.size > 0) {
+          setStaleSet((prev) => {
+            const next = new Set(prev);
+            freshStale.forEach((id) => next.add(id));
+            return next;
+          });
+        }
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -202,6 +210,12 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
   }, []);
 
   useEffect(() => { loadSnapshot(); }, [loadSnapshot]);
+
+  // ── Tick every second to keep "last seen X ago" labels live ───────────────
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
 
     // ── Fit Map to Markers ──────────────────────────────────────────────────
     const fitAllMarkers = useCallback(() => {

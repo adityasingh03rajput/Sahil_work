@@ -180,41 +180,50 @@ export function useLocationTracker() {
       }
     };
 
-    // 2. Native Geolocation Watcher
-    try {
-      const check = await Geolocation.requestPermissions();
-      if (check.location !== 'granted') {
-        toast.error("Location Permission Denied. Tracking will NOT work in background.");
-      }
+    // 2. Native Geolocation Watcher — only used as fallback on web/non-native
+    // On native Android, the TrackingService (started below) handles GPS via
+    // FusedLocationProviderClient on a background thread. Running BOTH causes
+    // duplicate/conflicting location updates where the WebView's throttled GPS
+    // can override the accurate native readings. So we skip the JS watcher on native.
+    const isNativeAndroid = !!(window as any).Capacitor?.isNativePlatform?.() &&
+      (window as any).Capacitor?.getPlatform?.() === 'android';
 
-      watchIdRef.current = await Geolocation.watchPosition(
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-        (position: Position | null, err: any) => {
-          if (err) {
-            console.error("[tracker] GPS error:", err.message || err);
-            if (err.message?.includes("denied")) {
-              toast.error("CRITICAL: Set location to 'Allow all the time' in Settings.");
-            }
-            return;
-          }
-          if (position) {
-            sendData(
-              position.coords.latitude,
-              position.coords.longitude,
-              position.coords.speed,
-              position.coords.accuracy
-            );
-          }
+    if (!isNativeAndroid) {
+      try {
+        const check = await Geolocation.requestPermissions();
+        if (check.location !== 'granted') {
+          toast.error("Location Permission Denied. Tracking will NOT work in background.");
         }
-      );
-    } catch (e) {
-      console.error("[tracker] Geolocation watcher failed:", e);
-      // Web fallback
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        (pos) => sendData(pos.coords.latitude, pos.coords.longitude, pos.coords.speed, pos.coords.accuracy),
-        (err) => console.warn("[tracker] web GPS error:", err.message),
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
-      );
+
+        watchIdRef.current = await Geolocation.watchPosition(
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+          (position: Position | null, err: any) => {
+            if (err) {
+              console.error("[tracker] GPS error:", err.message || err);
+              if (err.message?.includes("denied")) {
+                toast.error("CRITICAL: Set location to 'Allow all the time' in Settings.");
+              }
+              return;
+            }
+            if (position) {
+              sendData(
+                position.coords.latitude,
+                position.coords.longitude,
+                position.coords.speed,
+                position.coords.accuracy
+              );
+            }
+          }
+        );
+      } catch (e) {
+        console.error("[tracker] Geolocation watcher failed:", e);
+        // Web fallback
+        watchIdRef.current = navigator.geolocation.watchPosition(
+          (pos) => sendData(pos.coords.latitude, pos.coords.longitude, pos.coords.speed, pos.coords.accuracy),
+          (err) => console.warn("[tracker] web GPS error:", err.message),
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+        );
+      }
     }
 
     // 3. Start the native Foreground Service (keeps process alive during screen-off)

@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.location.Location;
 import android.os.Build;
@@ -49,7 +50,7 @@ public class TrackingService extends Service {
     private static final int NOTIFY_ID = 9999;
     private static final long LOCATION_INTERVAL_MS = 15000;  // 15s
     private static final long MIN_LOCATION_INTERVAL_MS = 10000; // 10s fastest
-    // private static final float MIN_DISTANCE_METERS = 10f; // Removed to ensure stationary heartbeats
+    static final String PREFS_NAME = "bv_tracking_prefs";
 
     // Static fields so plugin can update them at any time
     public static String sEmployeeId = "";
@@ -65,6 +66,35 @@ public class TrackingService extends Service {
     // because Android throttles the UI thread hard when the screen turns off.
     private HandlerThread locationHandlerThread;
     private Handler locationHandler;
+
+    /** Persist identity to SharedPreferences so BootReceiver can restore after process death */
+    static void saveIdentity(Context ctx, String employeeId, String ownerUserId, String name, String backendUrl) {
+        ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString("employeeId", employeeId)
+            .putString("ownerUserId", ownerUserId)
+            .putString("name", name)
+            .putString("backendUrl", backendUrl)
+            .apply();
+    }
+
+    /** Clear persisted identity when tracking is intentionally stopped */
+    static void clearIdentity(Context ctx) {
+        ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().clear().apply();
+    }
+
+    /** Load identity from SharedPreferences into static fields */
+    static boolean loadIdentity(Context ctx) {
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String eid = prefs.getString("employeeId", "");
+        if (eid == null || eid.isEmpty()) return false;
+        sEmployeeId  = eid;
+        sOwnerUserId = prefs.getString("ownerUserId", "");
+        sName        = prefs.getString("name", "");
+        sBackendUrl  = prefs.getString("backendUrl", "");
+        return true;
+    }
 
     @Override
     public void onCreate() {
@@ -91,8 +121,13 @@ public class TrackingService extends Service {
             return START_NOT_STICKY;
         }
 
-        // Read identity params from intent (sent by TrackingPlugin)
-        if (intent != null) {
+        // Read identity params from intent (sent by TrackingPlugin).
+        // If intent has no extras (OS restart via START_STICKY), fall back to SharedPreferences.
+        boolean hasExtras = intent != null &&
+            intent.getStringExtra("employeeId") != null &&
+            !intent.getStringExtra("employeeId").isEmpty();
+
+        if (hasExtras) {
             String eid = intent.getStringExtra("employeeId");
             String oid = intent.getStringExtra("ownerUserId");
             String nm  = intent.getStringExtra("name");
@@ -101,6 +136,16 @@ public class TrackingService extends Service {
             if (oid != null && !oid.isEmpty()) sOwnerUserId = oid;
             if (nm  != null && !nm.isEmpty())  sName = nm;
             if (url != null && !url.isEmpty())  sBackendUrl = url;
+            // Persist so we survive process death
+            saveIdentity(this, sEmployeeId, sOwnerUserId, sName, sBackendUrl);
+        } else if (sEmployeeId.isEmpty()) {
+            // Process was killed and restarted by OS — restore from SharedPreferences
+            if (!loadIdentity(this)) {
+                Log.w(TAG, "No stored identity — stopping service (tracking was not active)");
+                stopSelf();
+                return START_NOT_STICKY;
+            }
+            Log.i(TAG, "Restored identity from prefs: employee=" + sEmployeeId);
         }
 
         Log.i(TAG, "Starting foreground for employee=" + sEmployeeId + " owner=" + sOwnerUserId);
@@ -227,6 +272,8 @@ public class TrackingService extends Service {
             locationHandler = null;
         }
         releaseWakeLock();
+        // Clear persisted identity — tracking was intentionally stopped
+        clearIdentity(this);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE);
         } else {

@@ -29,9 +29,9 @@ public class BootReceiver extends BroadcastReceiver {
 
         Log.i(TAG, "Boot completed — checking if tracking should restart");
 
-        // Only restart if we have stored identity (i.e., tracking was active before reboot)
-        if (TrackingService.sEmployeeId == null || TrackingService.sEmployeeId.isEmpty()) {
-            Log.i(TAG, "No active tracking session — skipping auto-restart");
+        // Load identity from SharedPreferences — static fields are always empty after reboot
+        if (!TrackingService.loadIdentity(context)) {
+            Log.i(TAG, "No stored tracking session — skipping auto-restart");
             return;
         }
 
