@@ -275,7 +275,14 @@ export function EmployeesPage() {
     if (!empForm.name || !empForm.email) return toast.error('Name & Email required');
     setEmpSaving(true);
     try {
-      const profileId = localStorage.getItem('selectedProfileId');
+      const profileId = (() => {
+        try {
+          const raw = localStorage.getItem('currentProfile');
+          if (!raw) return null;
+          const p = JSON.parse(raw);
+          return (typeof p === 'string' ? JSON.parse(p) : p)?.id ?? null;
+        } catch { return null; }
+      })();
       const finalRole = empForm.role === 'custom' ? 'viewer' : empForm.role;
       const finalCustomRoleId = empForm.role === 'custom' ? empForm.customRoleId : null;
 
