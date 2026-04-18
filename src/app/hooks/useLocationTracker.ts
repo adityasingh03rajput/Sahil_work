@@ -268,12 +268,28 @@ export function useLocationTracker() {
     // ── App state bridge — reconnect on foreground return ───────────────────
     if (appListenerRef.current) appListenerRef.current.remove();
     appListenerRef.current = await App.addListener("appStateChange", ({ isActive }) => {
-      if (isActive && socketRef.current) {
-        const s = socketRef.current;
-        if (!s.connected) {
-          s.connect();
-        } else {
-          flush(s);
+      if (isActive) {
+        // Returning to foreground — immediate re-sync
+        if (socketRef.current) {
+          if (!socketRef.current.connected) {
+            socketRef.current.connect();
+          } else {
+            flush(socketRef.current);
+          }
+        }
+      } else {
+        // App backgrounded — send a final high-priority heartbeat if we have a recent point
+        if (socketRef.current?.connected && prevRef.current) {
+           const now = Date.now();
+           socketRef.current.emit("employee-location", {
+             name: nameRef.current,
+             lat: prevRef.current.lat,
+             lng: prevRef.current.lng,
+             speed: 0, 
+             heading: 0,
+             accuracy: 10,
+             updatedAt: new Date(now).toISOString(),
+           });
         }
       }
     });
