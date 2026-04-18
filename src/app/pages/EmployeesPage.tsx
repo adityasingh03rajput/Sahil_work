@@ -678,7 +678,7 @@ export function EmployeesPage() {
                      <Input type="number" value={empForm.geofenceMeters} onChange={e => setEmpForm({...empForm, geofenceMeters: Number(e.target.value)})} className="rounded-xl h-12 bg-muted/30 border-none" />
                    </div>
 
-                   {/* SMART MAP PICKER */}
+                   {/* SMART MAP PICKER (Now with integrated search) */}
                    <div className="pt-2">
                      <WorkLocationPicker 
                        lat={empForm.lat} 
@@ -690,29 +690,6 @@ export function EmployeesPage() {
                          setEmpForm(prev => ({ ...prev, ...updates }));
                        }}
                      />
-                   </div>
-
-                   <div className="space-y-2 relative">
-                     <Label className="text-[10px] font-bold uppercase tracking-widest opacity-50 ml-1">Work Address (Manual Search)</Label>
-                     <Input
-                       value={empForm.address}
-                       onFocus={() => { if (addrSuggestions.length > 0) setShowSuggestions(true); }}
-                       onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                       onChange={e => { setEmpForm({...empForm, address: e.target.value}); suggestLocations(e.target.value); }}
-                       className="rounded-xl h-12 bg-muted/30 border-none"
-                       placeholder="Search address..."
-                     />
-                     {isSuggesting && <p className="text-[10px] text-muted-foreground px-1">Searching...</p>}
-                     {showSuggestions && addrSuggestions.length > 0 && (
-                       <div className="absolute z-[200] left-0 right-0 bottom-full mb-2 bg-card border border-border/40 rounded-2xl shadow-2xl p-2 max-h-48 overflow-y-auto">
-                         {addrSuggestions.map((s, i) => (
-                           <button key={i} onMouseDown={() => smartGeocode(s)} className="w-full text-left px-4 py-3 rounded-xl hover:bg-primary/10 text-xs font-bold transition-all border-b border-border/10 last:border-0">
-                             <span className="block truncate">{s.main}</span>
-                             <span className="block text-[10px] text-muted-foreground truncate font-normal">{s.secondary}</span>
-                           </button>
-                         ))}
-                       </div>
-                     )}
                    </div>
                 </div>
               </>

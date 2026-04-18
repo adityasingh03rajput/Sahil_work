@@ -408,7 +408,9 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
             c.setOptions({
               strokeColor: isOut ? "#f43f5e" : "#6366f1",
               fillColor:   isOut ? "#f43f5e" : "#6366f1",
-              fillOpacity: isOut ? 0.12 : 0.06,
+              fillOpacity: isOut ? 0.25 : 0.15,
+              strokeWeight: 3,
+              strokeOpacity: 0.8,
             });
           } else {
             geofenceRef.current.get(emp.employeeId).setMap(null);
@@ -419,8 +421,8 @@ export function EmployeeTrackingMap({ profileId }: { profileId?: string | null }
             map,
             center: { lat: emp.schedule.workLocation.lat, lng: emp.schedule.workLocation.lng },
             radius: emp.schedule.geofenceMeters,
-            fillColor: "#6366f1", fillOpacity: 0.06,
-            strokeColor: "#6366f1", strokeWeight: 1.5, strokeOpacity: 0.4,
+            fillColor: "#6366f1", fillOpacity: 0.15,
+            strokeColor: "#6366f1", strokeWeight: 3, strokeOpacity: 0.7,
             clickable: false,
           });
           geofenceRef.current.set(emp.employeeId, circle);
