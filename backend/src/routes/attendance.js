@@ -127,7 +127,7 @@ attendanceRouter.post('/live-location', liveLocationLimiter, async (req, res) =>
   }
 });
 
-/** Google Places Autocomplete proxy (New API) — keeps API key server-side */
+/** Google Places Autocomplete proxy (Legacy) — biased search suggestions */
 attendanceRouter.get('/places/autocomplete', async (req, res) => {
   const { q, lat, lng } = req.query;
   if (!q || String(q).trim().length < 2) return res.json([]);
@@ -136,58 +136,42 @@ attendanceRouter.get('/places/autocomplete', async (req, res) => {
   if (!key) return res.status(500).json({ error: 'Maps key not configured' });
 
   try {
-    const body = {
+    const params = new URLSearchParams({
       input: String(q),
-      languageCode: 'en',
-      regionCode: 'IN',
-      includedRegionCodes: ['IN'],
-    };
-    // Bias toward user location if provided
+      key: key,
+      language: 'en',
+    });
+
     if (lat && lng) {
-      body.locationBias = {
-        circle: {
-          center: { latitude: Number(lat), longitude: Number(lng) },
-          radius: 50000, // 50km
-        },
-      };
+      params.set('location', `${lat},${lng}`);
+      params.set('radius', '50000'); // 50km bias
     }
 
-    const r = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': key,
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(5000),
+    const r = await fetch(`https://maps.googleapis.com/maps/api/place/autocomplete/json?${params}`, {
+      signal: AbortSignal.timeout(6000),
     });
 
     const data = await r.json();
 
-    if (!r.ok) {
-      return res.status(502).json({ error: data.error?.status, message: data.error?.message });
+    if (!r.ok || data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+      return res.status(502).json({ error: data.status, message: data.error_message });
     }
 
-    const results = (data.suggestions || [])
-      .filter((s) => s.placePrediction)
-      .map((s) => {
-        const p = s.placePrediction;
-        return {
-          place_id: p.placeId,
-          description: p.text?.text ?? '',
-          main: p.structuredFormat?.mainText?.text ?? p.text?.text?.split(',')[0] ?? '',
-          secondary: p.structuredFormat?.secondaryText?.text ?? '',
-          types: p.types ?? [],
-        };
-      });
+    const results = (data.predictions || []).map((p) => ({
+      place_id: p.place_id,
+      description: p.description,
+      main: p.structured_formatting?.main_text ?? p.description.split(',')[0],
+      secondary: p.structured_formatting?.secondary_text ?? '',
+      types: p.types ?? [],
+    }));
 
     res.json(results);
-  } catch (e) {
-    res.status(502).json({ error: 'Places API error', message: e.message });
+  } catch (err) {
+    res.status(502).json({ error: 'PROXY_FAILURE', message: err.message });
   }
 });
 
-/** Google Place Details (New API) — resolve place_id → lat/lng + address */
+/** Google Places Details proxy (Legacy) — place_id → lat/lng + address */
 attendanceRouter.get('/places/details', async (req, res) => {
   const { place_id } = req.query;
   if (!place_id) return res.status(400).json({ error: 'place_id required' });
@@ -196,25 +180,31 @@ attendanceRouter.get('/places/details', async (req, res) => {
   if (!key) return res.status(500).json({ error: 'Maps key not configured' });
 
   try {
-    const r = await fetch(
-      `https://places.googleapis.com/v1/places/${encodeURIComponent(String(place_id))}?fields=location,formattedAddress,displayName`,
-      {
-        headers: { 'X-Goog-Api-Key': key },
-        signal: AbortSignal.timeout(5000),
-      }
-    );
+    const params = new URLSearchParams({
+      place_id: String(place_id),
+      key: key,
+      fields: 'geometry,name,formatted_address',
+    });
+
+    const r = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?${params}`, {
+      signal: AbortSignal.timeout(6000),
+    });
+
     const data = await r.json();
 
-    if (!r.ok) return res.status(502).json({ error: data.error?.status, message: data.error?.message });
+    if (!r.ok || data.status !== 'OK') {
+      return res.status(502).json({ error: data.status, message: data.error_message });
+    }
 
+    const loc = data.result.geometry.location;
     res.json({
-      lat: data.location?.latitude,
-      lng: data.location?.longitude,
-      address: data.formattedAddress ?? data.displayName?.text ?? '',
-      name: data.displayName?.text ?? '',
+      lat: loc.lat,
+      lng: loc.lng,
+      name: data.result.name,
+      address: data.result.formatted_address,
     });
-  } catch (e) {
-    res.status(502).json({ error: 'Place details error', message: e.message });
+  } catch (err) {
+    res.status(502).json({ error: 'PROXY_FAILURE', message: err.message });
   }
 });
 
